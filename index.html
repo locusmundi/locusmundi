@@ -361,6 +361,24 @@ const T = {
     foot_policy:"No se acepta contenido ofensivo, discriminatorio ni falso.",
     foot_contact:"Contacto",foot_policy_lnk:"Política de uso",
     foot_aviso:"Aviso Legal",foot_privacidad:"Privacidad",foot_cookies:"Cookies",foot_condiciones:"Condiciones de Publicación",
+    foot_collab:"Colabora con Locus Mundi",
+    collab_h:"Colabora con Locus Mundi",
+    collab_sub:"Locus Mundi crece gracias a quienes creemos en preservar y deseamos compartir nuestra memoria generacional. Además de «recordar, contar, publicar y compartir», hay otras formas de participar activamente en la plataforma:",
+    collab_a_h:"Habla de nosotros",
+    collab_a_sub:"Cuéntale a tus contactos que existimos, e invítales a hacer lo mismo con los suyos.",
+    collab_copy_btn:"Copiar mensaje para compartir",
+    collab_copied:"✓ Copiado",
+    collab_b_h:"Patrocina la plataforma",
+    collab_b_sub:"Si representas una empresa, escríbenos para estudiar juntos las distintas formas de patrocinio.",
+    collab_b_btn:"Escribir sobre patrocinio",
+    collab_sponsor_subject:"Patrocinio — Locus Mundi",
+    collab_sponsor_body:"Hola,\n\nNos gustaría conocer más sobre las opciones de patrocinio de Locus Mundi.\n\nNombre de la empresa:\nSector:\nTipo de patrocinio que os interesa (económico, en especie, difusión, otro):\nPresupuesto aproximado (opcional):\n\nGracias,",
+    collab_c_h:"Haz una aportación directa",
+    collab_c_sub:"Si eres Autor, Lector o simplemente quieres ayudar, cualquier aportación cuenta para la consolidación de la plataforma.",
+    collab_free_amount:"Libre",
+    collab_c_list:"Quiero aparecer en el listado público de colaboradores de Locus Mundi.",
+    collab_c_ambassador:"Como agradecimiento, te nombraremos embajador o embajadora de Locus Mundi y te mantendremos informado del progreso de la plataforma.",
+    collab_c_btn:"Hacer una aportación",
     accept_terms_pre:"He leído y acepto las",accept_terms_link:"Condiciones de Publicación para Autores",
     legal_en_note:"Disponible por ahora solo en español.",
     back:"← Volver a la biblioteca",back_home:"← Volver al inicio",
@@ -429,6 +447,24 @@ const T = {
     foot_policy:"Offensive, discriminatory or false content is not accepted.",
     foot_contact:"Contact",foot_policy_lnk:"Terms of use",
     foot_aviso:"Legal Notice",foot_privacidad:"Privacy",foot_cookies:"Cookies",foot_condiciones:"Publishing Terms",
+    foot_collab:"Get involved with Locus Mundi",
+    collab_h:"Get involved with Locus Mundi",
+    collab_sub:"Locus Mundi grows thanks to those who believe in preserving and want to share our generational memory. Beyond «remember, tell, publish and share», there are other ways to actively take part in the platform:",
+    collab_a_h:"Spread the word",
+    collab_a_sub:"Tell your contacts we exist, and invite them to do the same with theirs.",
+    collab_copy_btn:"Copy message to share",
+    collab_copied:"✓ Copied",
+    collab_b_h:"Sponsor the platform",
+    collab_b_sub:"If you represent a company, write to us to explore sponsorship options together.",
+    collab_b_btn:"Write about sponsorship",
+    collab_sponsor_subject:"Sponsorship — Locus Mundi",
+    collab_sponsor_body:"Hello,\n\nWe'd like to learn more about Locus Mundi's sponsorship options.\n\nCompany name:\nIndustry:\nType of sponsorship you're interested in (financial, in-kind, promotion, other):\nApproximate budget (optional):\n\nThank you,",
+    collab_c_h:"Make a direct contribution",
+    collab_c_sub:"Whether you're an Author, a Reader, or simply want to help, every contribution counts toward the platform's future.",
+    collab_free_amount:"Custom",
+    collab_c_list:"I'd like to appear on Locus Mundi's public list of contributors.",
+    collab_c_ambassador:"As a thank-you, we'll name you a Locus Mundi ambassador and keep you informed of the platform's progress.",
+    collab_c_btn:"Make a contribution",
     accept_terms_pre:"I have read and accept the",accept_terms_link:"Publishing Terms for Authors",
     legal_en_note:"Currently available in Spanish only.",
     back:"← Back to library",back_home:"← Back to home",
@@ -688,6 +724,75 @@ function LegalModal({docKey,onClose,t,lang}) {
   );
 }
 
+function CollaborateModal({onClose,t,lang}) {
+  const [copied,setCopied]=useState(false);
+  const [amount,setAmount]=useState(25);
+  const [listMe,setListMe]=useState(false);
+  const shareText=lang==="EN"
+    ? "Look at this new platform I found: Locus Mundi (locusmundi.com), a space to preserve and share family memory. I thought it might interest you — here's the link, and if you'd like, please pass it on to your own contacts too."
+    : "Mira qué nueva plataforma ha aparecido en internet: Locus Mundi (locusmundi.com), un espacio para preservar y compartir la memoria familiar. Creo que puede interesarte — te paso el enlace, y si te animas, reenvíalo también a tus contactos.";
+  const copyMsg=()=>{
+    if(navigator.clipboard){navigator.clipboard.writeText(shareText).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);});}
+  };
+  const mailtoSponsor="mailto:contactlocusmundi@gmail.com?subject="+encodeURIComponent(t.collab_sponsor_subject)+"&body="+encodeURIComponent(t.collab_sponsor_body);
+  const tiers=[10,25,50,100];
+  return (
+    <div className="ov" onClick={onClose}>
+      <div className="modal" style={{maxWidth:"520px"}} onClick={e=>e.stopPropagation()}>
+        <button className="modal-x" onClick={onClose}>✕</button>
+        <div className="modal-h">{t.collab_h}</div>
+        <p className="modal-sub">{t.collab_sub}</p>
+
+        <div style={{borderTop:"1px solid var(--border)",paddingTop:"1rem",marginBottom:"1rem"}}>
+          <div style={{display:"flex",alignItems:"baseline",gap:"0.5rem",marginBottom:"0.3rem"}}>
+            <span style={{fontFamily:"var(--serif)",color:"var(--gold)",fontWeight:600}}>a</span>
+            <span style={{fontFamily:"var(--serif)",fontSize:"1.02rem",color:"var(--ink)",fontWeight:600}}>{t.collab_a_h}</span>
+          </div>
+          <p style={{fontFamily:"var(--body)",fontSize:"0.85rem",color:"var(--muted)",lineHeight:1.6,marginBottom:"0.6rem"}}>{t.collab_a_sub}</p>
+          <button className="btn-out" onClick={copyMsg}>{copied?t.collab_copied:t.collab_copy_btn}</button>
+        </div>
+
+        <div style={{borderTop:"1px solid var(--border)",paddingTop:"1rem",marginBottom:"1rem"}}>
+          <div style={{display:"flex",alignItems:"baseline",gap:"0.5rem",marginBottom:"0.3rem"}}>
+            <span style={{fontFamily:"var(--serif)",color:"var(--gold)",fontWeight:600}}>b</span>
+            <span style={{fontFamily:"var(--serif)",fontSize:"1.02rem",color:"var(--ink)",fontWeight:600}}>{t.collab_b_h}</span>
+          </div>
+          <p style={{fontFamily:"var(--body)",fontSize:"0.85rem",color:"var(--muted)",lineHeight:1.6,marginBottom:"0.6rem"}}>{t.collab_b_sub}</p>
+          <a href={mailtoSponsor} className="btn-out" style={{display:"inline-block",textDecoration:"none",textAlign:"center"}}>{t.collab_b_btn}</a>
+        </div>
+
+        <div style={{borderTop:"1px solid var(--border)",paddingTop:"1rem"}}>
+          <div style={{display:"flex",alignItems:"baseline",gap:"0.5rem",marginBottom:"0.3rem"}}>
+            <span style={{fontFamily:"var(--serif)",color:"var(--gold)",fontWeight:600}}>c</span>
+            <span style={{fontFamily:"var(--serif)",fontSize:"1.02rem",color:"var(--ink)",fontWeight:600}}>{t.collab_c_h}</span>
+          </div>
+          <p style={{fontFamily:"var(--body)",fontSize:"0.85rem",color:"var(--muted)",lineHeight:1.6,marginBottom:"0.7rem"}}>{t.collab_c_sub}</p>
+          <div style={{display:"flex",gap:"0.5rem",flexWrap:"wrap",marginBottom:"0.7rem"}}>
+            {tiers.map(v=>(
+              <button key={v} type="button" onClick={()=>setAmount(v)}
+                style={{fontFamily:"var(--body)",fontSize:"0.85rem",padding:"0.4rem 0.9rem",borderRadius:"2px",cursor:"pointer",
+                  border:amount===v?"1px solid var(--gold)":"1px solid var(--border)",
+                  background:amount===v?"var(--gold)":"transparent",
+                  color:amount===v?"var(--cr)":"var(--ink)"}}>{v}€</button>
+            ))}
+            <button type="button" onClick={()=>setAmount("libre")}
+              style={{fontFamily:"var(--body)",fontSize:"0.85rem",padding:"0.4rem 0.9rem",borderRadius:"2px",cursor:"pointer",
+                border:amount==="libre"?"1px solid var(--gold)":"1px solid var(--border)",
+                background:amount==="libre"?"var(--gold)":"transparent",
+                color:amount==="libre"?"var(--cr)":"var(--ink)"}}>{t.collab_free_amount}</button>
+          </div>
+          <label style={{display:"flex",alignItems:"flex-start",gap:"0.5rem",marginBottom:"0.8rem",cursor:"pointer",fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--muted)",lineHeight:1.5}}>
+            <input type="checkbox" checked={listMe} onChange={e=>setListMe(e.target.checked)} style={{marginTop:"0.2rem"}}/>
+            <span>{t.collab_c_list}</span>
+          </label>
+          <p style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",lineHeight:1.6,marginBottom:"0.8rem"}}>{t.collab_c_ambassador}</p>
+          <button className="btn-pub" style={{width:"100%"}}>{t.collab_c_btn}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ContactModal({onClose,t}) {
   const [f,setF]=useState({name:"",email:"",msg:""});const [sent,setSent]=useState(false);
   const up=(k,v)=>setF(p=>(({...p,[k]:v})));
@@ -837,11 +942,12 @@ function Write({setView,onPublish,t,onLegal}) {
   );
 }
 
-function Footer({t,onContact,onLegal}) {
+function Footer({t,onContact,onLegal,onCollab}) {
   return (
     <footer className="foot">
       <img src={LOGO_SMALL} alt="Locus Mundi"/>
       <div className="foot-links">
+        <span className="foot-lnk" onClick={onCollab}>{t.foot_collab}</span>
         <span className="foot-lnk" onClick={()=>onLegal("aviso")}>{t.foot_aviso}</span>
         <span className="foot-lnk" onClick={()=>onLegal("privacidad")}>{t.foot_privacidad}</span>
         <span className="foot-lnk" onClick={()=>onLegal("cookies")}>{t.foot_cookies}</span>
@@ -862,6 +968,7 @@ function App() {
   const [autos,setAutos]=useState(SAMPLE);
   const [showContact,setShowContact]=useState(false);
   const [showLegal,setShowLegal]=useState(null);
+  const [showCollab,setShowCollab]=useState(false);
   const [cookieOk,setCookieOk]=useState(false);
   const open=(a)=>{setSel(a);setView("read");};
   return (
@@ -871,9 +978,10 @@ function App() {
       {view==="library"&&<Library autos={autos} openAuto={open} t={t}/>}
       {view==="read"&&<Read auto={sel} setView={setView} t={t}/>}
       {view==="write"&&<Write setView={setView} onPublish={a=>{setAutos(p=>[...p,a]);setView("library");}} t={t} onLegal={()=>setShowLegal("condiciones")}/>}
-      <Footer t={t} onContact={()=>setShowContact(true)} onLegal={setShowLegal}/>
+      <Footer t={t} onContact={()=>setShowContact(true)} onLegal={setShowLegal} onCollab={()=>setShowCollab(true)}/>
       {showContact&&<ContactModal onClose={()=>setShowContact(false)} t={t}/>}
       {showLegal&&<LegalModal docKey={showLegal} onClose={()=>setShowLegal(null)} t={t} lang={lang}/>}
+      {showCollab&&<CollaborateModal onClose={()=>setShowCollab(false)} t={t} lang={lang}/>}
       {!cookieOk&&<div className="cookie-bar"><span className="cookie-msg">{t.cookie_msg}</span><button className="cookie-btn" onClick={()=>setCookieOk(true)}>{t.cookie_ok}</button></div>}
     </div>
   );
