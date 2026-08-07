@@ -374,7 +374,7 @@ const T = {
     collab_b_h:"Patrocina la plataforma",
     collab_b_sub:"Si tienes una empresa, escríbenos para estudiar juntos las distintas formas de patrocinio.",
     collab_b_btn:"Escribir sobre patrocinio",
-    collab_sponsor_subject:"Patrocinio — Locus Mundi",
+    collab_sponsor_subject:"Propuesta de Patrocinio",
     collab_sponsor_body:"Hola,\n\nNos gustaría conocer más sobre las opciones de patrocinio de Locus Mundi.\n\nNombre de la empresa:\nSector:\nTipo de patrocinio que os interesa (económico, en especie, difusión, otro):\nPresupuesto aproximado (opcional):\n\nGracias,",
     collab_c_h:"Haz una aportación directa",
     collab_c_sub:"Si eres Autor, Lector o simplemente quieres contribuir a la expansión y consolidación de la plataforma, cualquier aportación es bienvenida.",
@@ -461,7 +461,7 @@ const T = {
     collab_b_h:"Sponsor the platform",
     collab_b_sub:"If you have a company, write to us to explore sponsorship options together.",
     collab_b_btn:"Write about sponsorship",
-    collab_sponsor_subject:"Sponsorship — Locus Mundi",
+    collab_sponsor_subject:"Sponsorship Proposal",
     collab_sponsor_body:"Hello,\n\nWe'd like to learn more about Locus Mundi's sponsorship options.\n\nCompany name:\nIndustry:\nType of sponsorship you're interested in (financial, in-kind, promotion, other):\nApproximate budget (optional):\n\nThank you,",
     collab_c_h:"Make a direct contribution",
     collab_c_sub:"Whether you're an Author, a Reader, or simply want to contribute to the platform's growth and consolidation, every contribution is welcome.",
@@ -731,8 +731,8 @@ function CollaborateModal({onClose,t,lang}) {
   const [amount,setAmount]=useState(25);
   const [listMe,setListMe]=useState(false);
   const shareText=lang==="EN"
-    ? "Look at this new platform I found: Locus Mundi (locusmundi.com), a space to preserve and share family memory. I thought it might interest you — here's the link, and if you'd like, please pass it on to your own contacts too."
-    : "Mira qué nueva plataforma ha aparecido en internet: Locus Mundi (locusmundi.com), un espacio para preservar y compartir la memoria familiar. Creo que puede interesarte — te paso el enlace, y si te animas, reenvíalo también a tus contactos.";
+    ? "I've come across a project that seems interesting. It's called Locus Mundi (locusmundi.com), and it exists so that anyone can preserve their memories and share them with friends and family — but above all, with future generations. It made me think of you. If you think it might interest someone in your circle, please pass it on too."
+    : "He descubierto un proyecto que parece interesante. Se llama Locus Mundi (locusmundi.com) y nace para que cualquier persona pueda preservar sus recuerdos y compartirlos con sus amigos y familiares, pero sobre todo con las generaciones futuras. Me acordé de ti al verlo. Si crees que puede interesarle a alguien de tu entorno o de tus contactos, compárteselo también.";
   const copyMsg=()=>{
     if(navigator.clipboard){navigator.clipboard.writeText(shareText).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);});}
   };
