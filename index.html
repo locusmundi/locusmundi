@@ -79,9 +79,15 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .sec-h{font-family:var(--serif);font-size:2rem;font-weight:400;color:var(--ink);
   margin-bottom:2.2rem;border-bottom:1px solid var(--border);padding-bottom:0.9rem}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1.4rem}
-.card{background:var(--bg3);border:1px solid var(--border);border-radius:3px;
-  padding:1.4rem;cursor:pointer;transition:transform .2s,box-shadow .2s;display:flex;flex-direction:column}
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;
+  padding:1.4rem;cursor:pointer;transition:transform .2s,box-shadow .2s;display:flex;flex-direction:column;position:relative}
 .card:hover{transform:translateY(-3px);box-shadow:0 8px 26px var(--shadow)}
+.card-founder{border:2px solid var(--gold)}
+.founder-ribbon{position:absolute;top:-1px;right:-1px;background:var(--gold);color:var(--bg3);
+  font-family:var(--body);font-size:0.6rem;letter-spacing:0.08em;padding:3px 10px;
+  border-radius:0 11px 0 8px}
+.c-num{font-family:var(--serif);font-size:0.7rem;letter-spacing:0.14em;color:var(--gold);
+  margin-bottom:0.5rem}
 .card-cover{width:100%;height:140px;object-fit:cover;border-radius:2px;
   margin-bottom:0.8rem;border:1px solid var(--border)}
 .c-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.9rem}
@@ -90,8 +96,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   margin-bottom:0.3rem;line-height:1.2}
 .c-year{font-family:var(--body);font-size:0.78rem;color:var(--gold);margin-bottom:0.8rem}
 .c-prev{font-family:var(--body);font-size:0.96rem;line-height:1.62;color:var(--muted);flex:1;font-style:italic}
-.c-foot{margin-top:1.1rem;padding-top:0.75rem;border-top:1px solid var(--border);
-  display:flex;align-items:center;justify-content:space-between}
+.c-foot{margin-top:1.1rem;padding-top:0.75rem;border-top:1px solid var(--border)}
 .tags{display:flex;gap:0.38rem;flex-wrap:wrap}
 .tag{font-size:0.64rem;letter-spacing:0.08em;text-transform:lowercase;
   background:var(--bg);border:1px solid var(--border);color:var(--muted);
@@ -333,16 +338,16 @@ const FAQ_ES = [{"q": "¿Qué es Locus Mundi?", "a": "Locus Mundi es una platafo
 const FAQ_EN = [{"q": "What is Locus Mundi?", "a": "Locus Mundi is a platform created to write, publish and preserve autobiographies and life stories, with the purpose of keeping the memory of our generation alive and making it accessible to future generations."}, {"q": "Who can publish their autobiography?", "a": "Anyone, regardless of age, nationality or language. You don't need to be a writer or have previous experience. Just a life worth telling."}, {"q": "Is publishing free?", "a": "Yes, always. The Base level lets you publish unlimited text, one cover photo, and keep your autobiography in Locus Mundi's permanent archive. There are also optional paid extras, such as additional photos, a printable PDF file, or the AI editorial assistant."}, {"q": "What kind of stories can be published?", "a": "Locus Mundi publishes exclusively autobiographies, family memoirs and real life stories. It is not a fiction platform, although each Author may use different literary resources and genres to tell their story. Fragments containing offensive, discriminatory or clearly false content will be censored and removed."}, {"q": "Can Locus Mundi translate my autobiography into other languages?", "a": "Yes, using AI, the platform can translate your story into other languages so it can be read by people from other countries, without ever replacing the original text. As a reader, you can also translate any biography you wish to read into your preferred language."}, {"q": "Can I publish even if my autobiography isn't finished?", "a": "Yes. You can choose to publish it once you consider it complete, or publish it chapter by chapter, whichever you prefer. Keep in mind that only one autobiography can be published per Author."}, {"q": "Can I edit my autobiography after publishing it?", "a": "Yes, whenever you want, using your Author password. Only you can edit or delete it."}, {"q": "Can I add photos, videos or documents?", "a": "For now, Locus Mundi only allows editable photos. Adding videos or other documents is planned for the future."}, {"q": "Can I print my autobiography?", "a": "Only Authors can request, as a paid option, a printable PDF file to print their work in DIN A4 or DIN A5 format."}, {"q": "How does Locus Mundi protect my personal data?", "a": "Locus Mundi does not sell or trade your data, in compliance with European GDPR. It only collects the data necessary to provide the service, and allows you to exercise your rights of access, rectification, objection or erasure under the regulation. More details in our Privacy Policy."}];
 
 const SAMPLE = [
-  { id:1, name:"Irene Vilaseca Fructuoso", title:"Recuerdos de mi familia", born:1932, country:"España", flag:"🇪🇸", lang:"ES",
+  { id:1, name:"Irene Vilaseca Fructuoso", title:"Recuerdos de mi familia", born:1932, country:"España", flag:"🇪🇸", lang:"ES", profession:"ama de casa", founder:false,
     preview:"Hoy he dormido en Sant Feliu de Codines porque quería celebrar mis 70 años aquí...",
     text:"ÍNDICE:\nI: Unas cuantas bombas para romper el hielo\nII: Comienza la historia familiar\nIII: Joan Vilaseca y los diarios de la familia\nIV: Los Segalés, otra familia que viene de antiguo\nV: Mis abuelos\nVI: Hacia Santa Coloma\nVII: Recuerdos del tío José\nVIII: Continúa el avi el relato de su vida\nIX: La salud de mi padre y otras batallas\nX: La nueva familia se abre camino\nXI: Los últimos años\nXII: La familia de mi madre: los Fructuoso\napendice: ¿Y qué fue de la vida de Irene?\n\n— — —\n\nHoy he dormido en Sant Feliu de Codines porque quería celebrar mis 70 años aquí. En la mañana del 25 de octubre, mi aniversario, me he asomado al balcón de casa para disfrutar una vez más del espléndido paisaje que se aprecia desde esta altura. Hay un extenso valle por el que serpentea un riachuelo junto a una montaña basáltica a la que llamamos «la roca pelada». Se puede divisar abajo y tranquilo el pueblo de Riells del Fai. Y al otro lado del valle, frente a mí, hay una antigua masía llamada El Villar. No muy lejos de allí se encuentra una pequeña ermita en cuyo altar la Virgen amamanta al niño, por eso se la llama «La Virgen de la Leche».\n\nA esta roca había ido de niña muchas veces de excursión, y de mayor, con grupos de amigos, en noches de luna llena, íbamos a comer allí sandías. Este es el paisaje que me ha acompañado en los largos veranos de tres meses a lo largo de mi vida.\n\nMuchos recuerdos afloran en mi mente. Parece que fue ayer cuando un día, al volver del colegio, le dije a mi madre que estaba harta de hacer cada día lo mismo. Debía yo tener entonces unos 14 años. Mi madre me miró sonriente y me contestó, sin inmutarse, que la niñez también pasa y cuando fuera mayor y tuviera mi propia familia, me daría cuenta de la velocidad con la que pasan los años.\n\nSi la tuviese ahora delante, le diría cuánta razón tenía; que, sin darme cuenta, apenas un respiro, he llegado a este punto, algo que entonces me parecía inimaginable. Es tiempo pues de poner en claro los recuerdos y contaros mi historia. Bueno, nuestra historia: la historia de la familia.", fullUrl:"irene-vilaseca.html", tags:["Barcelona","historia familiar","memoria"] },
-  { id:2, name:"Olegario Sotelo Blanco", title:"O neno pastor que venceu o lobo", born:1938, country:"España", flag:"🇪🇸", lang:"GL",
+  { id:2, name:"Olegario Sotelo Blanco", title:"O neno pastor que venceu o lobo", born:1938, country:"España", flag:"🇪🇸", lang:"GL", profession:"editor", founder:true,
     preview:"Érguete, neno. Xa fun á fonte por un cántaro de auga...",
     text:"ÍNDICE:\ncap-I: Un pastor de Quintela\ncap-II: Primeiros traballos en Barcelona e o servizo militar\ncap-III: Regreso a Barcelona\ncap-IV: Unha afronta xudicial\ncap-V: Sotelo Blanco Edicións\ncap-VI: O cancro\ncap-VII: Escritos\ncap-VIII: Tempo de lecer e viaxar\ncap-IX: O Centro Galego de Barcelona\ncap-X: Outros emprendementos\ncap-XI: «Amigos, coñecidos e saudados»\ncap-XII: Diario de pandemia\ncap-XIII: Álbum de familia\ncap-XIV: Co país ao lombo\ncap-XV: Unha vida na maleta\n\n— — —\n\n–Érguete, neno. Xa fun á fonte por un cántaro de auga. Hoxe hai que lavarse porque vai ser o teu primeiro día de escola e a señorita mestra dixo que tiñas que ir ben limpo –dime a miña nai ben cedo un día de outono.\n\nA auga na cunca estaba fría, pero o aseo facíao só porque xa tiña cinco anos, así que me lavei ben rápido. Cun pantalón curto, a camisa de estrea que me fixera a costureira Jovita e unhas galochas novas que me mordían os dedos dos pés, corrín cara á cociña para almorzar.\n\nToño, que era un ano máis vello e xa ía á escola, explicoume que debía poñer na galocha dereita tres cravos na punta. Así, se algún rapaz se metía comigo, podía bourarlle na canela con esa galocha.\n\n–Por que teño que ir á escola? Non me sorprendeu ver a Jovita sentada á mesa. De cando en vez viña coa súa máquina de coser ao lombo e pasaba unsdías na casa remendando e facendo roupa para a familia. As teas xa as mercara a miña nai no comercio do Xosé María no Castro, que lle fiaba porque se coñecían dende nenos.\n\nJovita dicíame que os nenos debían de ir á escola para aprender moitas cousas e facer amigos. E faloume de rapaces que xa coñecía da misa. Lembrei cando ás noites, a carón do lume da lareira, os pais falaban dos veciños das cinco aldeas da parroquia: cantos fillos tiña cada matrimonio, se eran ricos ou pobres… E despois de facer os meus primeiros cálculos, malia non saber aritmética, decidín poñer catro cravos na miña galocha.\n\nA miña nai levoume ese primeiro día á escola e presentoume á señorita mestra, que só falaba castelán. Sentín moita estrañeza, porque eu unicamente coñecía a lingua dos meus pais. De que xeito podería aprender «moitas cousas» se non entendía o que falaban?", fullUrl:"olegario-sotelo.html", tags:["Galicia","emigración","memoria"] },
-  { id:3, name:"Pablo Cava Domínguez", title:"Historia de mi vida", born:1944, country:"España", flag:"🇪🇸", lang:"ES",
+  { id:3, name:"Pablo Cava Domínguez", title:"Historia de mi vida", born:1944, country:"España", flag:"🇪🇸", lang:"ES", profession:"empresario", founder:true,
     preview:"Antes de empezar a contar mi vida, quiero decir algo con sinceridad...",
     text:"ÍNDICE:\nIntroducción: El porqué de estas páginas\nCapítulo 1: Nacimiento de Pablito\nCapítulo 2: Un pínfano llamado Pablo Cava Domínguez\nCapítulo 3: Mi padre Jacinto\nCapítulo 4: La familia de mi padre\nCapítulo 5: Navidades de 1951\nCapítulo 6: Segovia: 1954\nCapítulo 7: Años 1954–1955\nCapítulo 8: Hemos llegado a Murcia: 1955\nCapítulo 9: Manuel Cava, mi tutor: 1962\nCapítulo 10: Verano de 1964\nCapítulo 11: Años 1960–1962\nCapítulo 12: La muerte de mi madre\nCapítulo 13: Campeonato Nacional de Atletismo (1958)\nCapítulo 14: El destino (1959)\nCapítulo 15: Navidades de 1963\nCapítulo 16: Los señores Remigio (1963–1964)\nCapítulo 17: Visita a mi tía Rosa en Barcelona (1964)\nCapítulo 18: Alsasua, Navarra (1964)\nCapítulo 19: Amor a primera vista (Alsasua, 1964)\nCapítulo 20: Un encargo inesperado en Valladolid\nCapítulo 21: La mili (1965)\nCapítulo 22: Licenciado (el 15 de diciembre de 1967), pero…\nCapítulo 23: De Alcántara a Barcelona (1967)\nCapítulo 24: Visita a un compañero de colegio (1967)\nCapítulo 25: Tres trabajos, un pínfano y un currante nato (1969)\nCapítulo 26: Diseñando circuitos impresos y mi futuro\nCapítulo 27: Verano en Estartit\nCapítulo 28: El señor Pajarito y la caída de DIGIPLOT\nCapítulo 29: Juan Belmonte (1980)\nCapítulo 30: Historia de mi vida (Yako)\nCapítulo 31: Carta a Chencha\nCapítulo 32: Pharmispania y la piscina: últimos años de trabajo\nCapítulo 33: Ruta extremeña con mi hijo\nCapítulo 34: Pinfanada en Valladolid\nAnexos: Sobre DIGIPLOT y la herida invisible\nPostdata: Familia futbolera – Can Barça\n\n— — —\n\nAntes de empezar a contar mi vida, quiero decir algo con sinceridad: nunca he sido un hombre de leer muchos libros, y menos aún de escribirlos. Pero son tantas las cosas que quiero dejar por escrito, que sé que algunas quedarán pendientes para otra ocasión.\n\nHe decidido no hablar de vivencias relacionadas con mi mujer, Ramona –fallecida el 26 de febrero de 2024– ni con mis hijos. Ellos forman parte de mi intimidad y quiero respetar su privacidad. Lo que sí puedo asegurar es que todo lo que aquí cuento es real. Son sucesos que viví, que me marcaron y que han influido en mi forma de ser a lo largo de toda mi vida.\n\nEn 1943 se formalizó en España el Patronato de Huérfanos del Ejército. Se crearon centros de enseñanza para acoger a los hijos de militares fallecidos por cualquier circunstancia. Para las viudas o familiares que tenían a su cargo a esos niños, no suponía ningún gasto económico. Ese Patronato formó parte esencial de mi historia.\n\nEste libro va dedicado a mi madre, Francisca Domínguez Miranda, que no tuvo la suerte de disfrutar de la vida como cualquier cristiano merece. Fue una madre luchadora, que se sacrificó por sus hijos. Un derrame cerebral apagó la luz de su vida cuando por fin podía empezar a disfrutar de nosotros. Mamá: te quise mucho y te sigo queriendo. D.E.P.\n\nTambién va dedicado a mi padre, Jacinto Cava González. Se fue demasiado pronto. Yo, Pablito, tenía solo dieciocho meses y no pude conocerlo. Mi madre me habló mucho de él: que era muy bueno. A veces ser tan bueno no es bueno. Él se dejó llevar por esa bondad, aun estando delicado de salud. No le guardo rencor. Amaba su profesión y eso le hizo decir que sí cuando no debía. D.E.P.\n\nAntes de seguir, quiero presentar a mis padres con un recuerdo cariñoso.", fullUrl:"pablo-cava.html", tags:["Extremadura","traición","memoria"] },
-  { id:4, name:"X. Batlle", title:"La vida escrita", born:1961, country:"España", flag:"🇪🇸", lang:"CA",
+  { id:4, name:"X. Batlle", title:"La vida escrita", born:1961, country:"España", flag:"🇪🇸", lang:"CA", profession:"filósofo", founder:false,
     preview:"Este no va a ser un relato escrito a lo largo, sino hacia el fondo de mí mismo...",
     text:"ÍNDICE:\nPresentación: De Barcelona al mundo\nÁlbum de familia: 1998\nEl nuevo mundo: 2001\nCelebración del medio siglo: 2011\nEl año de la pandemia: 2020\nRoda al món i torna al Born: 2025\nDespedida: La guinda del pastel\n\n— — —\n\nEste no va a ser un relato escrito a lo largo, sino hacia el fondo de mí mismo. Podría decirse que nací en una cuna dorada (un siglo en paz, una ciudad hermosa que bebe en las aguas del Mediterráneo, familia acomodada) y que nada me faltó, porque a mi cuerpo bien nutrido y mejor educado, mis padres y el resto de mi familia le añadieron ideas y sueños. Quizá demasiados sueños. Algo me faltó siempre.\n\nDos amigos de juventud me han acompañado toda la vida: Imanol Lizarralde, otro «espíritu contemplativo» desubicado y lletraferit como yo, y Toni Alastuey, un «hombre de acción» cuyo aprecio y fortaleza me permitieron conocer aquello que era incapaz de vislumbrar con mis propios ojos.\n\nEstudié Filosofía y mi formación me permitió trabajar en una editorial (Ronsel, fundada por Olegario Sotelo Blanco) durante quince años, publicando a Dickens, Saramago y también a autores noveles como Miguel Herráez, Miguel Catalán o Asdrúbal Hernández, que con el paso de los años se convirtieron en amigos.\n\nEn ese momento de crecimiento personal nacieron mis dos hijos (Carlos y Àlex), y comencé a sufrir las primeras orfandades, lo que anunciaba un cambio de ciclo. Poco después de cumplir los cuarenta, me divorcié y mi vida se partió en dos. Dejé entonces mi trabajo, mi ciudad, mi pasado y salté al vacío.\n\nPor desgracia, a mí nunca me cuadraron las palabras de mi abuelo paterno: «¿Y cómo queréis que me haga rico si me paso el día trabajando?». Yo me paso el día pensando, imaginando, también escribiendo, y eso no da ni para ser pobre.", fullUrl:"javier-batlle.html", tags:["Barcelona","poesía","memoria"] },
 ];
@@ -356,7 +361,7 @@ const T = {
     free_forever:"Gratis para siempre.",
     btn_write:"Escribe tu historia",btn_explore:"Explorar la biblioteca",
     recent_lbl:"Historias recientes",recent_h:"Voces del mundo",see_all:"Ver toda la biblioteca",
-    lib_incentive:"Tu historia importa y no está en venta. Publícala gratis y forma parte de estas voces.",
+    lib_incentive:"Tu historia importa y no está en venta. Cuéntala.",
     cta_h1:"No hace falta ser escritor.",cta_h2:"Solo tener una vida que contar.",
     cta_body:"¿A quién no le gustaría mantener una última conversación con sus abuelos sobre el mundo que conocieron? Locus Mundi te invita a mantener esa conversación en el futuro con tus nietos.",
     cta_btn:"Empezar ahora — es gratis",
@@ -457,7 +462,7 @@ const T = {
     free_forever:"Free forever.",
     btn_write:"Write your story",btn_explore:"Explore the library",
     recent_lbl:"Recent stories",recent_h:"Voices of the world",see_all:"See the full library",
-    lib_incentive:"Your story matters, and it's not for sale. Publish it for free and become part of these voices.",
+    lib_incentive:"Your story matters, and it's not for sale. Tell it.",
     cta_h1:"You don't need to be a writer.",cta_h2:"Just have a life to tell.",
     cta_body:"Who wouldn't want one last conversation with their grandparents about the world they knew? Locus Mundi invites you to have that conversation in the future with your grandchildren.",
     cta_btn:"Start now — it's free",
@@ -576,8 +581,11 @@ function FaqItem({q,a}) {
 }
 
 function AutoCard({a,onClick,t}) {
+  const num=String(a.id).padStart(4,"0");
   return (
-    <div className="card fu" onClick={onClick}>
+    <div className={"card fu"+(a.founder?" card-founder":"")} onClick={onClick}>
+      {a.founder&&<div className="founder-ribbon">Autor fundador</div>}
+      <div className="c-num">Nº {num}</div>
       {a.cover&&<img src={a.cover} className="card-cover" alt={a.title||a.name}/>}
       <div className="c-meta"><span className="c-orig">{a.flag} {a.country}</span></div>
       <div className="c-name">{a.title||a.name}</div>
@@ -585,11 +593,10 @@ function AutoCard({a,onClick,t}) {
       {a.subtitle&&<div style={{fontFamily:"var(--body)",fontSize:"0.78rem",fontStyle:"italic",color:"var(--muted)",marginBottom:"0.3rem"}}>{a.subtitle}</div>}
       <div className="c-prev">"{a.preview}"</div>
       <div className="c-foot">
-        <div className="tags">{a.tags.slice(0,2).map(tg=><span key={tg} className="tag">{tg}</span>)}</div>
-        {a.fullUrl
-          ? <a className="read-full" href={a.fullUrl} target="_blank" onClick={e=>e.stopPropagation()}>📖 Historia completa</a>
-          : <button className="rlink" onClick={e=>{e.stopPropagation();onClick()}}>Leer →</button>
-        }
+        <div className="tags">
+          {a.tags.slice(0,2).map(tg=><span key={tg} className="tag">{tg}</span>)}
+          {a.profession&&<span className="tag">{a.profession}</span>}
+        </div>
       </div>
     </div>
   );
@@ -688,10 +695,13 @@ function Read({auto,setView,t}) {
       <div style={{fontSize:"1.8rem",marginBottom:"0.45rem"}}>{auto.flag}</div>
       <div className="r-orig">{auto.country} · {auto.lang}</div>
       <h1 className="r-name">{auto.title||auto.name}</h1>
-      <div className="r-meta">{t.born} {auto.born||"—"} · {auto.tags.join(", ")}</div>
+      <div className="r-meta">{t.born} {auto.born||"—"} · {[...auto.tags.slice(0,2),auto.profession].filter(Boolean).join(", ")}</div>
       <div className="r-body">{auto.text.split("\n\n").map((p,i)=><p key={i}>{p}</p>)}</div>
       <div style={{marginTop:"1.8rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"0.9rem"}}>
-        <div className="tags">{auto.tags.map(tg=><span key={tg} className="tag">{tg}</span>)}</div>
+        <div className="tags">
+          {auto.tags.slice(0,2).map(tg=><span key={tg} className="tag">{tg}</span>)}
+          {auto.profession&&<span className="tag">{auto.profession}</span>}
+        </div>
         <button className="share-btn" onClick={share}>{copied?t.share_copied:`↗ ${t.share_btn}`}</button>
       </div>
       {auto.fullUrl&&(
