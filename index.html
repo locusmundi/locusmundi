@@ -355,13 +355,14 @@ const SAMPLE = [
 const T = {
   ES:{
     archive:"ARCHIVO VIVO DE LA HUMANIDAD",
+    founder_label:"Autor fundador",lib_h:"Archivo global",
     nav_home:"Inicio",nav_lib:"Biblioteca",nav_write:"Escribe tu historia",
     slogan:"Recuerda · Cuenta · Publica · Comparte",
     hero_sub:"Tu vida importa y merece ser preservada.",
     free_forever:"Gratis para siempre.",
     btn_write:"Escribe tu historia",btn_explore:"Explorar la biblioteca",
     recent_lbl:"Historias recientes",recent_h:"Voces del mundo",see_all:"Ver toda la biblioteca",
-    lib_incentive:"Tu historia importa y no está en venta. Cuéntala.",
+    lib_incentive:"Tu historia importa y no está en venta. Escribe y lee gratis en cualquier idioma del mundo.",
     cta_h1:"No hace falta ser escritor.",cta_h2:"Solo tener una vida que contar.",
     cta_body:"¿A quién no le gustaría mantener una última conversación con sus abuelos sobre el mundo que conocieron? Locus Mundi te invita a mantener esa conversación en el futuro con tus nietos.",
     cta_btn:"Empezar ahora — es gratis",
@@ -456,13 +457,14 @@ const T = {
   },
   EN:{
     archive:"THE LIVING ARCHIVE OF HUMANITY",
+    founder_label:"Founding Author",lib_h:"Global archive",
     nav_home:"Home",nav_lib:"Library",nav_write:"Write your story",
     slogan:"Remember · Tell · Publish · Share",
     hero_sub:"Your life matters and deserves to be preserved.",
     free_forever:"Free forever.",
     btn_write:"Write your story",btn_explore:"Explore the library",
     recent_lbl:"Recent stories",recent_h:"Voices of the world",see_all:"See the full library",
-    lib_incentive:"Your story matters, and it's not for sale. Tell it.",
+    lib_incentive:"Your story matters, and it's not for sale. Write and read for free, in any language of the world.",
     cta_h1:"You don't need to be a writer.",cta_h2:"Just have a life to tell.",
     cta_body:"Who wouldn't want one last conversation with their grandparents about the world they knew? Locus Mundi invites you to have that conversation in the future with your grandchildren.",
     cta_btn:"Start now — it's free",
@@ -584,7 +586,7 @@ function AutoCard({a,onClick,t}) {
   const num=String(a.id).padStart(4,"0");
   return (
     <div className={"card fu"+(a.founder?" card-founder":"")} onClick={onClick}>
-      {a.founder&&<div className="founder-ribbon">Autor fundador</div>}
+      {a.founder&&<div className="founder-ribbon">{t.founder_label}</div>}
       <div className="c-num">Nº {num}</div>
       {a.cover&&<img src={a.cover} className="card-cover" alt={a.title||a.name}/>}
       <div className="c-meta"><span className="c-orig">{a.flag} {a.country}</span></div>
@@ -626,7 +628,7 @@ function Header({view,setView,lang,setLang,t}) {
 }
 
 function Home({autos,openAuto,setView,t}) {
-  const sorted = [...autos].sort((a,b)=>a.id-b.id);
+  const sorted = [...autos].sort((a,b)=>b.id-a.id).slice(0,8);
   return (
     <div>
       <section className="hero">
@@ -674,7 +676,7 @@ function Library({autos,openAuto,t}) {
   const filt=sorted.filter(a=>{const s=q.toLowerCase();return !s||a.name.toLowerCase().includes(s)||a.country.toLowerCase().includes(s)||a.text.toLowerCase().includes(s)||a.tags.some(tg=>tg.toLowerCase().includes(s));});
   return (
     <section className="sec">
-      <div className="sec-lbl">Archivo global</div>
+      <div className="sec-lbl">{t.lib_h}</div>
       <div className="sec-h">{t.recent_h}</div>
       <p style={{fontFamily:"var(--body)",fontStyle:"italic",fontSize:"0.92rem",color:"var(--muted)",marginTop:"-0.5rem",marginBottom:"1.2rem"}}>{t.lib_incentive}</p>
       <div className="sw"><span className="sico">🔍</span><input className="si" placeholder={t.search_ph} value={q} onChange={e=>setQ(e.target.value)}/></div>
