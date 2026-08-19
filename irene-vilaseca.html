@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet"/>
 <style>
 :root{--cr:#FAF7F0;--dk:#2A2316;--bu:#7B1E2E;--br:#5C3A1E;--ln:#D4C5A9;--qb:#F3EDE0}
-*{box-sizing:border-box;margin:0;padding:0}body{background:var(--cr);color:var(--dk);font-family:'EB Garamond',Georgia,serif;font-size:19px;line-height:1.85}
+*{box-sizing:border-box;margin:0;padding:0}body{background:var(--cr);color:var(--dk);font-family:'EB Garamond',Georgia,serif;font-size:1.1875rem;line-height:1.85}
 .wrap{max-width:780px;margin:0 auto;padding:60px 40px 120px}
 .cover{text-align:center;padding:80px 20px 60px;border-bottom:2px solid var(--bu);margin-bottom:60px}
 .cover h1{font-family:'Playfair Display',serif;font-size:2.4rem;color:var(--bu);line-height:1.2;margin-bottom:16px}
@@ -34,6 +34,14 @@ figcaption{font-family:'EB Garamond',serif;font-style:italic;font-size:.82rem;co
 hr.sep{border:none;border-top:1px solid var(--ln);margin:70px 0}
 .colophon{margin-top:2rem;padding-top:1.2rem;border-top:1px solid var(--ln);font-size:.86rem;color:var(--br);font-style:italic;text-align:right}
 @media(max-width:600px){.wrap{padding:30px 20px 80px}.cover h1{font-size:1.8rem}.ch-title{font-size:1.4rem}blockquote{padding:16px 18px}.epigraph{padding:30px 20px}}
+.fs-ctrl{display:flex;align-items:center;gap:0.5rem;margin:0 0 40px;justify-content:center}
+.fs-lbl{font-family:'EB Garamond',serif;font-size:0.76rem;letter-spacing:0.08em;color:var(--br);text-transform:uppercase;margin-right:0.2rem}
+.fs-btn{font-family:'Playfair Display',serif;border:1px solid var(--ln);background:var(--cr);color:var(--dk);width:2.1rem;height:2.1rem;border-radius:3px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.fs-btn:hover{background:var(--qb)}
+.fs-btn:disabled{opacity:0.35;cursor:default}
+.fs-btn.a-sm{font-size:0.82rem}
+.fs-btn.a-md{font-size:1.05rem}
+.fs-btn.a-lg{font-size:1.3rem}
 </style>
 </head>
 <body>
@@ -44,6 +52,13 @@ hr.sep{border:none;border-top:1px solid var(--ln);margin:70px 0}
   <h1>Recuerdos de mi familia</h1>
   <span class="author">Irene Vilaseca Fructuoso</span>
 </header>
+
+<div class="fs-ctrl" role="group" aria-label="Tamaño de letra">
+  <span class="fs-lbl">Tamaño de letra</span>
+  <button type="button" class="fs-btn a-sm" onclick="lmFontStep(-1)" aria-label="Reducir tamaño de letra">A−</button>
+  <button type="button" class="fs-btn a-md" onclick="lmFontStep(0)" aria-label="Tamaño de letra normal">A</button>
+  <button type="button" class="fs-btn a-lg" onclick="lmFontStep(1)" aria-label="Aumentar tamaño de letra">A+</button>
+</div>
 
 <div class="epigraph">
   Dedico esta historia de mi familia a todos los que se han sumado y seguirán sumándose a ella.
@@ -470,5 +485,33 @@ hr.sep{border:none;border-top:1px solid var(--ln);margin:70px 0}
 </div>
 
 </div>
+<script>
+(function(){
+  var STEPS=[87,100,113,130,150]; // porcentaje del tamaño base del documento
+  var KEY='lm_read_fs';
+  function idx(){
+    var s=parseInt(localStorage.getItem(KEY),10);
+    return (Number.isInteger(s)&&s>=0&&s<STEPS.length)?s:1;
+  }
+  function updateButtons(i){
+    document.querySelectorAll('.a-sm').forEach(function(b){b.disabled=(i===0);});
+    document.querySelectorAll('.a-md').forEach(function(b){b.disabled=(i===1);});
+    document.querySelectorAll('.a-lg').forEach(function(b){b.disabled=(i===STEPS.length-1);});
+  }
+  function apply(i){
+    document.documentElement.style.fontSize=STEPS[i]+'%';
+    localStorage.setItem(KEY,String(i));
+    updateButtons(i);
+  }
+  window.lmFontStep=function(dir){
+    var i=idx();
+    if(dir===-1) i=Math.max(0,i-1);
+    else if(dir===1) i=Math.min(STEPS.length-1,i+1);
+    else i=1;
+    apply(i);
+  };
+  apply(idx());
+})();
+</script>
 </body>
 </html>
