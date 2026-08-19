@@ -145,8 +145,18 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   font-weight:400;line-height:1.1;color:var(--ink);margin-bottom:0.45rem}
 .r-meta{font-family:var(--body);font-size:0.86rem;color:var(--muted);
   margin-bottom:2.2rem;padding-bottom:1.8rem;border-bottom:1px solid var(--border)}
-.r-body{font-family:var(--body);font-size:1.15rem;line-height:1.82;color:var(--ink)}
+.r-body{font-family:var(--body);font-size:var(--read-fs,1.15rem);line-height:1.82;color:var(--ink)}
 .r-body p{margin-bottom:1.3em}
+.fs-ctrl{display:flex;align-items:center;gap:0.5rem;margin:0 0 1.6rem 0}
+.fs-lbl{font-family:var(--body);font-size:0.76rem;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;margin-right:0.2rem}
+.fs-btn{font-family:var(--serif);border:1px solid var(--border);background:#fff;color:var(--ink);
+  width:2.1rem;height:2.1rem;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background 0.15s,color 0.15s}
+.fs-btn:hover{background:var(--bg3)}
+.fs-btn:disabled{opacity:0.35;cursor:default;background:none}
+.fs-btn.a-sm{font-size:0.82rem}
+.fs-btn.a-md{font-size:1.05rem}
+.fs-btn.a-lg{font-size:1.3rem}
 .tr-bar{margin-top:2.5rem;padding:1.4rem;background:var(--bg3);
   border:1px solid var(--border);border-radius:3px}
 .tr-tit{font-family:var(--body);font-size:0.74rem;letter-spacing:0.2em;
@@ -318,7 +328,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script type="text/babel">
-const { useState } = React;
+const { useState, useEffect } = React;
 
 // Get logos from pre-rendered img tags (avoids Babel parsing huge strings)
 const LOGO_SMALL = document.getElementById('logo-small').src;
@@ -402,6 +412,7 @@ const T = {
     collab_c_btn:"Hacer una aportación",
     accept_terms_pre:"He leído y acepto las",accept_terms_link:"Condiciones de Publicación para Autores",
     back:"← Volver a la biblioteca",back_home:"← Volver al inicio",
+    fs_label:"Tamaño de letra",fs_smaller:"Reducir tamaño de letra",fs_reset:"Tamaño de letra normal",fs_bigger:"Aumentar tamaño de letra",
     born:"Nacida/o en",read_in:"✦ Leer en otro idioma",
     translate:"Traducir",share_btn:"Compartir",share_copied:"¡Enlace copiado!",
     write_h:"Escribe tu autobiografía",
@@ -502,6 +513,7 @@ const T = {
     collab_c_btn:"Make a contribution",
     accept_terms_pre:"I have read and accept the",accept_terms_link:"Publishing Terms for Authors",
     back:"← Back to library",back_home:"← Back to home",
+    fs_label:"Text size",fs_smaller:"Decrease text size",fs_reset:"Normal text size",fs_bigger:"Increase text size",
     born:"Born in",read_in:"✦ Read in another language",
     translate:"Translate",share_btn:"Share",share_copied:"Link copied!",
     write_h:"Write your autobiography",
@@ -683,19 +695,31 @@ function Library({autos,openAuto,t}) {
   );
 }
 
+const READ_FS_STEPS=[1.0,1.15,1.3,1.5,1.75];
 function Read({auto,setView,t}) {
   const [tl,setTl]=useState("ES");const [tr,setTr]=useState("");const [doing,setDoing]=useState(false);const [copied,setCopied]=useState(false);
+  const [fsStep,setFsStep]=useState(()=>{
+    const saved=parseInt(localStorage.getItem("lm_read_fs"),10);
+    return Number.isInteger(saved)&&saved>=0&&saved<READ_FS_STEPS.length?saved:1;
+  });
+  useEffect(()=>{localStorage.setItem("lm_read_fs",String(fsStep));},[fsStep]);
   if(!auto){setView("library");return null;}
   const ln=LANGS_UI.find(l=>l.code===tl)?.label||tl;
   const translate=async()=>{setDoing(true);setTr("");try{setTr(await callAI(`Eres un traductor literario. Traduce este texto autobiográfico al ${ln} preservando la voz personal. Solo la traducción.`,auto.text));}catch(e){setTr("Error.");}setDoing(false);};
   const share=()=>{setCopied(true);setTimeout(()=>setCopied(false),2200);};
   return (
-    <div className="read-wrap fu">
+    <div className="read-wrap fu" style={{"--read-fs":`${READ_FS_STEPS[fsStep]}rem`}}>
       <button className="back" onClick={()=>setView("library")}>{t.back}</button>
       <div style={{fontSize:"1.8rem",marginBottom:"0.45rem"}}>{auto.flag}</div>
       <div className="r-orig">{auto.country} · {auto.lang}</div>
       <h1 className="r-name">{auto.title||auto.name}</h1>
       <div className="r-meta">{t.born} {auto.born||"—"} · {[...auto.tags.slice(0,2),auto.profession].filter(Boolean).join(", ")}</div>
+      <div className="fs-ctrl" role="group" aria-label={t.fs_label}>
+        <span className="fs-lbl">{t.fs_label}</span>
+        <button type="button" className="fs-btn a-sm" onClick={()=>setFsStep(s=>Math.max(0,s-1))} disabled={fsStep===0} aria-label={t.fs_smaller}>A−</button>
+        <button type="button" className="fs-btn a-md" onClick={()=>setFsStep(1)} disabled={fsStep===1} aria-label={t.fs_reset}>A</button>
+        <button type="button" className="fs-btn a-lg" onClick={()=>setFsStep(s=>Math.min(READ_FS_STEPS.length-1,s+1))} disabled={fsStep===READ_FS_STEPS.length-1} aria-label={t.fs_bigger}>A+</button>
+      </div>
       <div className="r-body">{auto.text.split("\n\n").map((p,i)=><p key={i}>{p}</p>)}</div>
       <div style={{marginTop:"1.8rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"0.9rem"}}>
         <div className="tags">
