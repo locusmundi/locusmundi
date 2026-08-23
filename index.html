@@ -705,7 +705,7 @@ function Read({auto,setView,t}) {
   useEffect(()=>{localStorage.setItem("lm_read_fs",String(fsStep));},[fsStep]);
   if(!auto){setView("library");return null;}
   const ln=LANGS_UI.find(l=>l.code===tl)?.label||tl;
-  const translate=async()=>{setDoing(true);setTr("");try{setTr(await callAI(`Eres un traductor literario. Traduce este texto autobiográfico al ${ln} preservando la voz personal. Solo la traducción.`,auto.text));}catch(e){setTr("Error.");}setDoing(false);};
+  const translate=async()=>{setDoing(true);setTr("");try{setTr(await callAI(`Eres un traductor literario. Traduce este texto autobiográfico al ${ln} preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia del ${ln} —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Solo la traducción.`,auto.text));}catch(e){setTr("Error.");}setDoing(false);};
   const share=()=>{setCopied(true);setTimeout(()=>setCopied(false),2200);};
   return (
     <div className="read-wrap fu" style={{"--read-fs":`${READ_FS_STEPS[fsStep]}rem`}}>
@@ -1004,7 +1004,7 @@ function Write({setView,onPublish,t,onLegal}) {
       let sys="",msg="";
       if(mode==="continue"){sys="Eres un asistente de escritura autobiográfica. Continúa el texto respetando voz, idioma y estilo. Solo la continuación.";msg="Continúa:\n\n"+f.text;}
       else if(mode==="improve"){sys="Eres un editor literario. Mejora este texto haciéndolo más evocador sin cambiar la voz. Solo el texto mejorado.";msg=f.text;}
-      else if(mode==="translate"){sys="Eres un traductor literario. Traduce al "+ln+" preservando la voz personal. Solo la traducción.";msg=f.text;}
+      else if(mode==="translate"){sys="Eres un traductor literario. Traduce al "+ln+" preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia de "+ln+" —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Solo la traducción.";msg=f.text;}
       else if(mode==="structure"){sys="Eres un editor amable. Sugiere estructura y temas para esta autobiografía. Sé conciso.";msg=f.text||"Nombre: "+f.name+". País: "+f.country+". Año: "+f.born+".";}
       setAo(await callAI(sys,msg));
     }catch(e){setAo("Error.");}
