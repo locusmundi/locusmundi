@@ -328,7 +328,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script type="text/babel">
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
 // Get logos from pre-rendered img tags (avoids Babel parsing huge strings)
 const LOGO_SMALL = document.getElementById('logo-small').src;
@@ -341,6 +341,32 @@ const LANGS_UI = [
   {code:"ZH",label:"中文"},{code:"AR",label:"العربية"},{code:"JA",label:"日本語"},
   {code:"RU",label:"Русский"},{code:"HI",label:"हिन्दी"},{code:"GL",label:"Galego"},{code:"CA",label:"Català"},
 ];
+
+// ---- Autenticación simulada (Fase A, sin coste) ----------------------------
+// Todo esto vive en localStorage, en el propio navegador. No es seguridad real:
+// es una simulación de la forma y la lógica de las pantallas, lista para
+// sustituirse por Supabase Auth en la Fase B (ver LOCUS_MUNDI_HOJA_DE_RUTA.md,
+// Fase B, punto 4, y LOCUS_MUNDI_ESCRIBE_TU_HISTORIA_v2_1.md, sección 1).
+const AUTH_KEY = "lm_authors";
+const SESSION_KEY = "lm_session";
+const loadAuthors = () => { try { return JSON.parse(localStorage.getItem(AUTH_KEY)) || {}; } catch (e) { return {}; } };
+const saveAuthors = (authors) => localStorage.setItem(AUTH_KEY, JSON.stringify(authors));
+const getSession = () => localStorage.getItem(SESSION_KEY) || null;
+const setSession = (email) => email ? localStorage.setItem(SESSION_KEY, email) : localStorage.removeItem(SESSION_KEY);
+const bookKey = (email) => "lm_book_" + email.toLowerCase().trim();
+const loadBook = (email) => { try { return JSON.parse(localStorage.getItem(bookKey(email))); } catch (e) { return null; } };
+const saveBook = (email, book) => localStorage.setItem(bookKey(email), JSON.stringify(book));
+const AUTHOR_SEQ_KEY = "lm_author_seq";
+const assignAuthorNumber = () => {
+  const n = (parseInt(localStorage.getItem(AUTHOR_SEQ_KEY)) || 0) + 1;
+  localStorage.setItem(AUTHOR_SEQ_KEY, String(n));
+  return n;
+};
+
+const SECQ = {
+  ES: ["¿Nombre de tu primera mascota?","¿Ciudad donde naciste?","¿Nombre de tu mejor amigo/a de la infancia?","¿Cuál fue tu primer trabajo?"],
+  EN: ["What was the name of your first pet?","What city were you born in?","What was the name of your best childhood friend?","What was your first job?"],
+};
 
 const LEGAL_ES = {"aviso": {"title": "Aviso Legal", "blocks": [{"t": "meta", "x": "Última actualización: 3 de agosto de 2026"}, {"t": "h2", "x": "LEY DE LOS SERVICIOS DE LA SOCIEDAD DE LA INFORMACIÓN (LSSI)"}, {"t": "p", "x": "Javier Batlle Vilaseca, con NIF 46117172X y correo electrónico de contacto contactlocusmundi@gmail.com, en adelante «el RESPONSABLE», pone a disposición de los usuarios el presente documento con el que pretende dar cumplimiento a las obligaciones dispuestas en la Ley 34/2002, de 11 de julio, de Servicios de la Sociedad de la Información y del Comercio Electrónico (LSSICE), así como informar a todos los usuarios del sitio web respecto a cuáles son las condiciones de uso."}, {"t": "p", "x": "Toda persona que acceda a este sitio web asume el papel de Usuario, comprometiéndose a la observancia y cumplimiento riguroso de las disposiciones aquí dispuestas, así como a cualquier otra disposición legal que fuera de aplicación."}, {"t": "p", "x": "El RESPONSABLE se reserva el derecho de modificar cualquier tipo de información que pudiera aparecer en el sitio web, sin que exista obligación de preavisar o poner en conocimiento de los usuarios dichas modificaciones, entendiéndose como suficiente con la publicación en el sitio web."}, {"t": "h2", "x": "1. DATOS IDENTIFICATIVOS"}, {"t": "ul", "x": ["Titular: Javier Batlle Vilaseca", "NIF: 46117172X", "Correo electrónico: contactlocusmundi@gmail.com", "Domicilio a efectos de notificación: C/ dels Safareigs 7, 08003 Barcelona"]}, {"t": "h2", "x": "2. OBJETO"}, {"t": "p", "x": "Locus Mundi es, básicamente, una plataforma de generación, preservación y publicación de la memoria generacional a nivel global, abierta a las principales lenguas del mundo. Permite a cualquier persona escribir, publicar y conservar de forma permanente su autobiografía o la de un familiar, con posibilidad de acompañarla de fotografías y de asistencia editorial mediante inteligencia artificial. A través de este sitio web se ofrece a los usuarios información sobre estos servicios, así como acceso a las historias publicadas por otros autores."}, {"t": "h2", "x": "3. PRIVACIDAD Y TRATAMIENTO DE DATOS"}, {"t": "p", "x": "Cuando para el acceso a determinados contenidos o servicios sea necesario facilitar datos de carácter personal, los usuarios garantizarán su veracidad, exactitud, autenticidad y vigencia. El RESPONSABLE dará a dichos datos el tratamiento que corresponda en función de su naturaleza o finalidad, en los términos indicados en la Política de Privacidad."}, {"t": "h2", "x": "4. PROPIEDAD INDUSTRIAL E INTELECTUAL"}, {"t": "p", "x": "El diseño, la marca «Locus Mundi», el logotipo, los textos propios del sitio, el software y la estructura de la plataforma están protegidos por derechos de propiedad intelectual e industrial del RESPONSABLE. Su reproducción, distribución o uso no autorizado sin consentimiento expreso está prohibida."}, {"t": "p", "x": "Las historias, textos y fotografías publicados por cada Autor siguen siendo propiedad de su Autor. Locus Mundi no reclama titularidad sobre el contenido autobiográfico publicado por los usuarios; su relación con dicho contenido y las condiciones específicas de publicación, conservación y borrado se rigen por las Condiciones de Publicación para Autores, documento independiente que todo Autor acepta expresamente al publicar."}, {"t": "h2", "x": "5. OBLIGACIONES Y RESPONSABILIDADES DEL USUARIO"}, {"t": "p", "x": "El usuario se compromete a:"}, {"t": "ul", "x": ["Hacer un uso adecuado y lícito del sitio web y de sus contenidos.", "No utilizar el sitio web con fines fraudulentos, ilícitos o lesivos para los derechos de terceros.", "No introducir ni difundir virus informáticos u otros sistemas susceptibles de provocar daños en el sitio web o en sus usuarios.", "No publicar, en caso de ser Autor, información privada de terceros sin su consentimiento, ni cualquier información o imagen de menores de edad sin el consentimiento de quien ejerza su patria potestad o tutela. Requiere especial cautela la publicación de categorías especiales de datos (salud, origen étnico, orientación sexual, creencias religiosas u otra información sensible conforme al art. 9 del RGPD), que en ningún caso debe publicarse sin el consentimiento explícito de la persona afectada."]}, {"t": "p", "x": "El RESPONSABLE no será responsable de las actuaciones realizadas por los usuarios que incumplan estas condiciones."}, {"t": "h2", "x": "6. RESPONSABILIDADES"}, {"t": "p", "x": "El RESPONSABLE no garantiza el acceso ininterrumpido al sitio web, ni la ausencia de errores. Asimismo, no se hace responsable de los daños derivados del uso indebido del sitio web o de fallos técnicos en la red."}, {"t": "p", "x": "El RESPONSABLE se reserva el derecho de modificar o suspender temporalmente el acceso al sitio web sin previo aviso, por motivos de mantenimiento, seguridad o mejoras en los servicios. Esta reserva no afecta a la permanencia de las historias ya publicadas, cuya conservación se rige por las Condiciones de Publicación para Autores."}, {"t": "h2", "x": "7. ENLACES A TERCEROS"}, {"t": "p", "x": "El sitio web puede incluir enlaces a páginas web de terceros. El RESPONSABLE no se hace responsable del contenido, políticas de privacidad o prácticas de estos sitios externos."}, {"t": "h2", "x": "8. PROTECCIÓN DE DATOS"}, {"t": "p", "x": "El tratamiento de datos personales se rige por la normativa vigente en materia de protección de datos. Para más información, consulte la Política de Privacidad."}, {"t": "h2", "x": "9. COOKIES"}, {"t": "p", "x": "Este sitio web utiliza cookies para su correcto funcionamiento. Para más información, consulte la Política de Cookies."}, {"t": "h2", "x": "10. LEGISLACIÓN Y JURISDICCIÓN APLICABLE"}, {"t": "p", "x": "Las presentes condiciones se regirán por la legislación española. Cualquier controversia se someterá a los Juzgados y Tribunales del domicilio del RESPONSABLE, sin perjuicio de los derechos que asistan al consumidor conforme a la normativa de protección de consumidores y usuarios, en su caso."}, {"t": "p", "x": "En caso de que alguna de las disposiciones de este aviso legal sea declarada nula o inaplicable, las demás disposiciones permanecerán en vigor."}]}, "privacidad": {"title": "Política de Privacidad", "blocks": [{"t": "meta", "x": "Última actualización: 3 de agosto de 2026"}, {"t": "h2", "x": "INFORMACIÓN AL USUARIO"}, {"t": "p", "x": "Javier Batlle Vilaseca, como Responsable del Tratamiento, informa que, según lo dispuesto en el Reglamento (UE) 2016/679, de 27 de abril (RGPD), y en la Ley Orgánica 3/2018, de 5 de diciembre, de Protección de Datos y Garantía de los Derechos Digitales (LOPDGDD), tratará sus datos tal y como se refleja en la presente Política de Privacidad."}, {"t": "p", "x": "Esta Política se aplica al tratamiento de datos personales recogidos por Javier Batlle Vilaseca a través de la plataforma Locus Mundi."}, {"t": "h2", "x": "CONTACTO"}, {"t": "ul", "x": ["Titular: Javier Batlle Vilaseca", "NIF: 46117172X", "Correo electrónico: contactlocusmundi@gmail.com", "Domicilio a efectos de notificación: C/ dels Safareigs 7, 08003 Barcelona"]}, {"t": "h2", "x": "PRINCIPIOS APLICADOS AL TRATAMIENTO DE DATOS"}, {"t": "ul", "x": ["Legalidad: solo recopilamos datos personales para fines específicos, explícitos y legítimos.", "Minimización de datos: limitamos la recogida a lo estrictamente necesario para prestar el servicio.", "Limitación de la finalidad: solo tratamos los datos para los fines declarados.", "Precisión: mantenemos los datos exactos y actualizados.", "Seguridad: aplicamos medidas técnicas y organizativas razonables para proteger los datos.", "Acceso y rectificación: el usuario puede acceder o rectificar sus datos en cualquier momento.", "Conservación: los datos se conservan solo mientras sea necesario para los fines para los que se recogieron, salvo las historias autobiográficas publicadas, cuya conservación permanente se rige por las Condiciones de Publicación para Autores.", "Transferencias internacionales: ver apartado específico más abajo."]}, {"t": "h2", "x": "QUÉ DATOS RECOGEMOS"}, {"t": "ul", "x": ["Datos identificativos: nombre, correo electrónico, país, y los datos que el Autor decida incluir voluntariamente en su historia (fecha de nacimiento, lugar de origen, etc.).", "Contenido autobiográfico: el texto, título, subtítulo y fotografías que el Autor decide publicar.", "Datos de navegación: los descritos en la Política de Cookies.", "Datos de pago: gestionados directamente por la pasarela de pago (Stripe), sin que Locus Mundi almacene datos de tarjetas."]}, {"t": "h2", "x": "CON QUÉ FINALIDAD TRATAMOS SUS DATOS"}, {"t": "ul", "x": ["Permitir la creación, publicación y conservación de historias autobiográficas en la plataforma.", "Prestar el servicio de asistencia editorial mediante inteligencia artificial, cuando el usuario active esta función.", "Gestionar el contacto y responder a solicitudes.", "Gestionar los pagos correspondientes a las opciones de pago de la plataforma."]}, {"t": "p", "x": "No utilizamos sus datos para elaborar perfiles ni para fines publicitarios no solicitados."}, {"t": "h2", "x": "TRANSFERENCIAS INTERNACIONALES Y TERCEROS"}, {"t": "p", "x": "Para prestar el servicio, Locus Mundi puede compartir datos con los siguientes encargados del tratamiento:"}, {"t": "ul", "x": ["Vercel Inc. (alojamiento web de la plataforma)", "Supabase (base de datos)", "Anthropic PBC (proveedor de la inteligencia artificial que presta el servicio de asistencia editorial, cuando el Autor activa esta función). Este proveedor tiene su sede en Estados Unidos, por lo que el texto enviado a la IA supone una transferencia internacional de datos. Locus Mundi solo envía a este servicio el texto que el Autor decide someter voluntariamente a revisión o mejora editorial, nunca de forma automática ni sin acción expresa del usuario.", "Stripe (procesador de pagos)"]}, {"t": "p", "x": "No se realizan cesiones de datos a terceros distintas de las aquí descritas, salvo obligación legal."}, {"t": "h2", "x": "LEGITIMACIÓN DEL TRATAMIENTO"}, {"t": "ul", "x": ["Consentimiento del usuario, que puede retirarse en cualquier momento.", "Ejecución de una relación contractual (prestación del servicio de publicación).", "Cumplimiento de una obligación legal."]}, {"t": "h2", "x": "SUS DERECHOS"}, {"t": "p", "x": "Puede ejercer los siguientes derechos en relación con el tratamiento de sus datos personales:"}, {"t": "ul", "x": ["Acceso: obtener confirmación sobre si tratamos sus datos y acceder a ellos.", "Rectificación: corregir datos inexactos o incompletos.", "Supresión: solicitar la eliminación de sus datos cuando ya no sean necesarios para los fines recogidos. *(Para las historias publicadas por Autores, este derecho se ejerce conforme a lo dispuesto en las Condiciones de Publicación para Autores, dado el carácter permanente de la publicación aceptado expresamente al publicar.)*", "Limitación del tratamiento.", "Portabilidad: recibir sus datos en un formato estructurado.", "Oposición."]}, {"t": "p", "x": "Puede ejercer estos derechos escribiendo a contactlocusmundi@gmail.com. También tiene derecho a presentar una reclamación ante la Agencia Española de Protección de Datos (www.aepd.es) si considera que el tratamiento no se ajusta a la normativa vigente."}, {"t": "h2", "x": "MENORES DE EDAD"}, {"t": "p", "x": "Locus Mundi no está dirigido a menores de 14 años. Si un Autor incluye en su historia información o imágenes de menores de edad (por ejemplo, familiares), es responsabilidad del Autor contar con el consentimiento necesario para ello, conforme a lo dispuesto en las Condiciones de Publicación para Autores."}, {"t": "h2", "x": "INFORMACIÓN LEGAL"}, {"t": "p", "x": "Los requisitos de esta Política complementan y no reemplazan cualquier otro requisito existente bajo la legislación de protección de datos aplicable. Esta Política puede ser revisada periódicamente; cualquier cambio relevante se notificará a través del sitio web."}]}, "cookies": {"title": "Política de Cookies", "blocks": [{"t": "meta", "x": "Última actualización: 3 de agosto de 2026"}, {"t": "h2", "x": "DEFINICIÓN DE COOKIE"}, {"t": "p", "x": "Una «cookie» es un pequeño fragmento de texto que los sitios web envían al navegador y que se almacena en el terminal del usuario (ordenador o dispositivo móvil). Permite almacenar y recuperar información sobre la navegación del usuario con el objetivo de mejorar su experiencia en el sitio web."}, {"t": "h2", "x": "COOKIES QUE UTILIZA ACTUALMENTE LOCUS MUNDI"}, {"t": "p", "x": "En este momento, Locus Mundi utiliza únicamente cookies propias de carácter técnico, estrictamente necesarias para el funcionamiento del sitio web (por ejemplo, para recordar que ha aceptado este aviso de cookies). Estas cookies no requieren consentimiento previo conforme a la normativa vigente, al ser imprescindibles para la prestación del servicio."}, {"t": "p", "x": "Locus Mundi no utiliza cookies de terceros con fines publicitarios ni de seguimiento comercial. Si en el futuro se incorpora alguna herramienta de análisis de terceros (por ejemplo, Google Analytics), esta Política se actualizará antes de su activación y se solicitará el consentimiento correspondiente al usuario, tal como exige la normativa."}, {"t": "p", "x": "Estadísticas internas de la plataforma: Locus Mundi podrá mostrar información agregada de interés general, como el número de historias publicadas o su distribución geográfica (por ejemplo, en forma de mapa). Cuando esta información se obtiene mediante contadores agregados y anónimos gestionados directamente en el servidor de Locus Mundi —sin compartirse con terceros ni utilizarse para elaborar perfiles individuales—, puede acogerse a la excepción de informar sin necesidad de solicitar consentimiento previo, conforme a la guía de cookies de la Agencia Española de Protección de Datos (AEPD). Si en algún momento este tipo de estadística se implementa mediante cookies propias con esta finalidad exclusivamente interna, se informará de ello en esta Política."}, {"t": "h2", "x": "CONSENTIMIENTO Y GESTIÓN DE COOKIES"}, {"t": "p", "x": "Al navegar y continuar en el sitio web, el usuario acepta el uso de las cookies técnicas descritas en esta Política."}, {"t": "p", "x": "El usuario puede eliminar las cookies almacenadas en su dispositivo en cualquier momento a través de la configuración de su navegador. Puede consultar cómo hacerlo en los siguientes enlaces:"}, {"t": "ul", "x": ["Chrome: https://support.google.com/chrome/answer/95647?hl=es", "Firefox: https://support.mozilla.org/es/kb/clear-cookies-and-site-data-firefox", "Safari (Mac): https://support.apple.com/es-es/guide/safari/manage-cookies-and-website-data-sfri11471/mac", "Safari (iPhone/iPad): https://support.apple.com/es-es/HT201265", "Edge: https://support.microsoft.com/es-es/help/4468242/microsoft-edge-browsing-data-and-privacy-microsoft-privacy"]}, {"t": "h2", "x": "ACTUALIZACIÓN DE ESTA POLÍTICA"}, {"t": "p", "x": "Javier Batlle Vilaseca se reserva el derecho de modificar esta Política de Cookies para adaptarla a novedades legislativas o a cambios en el funcionamiento del sitio web. Se recomienda revisarla periódicamente."}, {"t": "h2", "x": "CONTACTO"}, {"t": "p", "x": "contactlocusmundi@gmail.com"}]}, "condiciones": {"title": "Condiciones de Publicación para Autores", "blocks": [{"t": "meta", "x": "Última actualización: 3 de agosto de 2026"}, {"t": "p", "x": "Este documento se aplica específicamente a quienes publican una historia autobiográfica en Locus Mundi (en adelante, el «Autor»), y complementa —sin sustituir— el Aviso Legal y la Política de Privacidad generales del sitio. Al abrir un nuevo archivo en la sección \"Escribe tu historia\", el Autor deberá aceptar expresamente estas condiciones antes de poder redactar o publicar contenido, mediante un paso explícito de aceptación (no basta con la navegación general por el sitio, a diferencia del aviso de cookies)."}, {"t": "h2", "x": "1. QUÉ ES LOCUS MUNDI"}, {"t": "p", "x": "Locus Mundi es, básicamente, una plataforma de generación, preservación y publicación de la memoria generacional a nivel global, abierta a las principales lenguas del mundo. A diferencia de una red social o un blog convencional, su propósito no es la publicación temporal o efímera, sino la preservación permanente de las historias familiares y personales que sus Autores decidan confiar a la plataforma."}, {"t": "h2", "x": "2. PERMANENCIA DE LAS HISTORIAS PUBLICADAS"}, {"t": "p", "x": "Toda historia publicada en Locus Mundi permanece publicada de forma permanente por defecto, siendo legible de forma gratuita por cualquier usuario del sitio web. Esta permanencia es un principio central de la plataforma, no una característica accesoria."}, {"t": "p", "x": "Solo el Autor puede contratar, como extra opcional, un archivo debidamente formateado para poder imprimir su autobiografía (DIN A4 o A5), conforme a las condiciones económicas vigentes. Esta posibilidad de impresión no altera en ningún caso la disponibilidad gratuita y permanente de la historia en el sitio web."}, {"t": "ul", "x": ["Solo el Autor, debidamente autenticado con su contraseña (y, en su caso, refuerzo mediante pregunta de seguridad), puede solicitar la eliminación de su propia historia.", "Ni los herederos del Autor ni Locus Mundi pueden eliminar una historia por defecto. Esta restricción se ampara en el artículo 96 de la Ley Orgánica 3/2018 (LOPDGDD), que reconoce el derecho de toda persona a dejar instrucciones expresas, en vida, sobre el destino de su contenido digital, restringiendo el acceso o las facultades que de otro modo corresponderían a sus herederos. Al publicar, el Autor deja constancia expresa de su voluntad de que su historia permanezca disponible de forma permanente salvo que él mismo decida lo contrario.", "Excepcionalmente, Locus Mundi podrá retirar contenido sin solicitud del Autor únicamente por causa legal grave y documentada (por ejemplo, contenido ilegal o resolución judicial firme que lo ordene)."]}, {"t": "h2", "x": "3. PROPIEDAD DEL CONTENIDO"}, {"t": "p", "x": "El Autor conserva en todo momento la propiedad intelectual de su historia, textos y fotografías. Al publicar, el Autor concede a Locus Mundi una licencia no exclusiva para alojar, mostrar y conservar dicho contenido en la plataforma, con la finalidad de cumplir el propósito de conservación descrito en este documento. Esta licencia no transfiere la propiedad del contenido a Locus Mundi."}, {"t": "h2", "x": "4. RESPONSABILIDAD SOBRE EL CONTENIDO Y TERCEROS MENCIONADOS"}, {"t": "p", "x": "El Autor es responsable del contenido que publica, y en particular se compromete a:"}, {"t": "ul", "x": ["No publicar información privada de terceros (incluidos familiares vivos) sin su consentimiento.", "Prestar especial atención cuando la historia mencione o incluya cualquier información o imagen de menores de edad, sea o no de naturaleza privada. El Autor declara contar con el consentimiento necesario de quien ejerza la patria potestad o tutela en esos casos.", "Extremar la cautela con las categorías especiales de datos (salud, origen étnico, orientación sexual, creencias religiosas u otra información sensible conforme al art. 9 del RGPD) de cualquier tercero mencionado, que en ningún caso deben publicarse sin el consentimiento explícito de la persona afectada.", "No publicar contenido difamatorio, ilegal o que vulnere derechos de terceros."]}, {"t": "p", "x": "Locus Mundi podrá revisar el contenido antes o después de su publicación para verificar el cumplimiento de estas condiciones, y podrá contactar al Autor si detecta un posible incumplimiento."}, {"t": "h2", "x": "5. CUENTA, AUTENTICACIÓN Y BORRADO"}, {"t": "ul", "x": ["El acceso para redactar, modificar o eliminar una historia se realiza mediante la contraseña personal del Autor, con refuerzo opcional de pregunta de seguridad.", "El Autor es responsable de custodiar sus credenciales de acceso. Locus Mundi dispondrá de un procedimiento de recuperación de acceso para casos de pérdida de contraseña, verificando razonablemente la identidad del solicitante.", "El borrado de una historia por parte del Autor es una acción irreversible."]}, {"t": "h2", "x": "6. NIVELES DE SERVICIO Y ASISTENCIA IA"}, {"t": "ul", "x": ["El Autor puede publicar de forma gratuita (nivel Base) o contratar extras opcionales de pago (fotos adicionales, archivo imprimible en PDF, Asistente Editorial). Las condiciones económicas específicas de cada extra se detallarán en el momento de su contratación.", "Si el Autor activa el Asistente Editorial (IA), acepta que el texto que someta voluntariamente a esa función se envíe a un proveedor externo de procesamiento de lenguaje (ver Política de Privacidad), únicamente con la finalidad de recibir sugerencias de mejora, estructura o corrección. El Autor mantiene en todo momento el control final sobre su texto."]}, {"t": "h2", "x": "7. LEGADO DIGITAL"}, {"t": "p", "x": "Locus Mundi reconoce que la naturaleza de este servicio implica pensar en el largo plazo. Mientras el Autor viva, es la única persona con capacidad de modificar o eliminar su historia. Tras su fallecimiento, la historia permanece publicada conforme al principio de permanencia descrito en el apartado 2, salvo que el propio Autor haya dejado instrucciones distintas por escrito y comunicadas a Locus Mundi con anterioridad."}, {"t": "h2", "x": "8. MODIFICACIÓN DE ESTAS CONDICIONES"}, {"t": "p", "x": "Locus Mundi podrá actualizar estas condiciones para adaptarlas a cambios normativos o del propio servicio. Los cambios que afecten a la esencia del principio de permanencia (apartado 2) no se aplicarán retroactivamente a las historias ya publicadas sin el consentimiento expreso del Autor afectado."}, {"t": "h2", "x": "CONTACTO"}, {"t": "p", "x": "contactlocusmundi@gmail.com"}]}};
 const LEGAL_EN = {"aviso":{"title":"Legal Notice","blocks":[{"t":"meta","x":"Last updated: August 3, 2026"},{"t":"h2","x":"INFORMATION SOCIETY SERVICES ACT (LSSI)"},{"t":"p","x":"Javier Batlle Vilaseca, with Tax ID (NIF) 46117172X and contact email contactlocusmundi@gmail.com, hereinafter «the CONTROLLER», makes this document available to users in order to comply with the obligations set out in Spanish Law 34/2002, of July 11, on Information Society Services and Electronic Commerce (LSSICE), and to inform all website users of the applicable terms of use."},{"t":"p","x":"Any person who accesses this website assumes the role of User, and undertakes to observe and strictly comply with the provisions set out herein, as well as any other applicable legal provision."},{"t":"p","x":"The CONTROLLER reserves the right to modify any information that may appear on the website, without any obligation to give prior notice or otherwise inform users of such modifications, publication on the website being deemed sufficient."},{"t":"h2","x":"1. IDENTIFYING INFORMATION"},{"t":"ul","x":["Owner: Javier Batlle Vilaseca","Tax ID (NIF): 46117172X","Email: contactlocusmundi@gmail.com","Address for notification purposes: C/ dels Safareigs 7, 08003 Barcelona, Spain"]},{"t":"h2","x":"2. PURPOSE"},{"t":"p","x":"Locus Mundi is, essentially, a platform for generating, preserving and publishing generational memory on a global scale, open to the world's major languages. It allows anyone to write, publish and permanently preserve their own autobiography or that of a family member, with the option of adding photographs and AI-assisted editorial support. Through this website, users are offered information about these services, as well as access to the stories published by other authors."},{"t":"h2","x":"3. PRIVACY AND DATA PROCESSING"},{"t":"p","x":"When access to certain content or services requires providing personal data, users guarantee that such data is truthful, accurate, authentic and up to date. The CONTROLLER will process such data as appropriate to its nature or purpose, under the terms set out in the Privacy Policy."},{"t":"h2","x":"4. INTELLECTUAL AND INDUSTRIAL PROPERTY"},{"t":"p","x":"The design, the «Locus Mundi» brand, the logo, the website's own texts, the software and the structure of the platform are protected by the CONTROLLER's intellectual and industrial property rights. Reproduction, distribution or unauthorized use without express consent is prohibited."},{"t":"p","x":"Stories, texts and photographs published by each Author remain the property of that Author. Locus Mundi does not claim ownership of the autobiographical content published by users; its relationship with such content, and the specific conditions for publication, preservation and deletion, are governed by the Publication Terms for Authors, a separate document that every Author expressly accepts upon publishing."},{"t":"h2","x":"5. USER OBLIGATIONS AND RESPONSIBILITIES"},{"t":"p","x":"The user agrees to:"},{"t":"ul","x":["Make appropriate and lawful use of the website and its contents.","Not use the website for fraudulent, unlawful purposes or in ways that harm the rights of third parties.","Not introduce or spread computer viruses or other systems liable to cause damage to the website or its users.","Not publish, if acting as an Author, private information about third parties without their consent, nor any information or images of minors without the consent of whoever holds parental authority or guardianship over them. Special caution is required when publishing special categories of data (health, ethnic origin, sexual orientation, religious beliefs or other sensitive information under Article 9 of the GDPR), which must never be published without the explicit consent of the person concerned."]},{"t":"p","x":"The CONTROLLER will not be liable for actions taken by users that breach these terms."},{"t":"h2","x":"6. LIABILITY"},{"t":"p","x":"The CONTROLLER does not guarantee uninterrupted access to the website, nor the absence of errors. Likewise, it is not liable for damages arising from improper use of the website or from technical failures on the network."},{"t":"p","x":"The CONTROLLER reserves the right to modify or temporarily suspend access to the website without prior notice, for reasons of maintenance, security or service improvements. This reservation does not affect the permanence of stories already published, whose preservation is governed by the Publication Terms for Authors."},{"t":"h2","x":"7. THIRD-PARTY LINKS"},{"t":"p","x":"The website may include links to third-party websites. The CONTROLLER is not responsible for the content, privacy policies or practices of these external sites."},{"t":"h2","x":"8. DATA PROTECTION"},{"t":"p","x":"The processing of personal data is governed by current data protection regulations. For more information, please see the Privacy Policy."},{"t":"h2","x":"9. COOKIES"},{"t":"p","x":"This website uses cookies to function correctly. For more information, please see the Cookie Policy."},{"t":"h2","x":"10. APPLICABLE LAW AND JURISDICTION"},{"t":"p","x":"These terms are governed by Spanish law. Any dispute will be submitted to the Courts and Tribunals of the CONTROLLER's domicile, without prejudice to any rights the consumer may have under applicable consumer protection regulations, where relevant."},{"t":"p","x":"Should any provision of this legal notice be declared null or unenforceable, the remaining provisions will remain in force."}]},"privacidad":{"title":"Privacy Policy","blocks":[{"t":"meta","x":"Last updated: August 3, 2026"},{"t":"h2","x":"INFORMATION FOR THE USER"},{"t":"p","x":"Javier Batlle Vilaseca, as Data Controller, informs users that, pursuant to Regulation (EU) 2016/679, of April 27 (GDPR), and Spanish Organic Law 3/2018, of December 5, on Data Protection and Guarantee of Digital Rights (LOPDGDD), their data will be processed as set out in this Privacy Policy."},{"t":"p","x":"This Policy applies to the processing of personal data collected by Javier Batlle Vilaseca through the Locus Mundi platform."},{"t":"h2","x":"CONTACT"},{"t":"ul","x":["Owner: Javier Batlle Vilaseca","Tax ID (NIF): 46117172X","Email: contactlocusmundi@gmail.com","Address for notification purposes: C/ dels Safareigs 7, 08003 Barcelona, Spain"]},{"t":"h2","x":"PRINCIPLES APPLIED TO DATA PROCESSING"},{"t":"ul","x":["Lawfulness: we only collect personal data for specific, explicit and legitimate purposes.","Data minimization: we limit collection to what is strictly necessary to provide the service.","Purpose limitation: we only process data for the stated purposes.","Accuracy: we keep data accurate and up to date.","Security: we apply reasonable technical and organizational measures to protect data.","Access and rectification: the user may access or rectify their data at any time.","Retention: data is kept only for as long as necessary for the purposes for which it was collected, except for published autobiographical stories, whose permanent preservation is governed by the Publication Terms for Authors.","International transfers: see the specific section below."]},{"t":"h2","x":"WHAT DATA WE COLLECT"},{"t":"ul","x":["Identifying data: name, email address, country, and any data the Author voluntarily chooses to include in their story (date of birth, place of origin, etc.).","Autobiographical content: the text, title, subtitle and photographs the Author chooses to publish.","Browsing data: as described in the Cookie Policy.","Payment data: handled directly by the payment gateway (Stripe); Locus Mundi does not store card data."]},{"t":"h2","x":"WHAT WE USE YOUR DATA FOR"},{"t":"ul","x":["Enabling the creation, publication and preservation of autobiographical stories on the platform.","Providing the AI-assisted editorial support service, when the user activates this feature.","Managing contact requests and responding to inquiries.","Managing payments corresponding to the platform's paid options."]},{"t":"p","x":"We do not use your data to build profiles or for unsolicited advertising purposes."},{"t":"h2","x":"INTERNATIONAL TRANSFERS AND THIRD PARTIES"},{"t":"p","x":"To provide the service, Locus Mundi may share data with the following data processors:"},{"t":"ul","x":["Vercel Inc. (web hosting for the platform)","Supabase (database)","Anthropic PBC (provider of the artificial intelligence powering the editorial assistance service, when the Author activates this feature). This provider is based in the United States, so text sent to the AI involves an international data transfer. Locus Mundi only sends this service the text that the Author voluntarily chooses to submit for editorial review or improvement, never automatically or without the user's explicit action.","Stripe (payment processor)"]},{"t":"p","x":"No data is shared with third parties other than those described here, except where legally required."},{"t":"h2","x":"LEGAL BASIS FOR PROCESSING"},{"t":"ul","x":["User consent, which may be withdrawn at any time.","Performance of a contractual relationship (provision of the publishing service).","Compliance with a legal obligation."]},{"t":"h2","x":"YOUR RIGHTS"},{"t":"p","x":"You may exercise the following rights in relation to the processing of your personal data:"},{"t":"ul","x":["Access: obtain confirmation as to whether we process your data, and access it.","Rectification: correct inaccurate or incomplete data.","Erasure: request deletion of your data when it is no longer necessary for the purposes it was collected for. *(For stories published by Authors, this right is exercised in accordance with the Publication Terms for Authors, given the permanent nature of publication expressly accepted upon publishing.)*","Restriction of processing.","Portability: receive your data in a structured format.","Objection."]},{"t":"p","x":"You may exercise these rights by writing to contactlocusmundi@gmail.com. You also have the right to file a complaint with the Spanish Data Protection Agency (www.aepd.es) if you believe the processing does not comply with applicable regulations."},{"t":"h2","x":"MINORS"},{"t":"p","x":"Locus Mundi is not directed at minors under 14 years of age. If an Author includes information or images of minors in their story (for example, family members), it is the Author's responsibility to have obtained the necessary consent to do so, in accordance with the Publication Terms for Authors."},{"t":"h2","x":"LEGAL INFORMATION"},{"t":"p","x":"The requirements of this Policy complement, and do not replace, any other requirement under applicable data protection law. This Policy may be reviewed periodically; any relevant change will be notified through the website."}]},"cookies":{"title":"Cookie Policy","blocks":[{"t":"meta","x":"Last updated: August 3, 2026"},{"t":"h2","x":"WHAT IS A COOKIE"},{"t":"p","x":"A «cookie» is a small piece of text that websites send to the browser and that is stored on the user's device (computer or mobile device). It allows information about the user's browsing to be stored and retrieved in order to improve their experience on the website."},{"t":"h2","x":"COOKIES CURRENTLY USED BY LOCUS MUNDI"},{"t":"p","x":"At this time, Locus Mundi uses only its own strictly technical cookies, necessary for the website to function (for example, to remember that you have accepted this cookie notice). These cookies do not require prior consent under applicable regulations, as they are essential to providing the service."},{"t":"p","x":"Locus Mundi does not use third-party cookies for advertising or commercial tracking purposes. If a third-party analytics tool (for example, Google Analytics) is added in the future, this Policy will be updated before it is activated, and the user's corresponding consent will be requested, as required by law."},{"t":"p","x":"Internal platform statistics: Locus Mundi may display aggregated information of general interest, such as the number of stories published or their geographic distribution (for example, in map form). When this information is obtained through anonymous, aggregated counters managed directly on Locus Mundi's own server — without being shared with third parties or used to build individual profiles — it may fall under the exception that allows informing users without requiring prior consent, in accordance with the cookie guidance issued by the Spanish Data Protection Agency (AEPD). If this type of statistic is ever implemented through the platform's own cookies for this exclusively internal purpose, it will be disclosed in this Policy."},{"t":"h2","x":"CONSENT AND COOKIE MANAGEMENT"},{"t":"p","x":"By browsing and continuing to use the website, the user accepts the use of the technical cookies described in this Policy."},{"t":"p","x":"Users may delete cookies stored on their device at any time through their browser settings. You can find out how to do so at the following links:"},{"t":"ul","x":["Chrome: https://support.google.com/chrome/answer/95647","Firefox: https://support.mozilla.org/kb/clear-cookies-and-site-data-firefox","Safari (Mac): https://support.apple.com/guide/safari/manage-cookies-and-website-data-sfri11471/mac","Safari (iPhone/iPad): https://support.apple.com/HT201265","Edge: https://support.microsoft.com/help/4468242/microsoft-edge-browsing-data-and-privacy-microsoft-privacy"]},{"t":"h2","x":"UPDATES TO THIS POLICY"},{"t":"p","x":"Javier Batlle Vilaseca reserves the right to modify this Cookie Policy to adapt it to legislative developments or changes in how the website operates. Users are advised to review it periodically."},{"t":"h2","x":"CONTACT"},{"t":"p","x":"contactlocusmundi@gmail.com"}]},"condiciones":{"title":"Publication Terms for Authors","blocks":[{"t":"meta","x":"Last updated: August 3, 2026"},{"t":"p","x":"This document applies specifically to those who publish an autobiographical story on Locus Mundi (hereinafter, the «Author»), and complements — without replacing — the site's general Legal Notice and Privacy Policy. When opening a new file in the \"Write your story\" section, the Author must expressly accept these terms before being able to draft or publish content, through an explicit acceptance step (general browsing of the site is not sufficient, unlike the cookie notice)."},{"t":"h2","x":"1. WHAT LOCUS MUNDI IS"},{"t":"p","x":"Locus Mundi is, essentially, a platform for generating, preserving and publishing generational memory on a global scale, open to the world's major languages. Unlike a social network or a conventional blog, its purpose is not temporary or ephemeral publication, but the permanent preservation of the family and personal stories that its Authors choose to entrust to the platform."},{"t":"h2","x":"2. PERMANENCE OF PUBLISHED STORIES"},{"t":"p","x":"Every story published on Locus Mundi remains published permanently by default, and can be read free of charge by any website user. This permanence is a core principle of the platform, not an incidental feature."},{"t":"p","x":"Only the Author may contract, as an optional extra, a properly formatted file for printing their autobiography (DIN A4 or A5), subject to the pricing terms in effect. This printing option does not in any way alter the free, permanent availability of the story on the website."},{"t":"ul","x":["Only the Author, duly authenticated with their password (and, where applicable, reinforced by a security question), may request the deletion of their own story.","Neither the Author's heirs nor Locus Mundi may delete a story by default. This restriction is grounded in Article 96 of Organic Law 3/2018 (LOPDGDD), which recognizes every person's right to leave express instructions, during their lifetime, regarding the fate of their digital content, restricting the access or powers that would otherwise pass to their heirs. By publishing, the Author expressly records their wish that their story remain permanently available unless they themselves decide otherwise.","Exceptionally, Locus Mundi may remove content without the Author's request only for a serious and documented legal reason (for example, unlawful content or a final court order requiring it)."]},{"t":"h2","x":"3. OWNERSHIP OF CONTENT"},{"t":"p","x":"The Author retains the intellectual property rights to their story, texts and photographs at all times. By publishing, the Author grants Locus Mundi a non-exclusive license to host, display and preserve that content on the platform, for the purpose of fulfilling the preservation purpose described in this document. This license does not transfer ownership of the content to Locus Mundi."},{"t":"h2","x":"4. RESPONSIBILITY FOR CONTENT AND THIRD PARTIES MENTIONED"},{"t":"p","x":"The Author is responsible for the content they publish, and specifically agrees to:"},{"t":"ul","x":["Not publish private information about third parties (including living family members) without their consent.","Take special care when the story mentions or includes any information or images of minors, whether or not of a private nature. The Author declares that they hold the necessary consent from whoever holds parental authority or guardianship in such cases.","Exercise particular caution with special categories of data (health, ethnic origin, sexual orientation, religious beliefs or other sensitive information under Article 9 of the GDPR) concerning any third party mentioned, which must never be published without the explicit consent of the person concerned.","Not publish defamatory or unlawful content, or content that infringes the rights of third parties."]},{"t":"p","x":"Locus Mundi may review content before or after publication to verify compliance with these terms, and may contact the Author if it detects a possible breach."},{"t":"h2","x":"5. ACCOUNT, AUTHENTICATION AND DELETION"},{"t":"ul","x":["Access to write, edit or delete a story is done using the Author's personal password, with an optional security-question reinforcement.","The Author is responsible for safeguarding their access credentials. Locus Mundi will provide an access recovery procedure for cases of lost passwords, reasonably verifying the identity of the person requesting it.","Deletion of a story by the Author is an irreversible action."]},{"t":"h2","x":"6. SERVICE TIERS AND AI ASSISTANCE"},{"t":"ul","x":["The Author may publish free of charge (Base tier) or contract optional paid extras (additional photos, a printable PDF file, the Editorial Assistant). The specific pricing terms for each extra will be detailed at the time of purchase.","If the Author activates the Editorial Assistant (AI), they agree that any text they voluntarily submit to that feature will be sent to an external language-processing provider (see Privacy Policy), solely for the purpose of receiving suggestions for improvement, structure or correction. The Author retains final control over their text at all times."]},{"t":"h2","x":"7. DIGITAL LEGACY"},{"t":"p","x":"Locus Mundi recognizes that the nature of this service calls for a long-term perspective. While the Author is alive, they are the only person able to modify or delete their story. After their death, the story remains published in accordance with the permanence principle described in section 2, unless the Author has left different instructions in writing and communicated them to Locus Mundi beforehand."},{"t":"h2","x":"8. CHANGES TO THESE TERMS"},{"t":"p","x":"Locus Mundi may update these terms to adapt them to regulatory or service changes. Changes affecting the essence of the permanence principle (section 2) will not be applied retroactively to stories already published without the express consent of the affected Author."},{"t":"h2","x":"CONTACT"},{"t":"p","x":"contactlocusmundi@gmail.com"}]}};
@@ -425,10 +451,34 @@ const T = {
     pol2:"No se admite contenido ofensivo, discriminatorio o falso.",
     pol3:"Al publicar, aceptas que tu historia pueda ser leída por cualquier persona en el mundo.",
     pol4:"Conservas todos los derechos sobre tu texto.",
-    f_name:"Tu nombre",f_name_ph:"Como quieras que te conozcan",
+    f_name:"Nombre de Autor",f_name_ph:"p. ej. X. Batlle — así firmarás tu libro",
     f_born:"Año de nacimiento",f_country:"País de origen",f_lang:"Idioma",f_text:"Tu historia",
     f_text_ph:"Empieza donde quieras: tu infancia, un lugar, un momento decisivo... No hay reglas.",
     publish:"Publicar en Locus Mundi",published_ok:"✓ Tu historia está en la biblioteca.",
+    wiz_continue:"Continuar",
+    wiz_number_lbl:"Eres el Autor",wiz_founder:"✦ Autor Fundador",
+    wiz_camino_h:"¿Ya tienes tus memorias escritas, o quieres empezar aquí?",
+    wiz_camino_upload_t:"Ya las tengo escritas",wiz_camino_upload_d:"Sube tu documento en PDF",
+    wiz_camino_write_t:"Quiero escribir aquí",wiz_camino_write_d:"Empiezo en la pantalla, con o sin ayuda",
+    wiz_upload_soon:"Muy pronto podrás subir tu manuscrito ya escrito, con maquetación y revisión incluidas. De momento, empieza a escribir aquí.",
+    wiz_cond_tag:"Antes de empezar a escribir",wiz_cond_h:"Condiciones de Publicación",
+    wiz_cond_sub:"Léelas con calma — son cortas.",wiz_cond_start_btn:"Empezar a escribir",
+    ed_change_cover:"Cambiar portada",
+    ed_blocks_h:"Orden del libro — sube, baja, renombra o borra. Si no divides, todo vive en el Capítulo 1.",
+    ed_add_chapter:"+ Capítulo",ed_add_apartado:"+ Apartado",
+    ed_chapter_word:"capítulo",ed_apartado_word:"apartado",ed_untitled:"sin título",
+    ed_rename_prompt:"Título de este",ed_confirm_delete:"¿Borrar este bloque de la lista?",
+    ed_need_one_block:"Tu libro necesita al menos un bloque.",
+    ed_italic:"Cursiva",ed_undo:"↺ Deshacer",ed_add_photo:"+ Fotografía",
+    ed_save_exit:"Guardar y salir",ed_save_exit_q:"¿Quieres guardar este trabajo solo para ti, o subirlo ya a la plataforma?",
+    ed_save_private:"Guardar para mí",ed_save_upload:"Subir a la plataforma",
+    ed_photos_added_h:"Fotos añadidas",ed_photo_remove:"Quitar",ed_photo_replace:"Cambiar",
+    ed_photo_caption_ph:"Pie de foto (opcional)",ed_photo_upload:"Subir foto",
+    ai_ask_name_h:"¿Con qué nombre quieres que te llame?",
+    ai_ask_tuusted_h:"¿Prefieres que te hable de tú o de usted?",
+    ai_tu:"De tú",ai_usted:"De usted",ai_start_using:"Empezar a usar el Asistente",
+    ai_activate_btn:"Activar Asistente",ai_active_msg:"✓ Asistente activo — te llamará",
+    ai_hours_note:"Ayuda a escribir, mejorar y traducir — ≈30 horas al mes",
     ai_h:"Asistente IA",ai_sub:"La IA se adapta a tu voz y tu idioma.",
     ai_continue:"Continuar",ai_continue_d:"sigue desde donde lo dejé",
     ai_improve:"Mejorar",ai_improve_d:"más evocador, misma voz",
@@ -465,6 +515,32 @@ const T = {
     cookie_msg:"Usamos cookies esenciales. Sin publicidad ni rastreo.",cookie_ok:"Entendido",
     stories:"Historias",countries:"Países",languages:"Idiomas",lives:"Vidas por contar",
     search_ph:"Nombre, país, idioma o palabra clave…",no_results:"Sin resultados.",
+    auth_have_account:"Ya tengo cuenta en Locus Mundi",auth_first_time:"Es la primera vez que vengo",
+    auth_enter:"Entrar",auth_start:"Empezar",
+    auth_signup_h:"Crea tu cuenta",auth_signup_sub:"Solo hace falta un correo y una contraseña.",
+    auth_email:"Tu correo electrónico",auth_password:"Contraseña",auth_password_repeat:"Repite la contraseña",
+    auth_legal_name:"Tu nombre completo (legal)",
+    auth_legal_name_note:"No se muestra en público — es para identificarte como responsable de lo que escribes.",
+    auth_security_q:"Pregunta de seguridad",auth_security_a:"Tu respuesta",
+    auth_security_note:"La usaremos solo para confirmar acciones importantes, como despublicar tu historia.",
+    auth_create_account_btn:"Crear mi cuenta",
+    auth_login_h:"Accede a tu cuenta",auth_login_sub:"Introduce tu correo y tu contraseña.",
+    auth_login_btn:"Entrar",auth_forgot:"He olvidado mi contraseña",
+    auth_recover_h:"Recuperar contraseña",
+    auth_recover_sub:"Te enviamos un enlace a tu correo. Ábrelo y podrás entrar directamente y elegir una contraseña nueva.",
+    auth_recover_btn:"Enviar enlace",
+    auth_recover_sent_h:"Enlace enviado",
+    auth_recover_sent_sub:"Revisa tu correo (esto es una simulación: pulsa el botón como si hubieras abierto el enlace).",
+    auth_recover_sim_btn:"Simular apertura del enlace",
+    auth_set_new_password_h:"Elige una contraseña nueva",
+    auth_new_password:"Nueva contraseña",auth_save_password_btn:"Guardar contraseña y entrar",
+    auth_back:"← Volver",
+    auth_err_exists:"Ya existe una cuenta con este correo. Prueba a entrar en vez de crear una nueva.",
+    auth_err_mismatch:"Las contraseñas no coinciden.",
+    auth_err_login:"Correo o contraseña incorrectos.",
+    auth_err_notfound:"No existe ninguna cuenta con ese correo.",
+    auth_err_fields:"Rellena todos los campos.",
+    auth_logout:"Cerrar sesión",auth_greeting:"Sesión iniciada como",
   },
   EN:{
     archive:"THE LIVING ARCHIVE OF HUMANITY",
@@ -526,10 +602,34 @@ const T = {
     pol2:"Offensive, discriminatory or false content is not allowed.",
     pol3:"By publishing, you agree your story may be read by anyone in the world.",
     pol4:"You retain all rights to your text.",
-    f_name:"Your name",f_name_ph:"As you want to be known",
+    f_name:"Author name",f_name_ph:"e.g. X. Batlle — this is how you'll sign your book",
     f_born:"Year of birth",f_country:"Country",f_lang:"Language",f_text:"Your story",
     f_text_ph:"Start anywhere: your childhood, a place, a key moment... No rules.",
     publish:"Publish on Locus Mundi",published_ok:"✓ Your story is in the library.",
+    wiz_continue:"Continue",
+    wiz_number_lbl:"You are Author",wiz_founder:"✦ Founding Author",
+    wiz_camino_h:"Do you already have your memoir written, or do you want to start here?",
+    wiz_camino_upload_t:"I already have it written",wiz_camino_upload_d:"Upload your PDF document",
+    wiz_camino_write_t:"I want to write here",wiz_camino_write_d:"I'll start on screen, with or without help",
+    wiz_upload_soon:"Soon you'll be able to upload your already-written manuscript, with layout and review included. For now, start writing here.",
+    wiz_cond_tag:"Before you start writing",wiz_cond_h:"Publishing Terms",
+    wiz_cond_sub:"Take your time — they're short.",wiz_cond_start_btn:"Start writing",
+    ed_change_cover:"Change cover",
+    ed_blocks_h:"Book order — move up, down, rename or delete. If you don't split it, everything lives in Chapter 1.",
+    ed_add_chapter:"+ Chapter",ed_add_apartado:"+ Section",
+    ed_chapter_word:"chapter",ed_apartado_word:"section",ed_untitled:"untitled",
+    ed_rename_prompt:"Title for this",ed_confirm_delete:"Delete this block from the list?",
+    ed_need_one_block:"Your book needs at least one block.",
+    ed_italic:"Italics",ed_undo:"↺ Undo",ed_add_photo:"+ Photo",
+    ed_save_exit:"Save and exit",ed_save_exit_q:"Do you want to save this just for yourself, or upload it to the platform now?",
+    ed_save_private:"Save for myself",ed_save_upload:"Upload to the platform",
+    ed_photos_added_h:"Added photos",ed_photo_remove:"Remove",ed_photo_replace:"Change",
+    ed_photo_caption_ph:"Caption (optional)",ed_photo_upload:"Upload photo",
+    ai_ask_name_h:"What name should I call you?",
+    ai_ask_tuusted_h:"Not applicable in English — name only.",
+    ai_tu:"Informal",ai_usted:"Formal",ai_start_using:"Start using the Assistant",
+    ai_activate_btn:"Activate Assistant",ai_active_msg:"✓ Assistant active — will call you",
+    ai_hours_note:"Helps you write, improve and translate — ≈30 hours a month",
     ai_h:"AI Assistant",ai_sub:"The AI adapts to your voice and language.",
     ai_continue:"Continue",ai_continue_d:"carry on from where I left off",
     ai_improve:"Improve",ai_improve_d:"more evocative, same voice",
@@ -566,6 +666,32 @@ const T = {
     cookie_msg:"We use essential cookies. No advertising, no tracking.",cookie_ok:"Got it",
     stories:"Stories",countries:"Countries",languages:"Languages",lives:"Lives to tell",
     search_ph:"Name, country, language or keyword…",no_results:"No results.",
+    auth_have_account:"I already have a Locus Mundi account",auth_first_time:"It's my first time here",
+    auth_enter:"Enter",auth_start:"Start",
+    auth_signup_h:"Create your account",auth_signup_sub:"You just need an email and a password.",
+    auth_email:"Your email",auth_password:"Password",auth_password_repeat:"Repeat password",
+    auth_legal_name:"Your full legal name",
+    auth_legal_name_note:"Not shown publicly — it identifies you as responsible for what you write.",
+    auth_security_q:"Security question",auth_security_a:"Your answer",
+    auth_security_note:"We'll only use this to confirm important actions, like unpublishing your story.",
+    auth_create_account_btn:"Create my account",
+    auth_login_h:"Access your account",auth_login_sub:"Enter your email and password.",
+    auth_login_btn:"Enter",auth_forgot:"I forgot my password",
+    auth_recover_h:"Recover password",
+    auth_recover_sub:"We'll send a link to your email. Open it and you'll be able to sign in directly and choose a new password.",
+    auth_recover_btn:"Send link",
+    auth_recover_sent_h:"Link sent",
+    auth_recover_sent_sub:"Check your email (this is a simulation: click the button below as if you had opened the link).",
+    auth_recover_sim_btn:"Simulate opening the link",
+    auth_set_new_password_h:"Choose a new password",
+    auth_new_password:"New password",auth_save_password_btn:"Save password and enter",
+    auth_back:"← Back",
+    auth_err_exists:"An account with this email already exists. Try logging in instead.",
+    auth_err_mismatch:"The passwords don't match.",
+    auth_err_login:"Incorrect email or password.",
+    auth_err_notfound:"There's no account with that email.",
+    auth_err_fields:"Please fill in every field.",
+    auth_logout:"Sign out",auth_greeting:"Signed in as",
   }
 };
 
@@ -988,14 +1114,189 @@ function ContactModal({onClose,t}) {
   );
 }
 
-function Write({setView,onPublish,t,onLegal}) {
-  const [f,setF]=useState({name:"",born:"",country:"",lang:"ES",title:"",subtitle:"",text:"",coverImg:null});
+function AuthGate({t,lang,onAuthenticated}) {
+  // step: landing | signup | login | recover | recover_sim | recover_reset
+  const [step,setStep]=useState("landing");
+  const [email,setEmail]=useState("");const [pw,setPw]=useState("");const [pw2,setPw2]=useState("");
+  const [legalName,setLegalName]=useState("");
+  const [secQ,setSecQ]=useState(SECQ[lang==="EN"?"EN":"ES"][0]);const [secA,setSecA]=useState("");
+  const [err,setErr]=useState("");
+  const secList = SECQ[lang==="EN"?"EN":"ES"];
+  const clean = (v) => v.trim().toLowerCase();
+
+  const doSignup = () => {
+    setErr("");
+    if(!email.trim()||!pw||!pw2||!legalName.trim()||!secA.trim()){setErr(t.auth_err_fields);return;}
+    if(pw!==pw2){setErr(t.auth_err_mismatch);return;}
+    const authors=loadAuthors();
+    const key=clean(email);
+    if(authors[key]){setErr(t.auth_err_exists);return;}
+    authors[key]={email:email.trim(),password:pw,legalName:legalName.trim(),secQ,secA:secA.trim()};
+    saveAuthors(authors);
+    setSession(key);
+    onAuthenticated(key);
+  };
+
+  const doLogin = () => {
+    setErr("");
+    if(!email.trim()||!pw){setErr(t.auth_err_fields);return;}
+    const authors=loadAuthors();
+    const key=clean(email);
+    const rec=authors[key];
+    if(!rec||rec.password!==pw){setErr(t.auth_err_login);return;}
+    setSession(key);
+    onAuthenticated(key);
+  };
+
+  const doRecoverSend = () => {
+    setErr("");
+    const authors=loadAuthors();
+    if(!authors[clean(email)]){setErr(t.auth_err_notfound);return;}
+    setStep("recover_sim");
+  };
+
+  const doSetNewPassword = () => {
+    setErr("");
+    if(!pw||!pw2){setErr(t.auth_err_fields);return;}
+    if(pw!==pw2){setErr(t.auth_err_mismatch);return;}
+    const authors=loadAuthors();
+    const key=clean(email);
+    authors[key].password=pw;
+    saveAuthors(authors);
+    setSession(key);
+    onAuthenticated(key);
+  };
+
+  const card = (children) => (
+    <div style={{maxWidth:"420px",margin:"0 auto",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"4px",padding:"2.2rem"}}>
+      {children}
+    </div>
+  );
+
+  if(step==="landing") return (
+    <div className="wr-wrap">
+      <h2 className="wr-h" style={{textAlign:"center"}}>{t.write_h}</h2>
+      <p className="wr-sub" style={{textAlign:"center",maxWidth:"420px",margin:"0 auto 1.8rem"}}>{t.write_sub}</p>
+      {card(
+        <div style={{display:"flex",flexDirection:"column",gap:"0.9rem"}}>
+          <button className="btn-pub" onClick={()=>{setErr("");setStep("login");}}>{t.auth_have_account}</button>
+          <button className="btn-out" onClick={()=>{setErr("");setStep("signup");}}>{t.auth_first_time}</button>
+        </div>
+      )}
+    </div>
+  );
+
+  if(step==="signup") return (
+    <div className="wr-wrap">
+      {card(<>
+        <button className="back" onClick={()=>{setErr("");setStep("landing");}}>{t.auth_back}</button>
+        <h2 className="wr-h">{t.auth_signup_h}</h2>
+        <p className="wr-sub">{t.auth_signup_sub}</p>
+        <div className="fld"><label className="lbl">{t.auth_email}</label><input className="inp" type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+        <div className="fld"><label className="lbl">{t.auth_legal_name}</label><input className="inp" value={legalName} onChange={e=>setLegalName(e.target.value)}/></div>
+        <p style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginTop:"-0.6rem",marginBottom:"1.1rem"}}>{t.auth_legal_name_note}</p>
+        <div className="fld"><label className="lbl">{t.auth_password}</label><input className="inp" type="password" value={pw} onChange={e=>setPw(e.target.value)}/></div>
+        <div className="fld"><label className="lbl">{t.auth_password_repeat}</label><input className="inp" type="password" value={pw2} onChange={e=>setPw2(e.target.value)}/></div>
+        <div className="fld">
+          <label className="lbl">{t.auth_security_q}</label>
+          <select className="inp" value={secQ} onChange={e=>setSecQ(e.target.value)}>{secList.map(q=><option key={q} value={q}>{q}</option>)}</select>
+        </div>
+        <div className="fld"><label className="lbl">{t.auth_security_a}</label><input className="inp" value={secA} onChange={e=>setSecA(e.target.value)}/></div>
+        <p style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginTop:"-0.6rem",marginBottom:"1.1rem"}}>{t.auth_security_note}</p>
+        {err&&<p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"#b23b3b",marginBottom:"1rem"}}>{err}</p>}
+        <button className="btn-pub" style={{width:"100%"}} onClick={doSignup}>{t.auth_create_account_btn}</button>
+      </>)}
+    </div>
+  );
+
+  if(step==="login") return (
+    <div className="wr-wrap">
+      {card(<>
+        <button className="back" onClick={()=>{setErr("");setStep("landing");}}>{t.auth_back}</button>
+        <h2 className="wr-h">{t.auth_login_h}</h2>
+        <p className="wr-sub">{t.auth_login_sub}</p>
+        <div className="fld"><label className="lbl">{t.auth_email}</label><input className="inp" type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+        <div className="fld"><label className="lbl">{t.auth_password}</label><input className="inp" type="password" value={pw} onChange={e=>setPw(e.target.value)}/></div>
+        {err&&<p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"#b23b3b",marginBottom:"1rem"}}>{err}</p>}
+        <button className="btn-pub" style={{width:"100%",marginBottom:"0.9rem"}} onClick={doLogin}>{t.auth_login_btn}</button>
+        <p style={{textAlign:"center"}}><span style={{fontFamily:"var(--body)",fontSize:"0.84rem",color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>{setErr("");setPw("");setStep("recover");}}>{t.auth_forgot}</span></p>
+      </>)}
+    </div>
+  );
+
+  if(step==="recover") return (
+    <div className="wr-wrap">
+      {card(<>
+        <button className="back" onClick={()=>{setErr("");setStep("login");}}>{t.auth_back}</button>
+        <h2 className="wr-h">{t.auth_recover_h}</h2>
+        <p className="wr-sub">{t.auth_recover_sub}</p>
+        <div className="fld"><label className="lbl">{t.auth_email}</label><input className="inp" type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+        {err&&<p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"#b23b3b",marginBottom:"1rem"}}>{err}</p>}
+        <button className="btn-pub" style={{width:"100%"}} onClick={doRecoverSend}>{t.auth_recover_btn}</button>
+      </>)}
+    </div>
+  );
+
+  if(step==="recover_sim") return (
+    <div className="wr-wrap">
+      {card(<>
+        <h2 className="wr-h">{t.auth_recover_sent_h}</h2>
+        <p className="wr-sub">{t.auth_recover_sent_sub}</p>
+        <button className="btn-pub" style={{width:"100%"}} onClick={()=>{setPw("");setPw2("");setStep("recover_reset");}}>{t.auth_recover_sim_btn}</button>
+      </>)}
+    </div>
+  );
+
+  if(step==="recover_reset") return (
+    <div className="wr-wrap">
+      {card(<>
+        <h2 className="wr-h">{t.auth_set_new_password_h}</h2>
+        <div className="fld"><label className="lbl">{t.auth_new_password}</label><input className="inp" type="password" value={pw} onChange={e=>setPw(e.target.value)}/></div>
+        <div className="fld"><label className="lbl">{t.auth_password_repeat}</label><input className="inp" type="password" value={pw2} onChange={e=>setPw2(e.target.value)}/></div>
+        {err&&<p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"#b23b3b",marginBottom:"1rem"}}>{err}</p>}
+        <button className="btn-pub" style={{width:"100%"}} onClick={doSetNewPassword}>{t.auth_save_password_btn}</button>
+      </>)}
+    </div>
+  );
+
+  return null;
+}
+
+function Write({setView,onPublish,t,lang,onLegal}) {
+  const [session,setSessionState]=useState(()=>getSession());
+  if(!session){
+    return <AuthGate t={t} lang={lang} onAuthenticated={(email)=>setSessionState(email)}/>;
+  }
+  return <AuthoredWrite setView={setView} onPublish={onPublish} t={t} onLegal={onLegal} email={session} onLogout={()=>{setSession(null);setSessionState(null);}}/>;
+}
+
+function AuthoredWrite({setView,onPublish,t,onLegal,email,onLogout}) {
+  // Un único libro por Autor: se carga (si existe) o se crea vacío, siempre bajo la misma
+  // clave de cuenta — nunca hay un botón para "crear otro libro".
+  const [f,setF]=useState(()=>loadBook(email)||{
+    name:"",born:"",country:"",lang:"ES",title:"",subtitle:"",text:"",coverImg:null,
+    authorNumber:null,founder:false,blocks:[{type:"chapter",title:"",num:1}],
+    assistantActive:false,assistantTuUsted:null,assistantName:"",
+    photosSlots:[],wizardDone:false
+  });
+  useEffect(()=>{ saveBook(email,f); },[f,email]);
+  const up=(k,v)=>setF(p=>(({...p,[k]:v})));
+
+  const [wStep,setWStep]=useState(f.wizardDone?"editor":"datos");
+
   const [ao,setAo]=useState("");const [al,setAl]=useState(false);const [am,setAm]=useState("");
   const [tl,setTl]=useState("EN");const [pub,setPub]=useState(false);
   const [showPhotosM,setShowPhotosM]=useState(false);const [showPdfM,setShowPdfM]=useState(false);
   const [photosBought,setPhotosBought]=useState(0);const [pdfBought,setPdfBought]=useState(null);
-  const [acceptTerms,setAcceptTerms]=useState(false);
-  const up=(k,v)=>setF(p=>(({...p,[k]:v})));
+  const [showAiOverlay,setShowAiOverlay]=useState(false);
+  const [aiTuUsted,setAiTuUsted]=useState(null);const [aiNameDraft,setAiNameDraft]=useState(f.name||"");
+  const [showSaveExit,setShowSaveExit]=useState(false);
+  const historyRef=useRef([]);
+  const taRef=useRef(null);
+
+  const binaryLangs=["ES","CA","GL","FR","IT","PT","DE"];
+  const asksTuUsted = binaryLangs.includes(f.lang);
+
   const run=async(mode)=>{
     if(!f.text.trim()&&mode!=="structure")return;
     setAl(true);setAm(mode);setAo("");
@@ -1011,87 +1312,310 @@ function Write({setView,onPublish,t,onLegal}) {
     setAl(false);
   };
   const apply=()=>{if(am==="improve"||am==="translate")up("text",ao);else if(am==="continue")up("text",f.text+"\n\n"+ao);setAo("");};
-  const publish=()=>{
+
+  const publish=(alsoUpload)=>{
     if(!f.name||!f.text)return;
-    onPublish({id:Date.now(),name:f.name,born:parseInt(f.born)||0,country:f.country||"—",
-      flag:"✍️",lang:f.lang,title:f.title||f.name,subtitle:f.subtitle||"",
-      cover:f.coverImg||null,preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"]});
-    setPub(true);
+    if(alsoUpload){
+      onPublish({id:Date.now(),name:f.name,born:parseInt(f.born)||0,country:f.country||"—",
+        flag:"✍️",lang:f.lang,title:f.title||f.name,subtitle:f.subtitle||"",
+        cover:f.coverImg||null,preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"]});
+      setPub(true);
+    }
+    setShowSaveExit(false);
   };
+
+  // ---- Paso "número de Autor" — se asigna una sola vez, la primera vez que se ve el paso ----
+  useEffect(()=>{
+    if(wStep==="numero"&&!f.authorNumber){
+      const n=assignAuthorNumber();
+      setF(p=>({...p,authorNumber:n,founder:n<=100}));
+    }
+  },[wStep]);
+
+  // ---- Bloques (capítulos/apartados) — organizan el índice del libro; el texto sigue siendo
+  // un único campo continuo (dividir el propio contenido por bloque es trabajo de Fase B) ----
+  const renumberBlocks=(blocks)=>{
+    let n=0;
+    return blocks.map(b=>b.type==="chapter"?{...b,num:(n=n+1)}:b);
+  };
+  const blockLabel=(b)=> b.type==="chapter"
+    ? (t.ed_chapter_word.charAt(0).toUpperCase()+t.ed_chapter_word.slice(1))+" "+b.num+(b.title?" — "+b.title:"")
+    : (t.ed_apartado_word.charAt(0).toUpperCase()+t.ed_apartado_word.slice(1))+(b.title?" — "+b.title:" — "+t.ed_untitled);
+  const addBlock=(type)=> setF(p=>({...p,blocks:renumberBlocks([...p.blocks,{type,title:""}])}));
+  const moveBlock=(i,dir)=> setF(p=>{
+    const j=i+dir; if(j<0||j>=p.blocks.length) return p;
+    const bl=[...p.blocks]; [bl[i],bl[j]]=[bl[j],bl[i]];
+    return {...p,blocks:renumberBlocks(bl)};
+  });
+  const renameBlock=(i)=>{
+    const b=f.blocks[i];
+    const nt=prompt(t.ed_rename_prompt+" "+(b.type==="chapter"?t.ed_chapter_word:t.ed_apartado_word)+":", b.title||"");
+    if(nt===null) return;
+    setF(p=>{ const bl=[...p.blocks]; bl[i]={...bl[i],title:nt.trim()}; return {...p,blocks:renumberBlocks(bl)}; });
+  };
+  const deleteBlock=(i)=>{
+    if(f.blocks.length===1){ alert(t.ed_need_one_block); return; }
+    if(!confirm(t.ed_confirm_delete)) return;
+    setF(p=>{ const bl=[...p.blocks]; bl.splice(i,1); return {...p,blocks:renumberBlocks(bl)}; });
+  };
+
+  // ---- Cursiva simple sobre el texto seleccionado (marcado _así_, compatible con el campo de
+  // texto plano que también usa el Asistente) y deshacer con historial de las últimas versiones ----
+  const pushHistory=()=>{ historyRef.current=[...historyRef.current.slice(-19), f.text]; };
+  const onTextChange=(v)=>{ pushHistory(); up("text",v); };
+  const applyItalic=()=>{
+    const ta=taRef.current; if(!ta) return;
+    const {selectionStart:s,selectionEnd:eIdx}=ta;
+    if(s===eIdx) return;
+    pushHistory();
+    const nv=f.text.slice(0,s)+"_"+f.text.slice(s,eIdx)+"_"+f.text.slice(eIdx);
+    up("text",nv);
+  };
+  const undo=()=>{
+    const h=historyRef.current;
+    if(h.length===0) return;
+    const prev=h[h.length-1];
+    historyRef.current=h.slice(0,-1);
+    up("text",prev);
+  };
+
+  // ---- Fotos añadidas: se crean tantos huecos como fotos compradas; cada hueco se puede
+  // subir, cambiar o quitar de forma independiente ----
+  useEffect(()=>{
+    if(photosBought>f.photosSlots.length){
+      const extra=Array.from({length:photosBought-f.photosSlots.length},()=>({dataUrl:null,caption:""}));
+      setF(p=>({...p,photosSlots:[...p.photosSlots,...extra]}));
+    }
+  },[photosBought]);
+  const setPhotoSlot=(i,dataUrl)=> setF(p=>{ const s=[...p.photosSlots]; s[i]={...s[i],dataUrl}; return {...p,photosSlots:s}; });
+  const setPhotoCaption=(i,cap)=> setF(p=>{ const s=[...p.photosSlots]; s[i]={...s[i],caption:cap}; return {...p,photosSlots:s}; });
+  const removePhoto=(i)=> setF(p=>{ const s=[...p.photosSlots]; s[i]={dataUrl:null,caption:""}; return {...p,photosSlots:s}; });
+
+  const topBar = (
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"0.6rem",marginBottom:"1.4rem"}}>
+      <button className="back" onClick={()=>setView("home")}>{t.back_home}</button>
+      <span style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)"}}>
+        {t.auth_greeting} {email} · <span style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={onLogout}>{t.auth_logout}</span>
+      </span>
+    </div>
+  );
+  const narrowCard=(children)=>(
+    <div style={{maxWidth:"460px",margin:"0 auto",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"4px",padding:"2.2rem"}}>
+      {children}
+    </div>
+  );
+
+  // ================= Paso 1 — datos del libro y Autor =================
+  if(wStep==="datos") return (
+    <div className="wr-wrap">
+      {topBar}
+      {narrowCard(<>
+        <h2 className="wr-h">{t.write_h}</h2>
+        <p className="wr-sub">{t.write_sub}</p>
+        <div className="fld"><label className="lbl">{t.f_title}</label><input className="inp" placeholder={t.f_title_ph} value={f.title} onChange={e=>up("title",e.target.value)}/></div>
+        <div className="fld"><label className="lbl">{t.f_subtitle}</label><input className="inp" placeholder={t.f_subtitle_ph} value={f.subtitle} onChange={e=>up("subtitle",e.target.value)}/></div>
+        <div className="frow">
+          <div className="fld"><label className="lbl">{t.f_name}</label><input className="inp" placeholder={t.f_name_ph} value={f.name} onChange={e=>up("name",e.target.value)}/></div>
+          <div className="fld"><label className="lbl">{t.f_born}</label><input className="inp" type="number" placeholder="Ej. 1960" value={f.born} onChange={e=>up("born",e.target.value)}/></div>
+        </div>
+        <div className="frow">
+          <div className="fld"><label className="lbl">{t.f_country}</label><input className="inp" value={f.country} onChange={e=>up("country",e.target.value)}/></div>
+          <div className="fld"><label className="lbl">{t.f_lang}</label><select className="inp" value={f.lang} onChange={e=>up("lang",e.target.value)}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select></div>
+        </div>
+        <div className="fld">
+          <label className="lbl">{t.f_cover}</label>
+          <div style={{display:"flex",alignItems:"center",gap:"0.8rem",flexWrap:"wrap"}}>
+            <label style={{fontFamily:"var(--body)",fontSize:"0.88rem",padding:"0.45rem 1rem",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:"2px",cursor:"pointer",color:"var(--navy)"}}>
+              {t.f_cover_btn}
+              <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>up("coverImg",ev.target.result);r.readAsDataURL(file);}}/>
+            </label>
+            {f.coverImg&&<img src={f.coverImg} alt="portada" style={{height:"60px",width:"auto",borderRadius:"2px",border:"1px solid var(--border)"}}/>}
+            <span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{t.f_cover_note}</span>
+          </div>
+        </div>
+        <button className="btn-pub" style={{width:"100%"}} disabled={!f.name||!f.title} onClick={()=>setWStep("numero")}>{t.wiz_continue}</button>
+      </>)}
+    </div>
+  );
+
+  // ================= Paso 2 — número de Autor =================
+  if(wStep==="numero") return (
+    <div className="wr-wrap">
+      {topBar}
+      {narrowCard(<>
+        <div style={{textAlign:"center",padding:"1rem 0"}}>
+          <div style={{fontFamily:"var(--serif)",fontSize:"3rem",color:"var(--navy)",lineHeight:1}}>Nº {f.authorNumber||"—"}</div>
+          <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",letterSpacing:"0.15em",textTransform:"uppercase",color:"var(--muted)",marginTop:"0.3rem"}}>{t.wiz_number_lbl} {f.authorNumber||"—"} {"de Locus Mundi"}</div>
+          {f.founder&&<div style={{marginTop:"1rem",display:"inline-flex",alignItems:"center",gap:"0.4rem",background:"rgba(196,147,42,0.12)",border:"1px solid var(--gold)",color:"var(--gold)",fontFamily:"var(--body)",fontSize:"0.78rem",letterSpacing:"0.08em",padding:"0.4rem 0.9rem",borderRadius:"20px"}}>{t.wiz_founder}</div>}
+        </div>
+        <button className="btn-pub" style={{width:"100%"}} onClick={()=>setWStep("camino")}>{t.wiz_continue}</button>
+      </>)}
+    </div>
+  );
+
+  // ================= Paso 3 — elegir camino =================
+  if(wStep==="camino") return (
+    <div className="wr-wrap">
+      {topBar}
+      {narrowCard(<>
+        <button className="back" onClick={()=>setWStep("numero")}>{t.auth_back}</button>
+        <h2 className="wr-h">{t.wiz_camino_h}</h2>
+        <button className="opt-card" onClick={()=>alert(t.wiz_upload_soon)} style={optCardStyle}>
+          <b style={optCardTitleStyle}>{t.wiz_camino_upload_t}</b><span style={optCardSubStyle}>{t.wiz_camino_upload_d}</span>
+        </button>
+        <button className="opt-card" onClick={()=>setWStep("condiciones")} style={optCardStyle}>
+          <b style={optCardTitleStyle}>{t.wiz_camino_write_t}</b><span style={optCardSubStyle}>{t.wiz_camino_write_d}</span>
+        </button>
+      </>)}
+    </div>
+  );
+
+  // ================= Paso 4 (solo camino "escribir") — Condiciones de Publicación =================
+  if(wStep==="condiciones") return (
+    <div className="wr-wrap">
+      {topBar}
+      {narrowCard(<>
+        <button className="back" onClick={()=>setWStep("camino")}>{t.auth_back}</button>
+        <div style={{fontFamily:"var(--body)",fontSize:"0.68rem",letterSpacing:"0.18em",textTransform:"uppercase",color:"var(--gold)",marginBottom:"0.6rem"}}>{t.wiz_cond_tag}</div>
+        <h2 className="wr-h">{t.wiz_cond_h}</h2>
+        <p className="wr-sub">{t.wiz_cond_sub}</p>
+        <div className="pol-box">
+          <ul className="pol-li"><li>{t.pol1}</li><li>{t.pol2}</li><li>{t.pol3}</li><li>{t.pol4}</li></ul>
+          <label style={{display:"flex",alignItems:"flex-start",gap:"0.5rem",marginTop:"0.8rem",paddingTop:"0.8rem",borderTop:"1px solid var(--border)",cursor:"pointer",fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--ink)",lineHeight:1.5}}>
+            <input type="checkbox" checked={!!f.acceptedConditions} onChange={e=>up("acceptedConditions",e.target.checked)} style={{marginTop:"0.2rem"}}/>
+            <span>{t.accept_terms_pre} <span style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={(ev)=>{ev.preventDefault();onLegal();}}>{t.accept_terms_link}</span></span>
+          </label>
+        </div>
+        <button className="btn-pub" style={{width:"100%"}} disabled={!f.acceptedConditions} onClick={()=>{up("wizardDone",true);setWStep("editor");}}>{t.wiz_cond_start_btn}</button>
+      </>)}
+    </div>
+  );
+
+  // ================= Editor =================
   return (
     <div className="wr-wrap">
       {showPhotosM&&<PhotosModal onClose={()=>setShowPhotosM(false)} onPaid={(n)=>{setPhotosBought(p=>p+n);setShowPhotosM(false);}} t={t}/>}
       {showPdfM&&<PdfModal onClose={()=>setShowPdfM(false)} onPaid={(fmt)=>{setPdfBought(fmt);setShowPdfM(false);}} t={t}/>}
-      <button className="back" onClick={()=>setView("home")}>{t.back_home}</button>
+      {showAiOverlay&&(
+        <div className="ov">
+          <div className="modal" style={{maxWidth:"380px"}}>
+            <button className="modal-x" onClick={()=>setShowAiOverlay(false)}>×</button>
+            {asksTuUsted?
+              <>
+                <div className="modal-h" style={{fontSize:"1.2rem"}}>{t.ai_ask_tuusted_h}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:"0.6rem",margin:"0.8rem 0"}}>
+                  <button className={aiTuUsted==="tu"?"btn-pub":"btn-out"} onClick={()=>setAiTuUsted("tu")}>{t.ai_tu}</button>
+                  <button className={aiTuUsted==="usted"?"btn-pub":"btn-out"} onClick={()=>setAiTuUsted("usted")}>{t.ai_usted}</button>
+                </div>
+              </>
+            :null}
+            <div className="fld"><label className="lbl">{t.ai_ask_name_h}</label><input className="inp" value={aiNameDraft} onChange={e=>setAiNameDraft(e.target.value)}/></div>
+            <button className="btn-pub" style={{width:"100%"}} onClick={()=>{
+              setF(p=>({...p,assistantActive:true,assistantTuUsted:asksTuUsted?aiTuUsted:null,assistantName:aiNameDraft||f.name}));
+              setShowAiOverlay(false);
+            }}>{t.ai_start_using}</button>
+          </div>
+        </div>
+      )}
+      {showSaveExit&&(
+        <div className="ov">
+          <div className="modal" style={{maxWidth:"380px"}}>
+            <button className="modal-x" onClick={()=>setShowSaveExit(false)}>×</button>
+            <div className="modal-h" style={{fontSize:"1.15rem"}}>{t.ed_save_exit_q}</div>
+            <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={()=>publish(false)}>{t.ed_save_private}</button>
+            <button className="btn-out" style={{width:"100%"}} disabled={!f.name||!f.text} onClick={()=>publish(true)}>{t.ed_save_upload}</button>
+            {pub&&<p className="ok-msg" style={{marginTop:"0.6rem"}}>{t.published_ok}</p>}
+          </div>
+        </div>
+      )}
+      {topBar}
       <div className="wr-grid">
         <div>
-          <h2 className="wr-h">{t.write_h}</h2>
-          <p className="wr-sub">{t.write_sub}</p>
-          <div className="fld"><label className="lbl">{t.f_title}</label><input className="inp" placeholder={t.f_title_ph} value={f.title} onChange={e=>up("title",e.target.value)}/></div>
-          <div className="fld"><label className="lbl">{t.f_subtitle}</label><input className="inp" placeholder={t.f_subtitle_ph} value={f.subtitle} onChange={e=>up("subtitle",e.target.value)}/></div>
-          <div className="pol-box">
-            <div className="pol-tit">{t.policy_tit}</div>
-            <ul className="pol-li"><li>{t.pol1}</li><li>{t.pol2}</li><li>{t.pol3}</li><li>{t.pol4}</li></ul>
-            <label style={{display:"flex",alignItems:"flex-start",gap:"0.5rem",marginTop:"0.8rem",paddingTop:"0.8rem",borderTop:"1px solid var(--border)",cursor:"pointer",fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--ink)",lineHeight:1.5}}>
-              <input type="checkbox" checked={acceptTerms} onChange={e=>setAcceptTerms(e.target.checked)} style={{marginTop:"0.2rem"}}/>
-              <span>{t.accept_terms_pre} <span style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={(e)=>{e.preventDefault();onLegal();}}>{t.accept_terms_link}</span></span>
-            </label>
-          </div>
-          <div className="frow">
-            <div className="fld"><label className="lbl">{t.f_name}</label><input className="inp" placeholder={t.f_name_ph} value={f.name} onChange={e=>up("name",e.target.value)}/></div>
-            <div className="fld"><label className="lbl">{t.f_born}</label><input className="inp" type="number" placeholder="Ej. 1960" value={f.born} onChange={e=>up("born",e.target.value)}/></div>
-          </div>
-          <div className="frow">
-            <div className="fld"><label className="lbl">{t.f_country}</label><input className="inp" value={f.country} onChange={e=>up("country",e.target.value)}/></div>
-            <div className="fld"><label className="lbl">{t.f_lang}</label><select className="inp" value={f.lang} onChange={e=>up("lang",e.target.value)}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select></div>
+          <div className="frow" style={{marginBottom:"0.9rem"}}>
+            <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_title}</label><input className="inp" value={f.title} onChange={e=>up("title",e.target.value)}/></div>
+            <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_subtitle}</label><input className="inp" value={f.subtitle} onChange={e=>up("subtitle",e.target.value)}/></div>
           </div>
           <div className="fld">
             <label className="lbl">{t.f_cover}</label>
             <div style={{display:"flex",alignItems:"center",gap:"0.8rem",flexWrap:"wrap"}}>
-              <label style={{fontFamily:"var(--body)",fontSize:"0.88rem",padding:"0.45rem 1rem",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:"2px",cursor:"pointer",color:"var(--navy)"}}>
-                {t.f_cover_btn}
+              {f.coverImg&&<img src={f.coverImg} alt="portada" style={{height:"52px",width:"38px",objectFit:"cover",borderRadius:"2px",border:"1px solid var(--border)"}}/>}
+              <label style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
+                {t.ed_change_cover}
                 <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>up("coverImg",ev.target.result);r.readAsDataURL(file);}}/>
               </label>
-              {f.coverImg&&<img src={f.coverImg} alt="portada" style={{height:"60px",width:"auto",borderRadius:"2px",border:"1px solid var(--border)"}}/>}
-              <span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{t.f_cover_note}</span>
             </div>
           </div>
-          <div className="fld">
-            <label className="lbl">{t.f_text}</label>
-            <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
-              <button type="button" className="toolbar-btn" onClick={()=>up("text",f.text+"\n\n[Capítulo] Título del capítulo\n\n")}>+ Capítulo</button>
-              <span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>Gratuito</span>
+
+          <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",padding:"0.9rem",margin:"1rem 0"}}>
+            <div style={{fontFamily:"var(--body)",fontSize:"0.68rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--gold)",marginBottom:"0.7rem"}}>{t.ed_blocks_h}</div>
+            {f.blocks.map((b,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:"0.4rem",padding:"0.4rem 0.5rem",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:"2px",marginBottom:"0.4rem",fontSize:"0.82rem"}}>
+                <span style={{flex:1,color:"var(--ink)"}}>{blockLabel(b)}</span>
+                <button style={editIconStyle} title={t.ed_rename_prompt} onClick={()=>renameBlock(i)}>✎</button>
+                <button style={{...editIconStyle,color:"#b23b3b"}} title="✕" onClick={()=>deleteBlock(i)}>✕</button>
+                <div style={{display:"flex",flexDirection:"column"}}>
+                  <button style={{...arrowStyle,opacity:i===0?0.3:1}} disabled={i===0} onClick={()=>moveBlock(i,-1)}>▲</button>
+                  <button style={{...arrowStyle,opacity:i===f.blocks.length-1?0.3:1}} disabled={i===f.blocks.length-1} onClick={()=>moveBlock(i,1)}>▼</button>
+                </div>
+              </div>
+            ))}
+            <div style={{display:"flex",gap:"0.4rem",marginTop:"0.6rem",flexWrap:"wrap"}}>
+              <button type="button" className="toolbar-btn" onClick={()=>addBlock("chapter")}>{t.ed_add_chapter}</button>
+              <button type="button" className="toolbar-btn" onClick={()=>addBlock("apartado")}>{t.ed_add_apartado}</button>
             </div>
-            <textarea className="ta" placeholder={t.f_text_ph} value={f.text} onChange={e=>up("text",e.target.value)}/>
           </div>
-          <div className="pub-row">
-            <button className="btn-pub" onClick={publish} disabled={!f.name||!f.text||!acceptTerms}>{t.publish}</button>
-            <button className="btn-out" onClick={()=>!pdfBought?setShowPdfM(true):null}>📄 PDF {pdfBought?`(${pdfBought})`:"✦"}</button>
-            {pub&&<span className="ok-msg">{t.published_ok}</span>}
+
+          <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
+            <button type="button" className="toolbar-btn" style={photosBought>0?{}:{opacity:0.4,cursor:"not-allowed"}}
+              onClick={()=>{ if(photosBought===0){return;} document.getElementById("lm-photos-added")?.scrollIntoView({behavior:"smooth"}); }}>{t.ed_add_photo}</button>
+            <button type="button" className="toolbar-btn" onClick={applyItalic}><i>{t.ed_italic}</i></button>
+            <button type="button" className="toolbar-btn" onClick={undo}>{t.ed_undo}</button>
+          </div>
+          <textarea ref={taRef} className="ta" placeholder={t.f_text_ph} value={f.text} onChange={e=>onTextChange(e.target.value)}/>
+
+          {f.photosSlots.length>0&&(
+            <div id="lm-photos-added" style={{marginTop:"1rem"}}>
+              <div className="lbl" style={{marginBottom:"0.5rem"}}>{t.ed_photos_added_h}</div>
+              <div style={{display:"flex",gap:"0.8rem",flexWrap:"wrap"}}>
+                {f.photosSlots.map((ph,i)=>(
+                  <div key={i} style={{width:"120px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"2px",padding:"0.5rem"}}>
+                    {ph.dataUrl?
+                      <img src={ph.dataUrl} alt="" style={{width:"100%",height:"90px",objectFit:"cover",borderRadius:"2px",marginBottom:"0.4rem"}}/>
+                      :<div style={{width:"100%",height:"90px",background:"var(--bg2)",borderRadius:"2px",marginBottom:"0.4rem"}}/>}
+                    <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} placeholder={t.ed_photo_caption_ph} value={ph.caption} onChange={e=>setPhotoCaption(i,e.target.value)}/>
+                    <div style={{display:"flex",gap:"0.4rem",fontSize:"0.7rem"}}>
+                      <label style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
+                        {ph.dataUrl?t.ed_photo_replace:t.ed_photo_upload}
+                        <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>setPhotoSlot(i,ev.target.result);r.readAsDataURL(file);}}/>
+                      </label>
+                      {ph.dataUrl&&<span style={{color:"#b23b3b",textDecoration:"underline",cursor:"pointer"}} onClick={()=>removePhoto(i)}>{t.ed_photo_remove}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="wr-sub" style={{marginTop:"0.8rem",fontSize:"0.8rem"}}>Autoguardado activo.</p>
+          <div style={{marginTop:"1.2rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",display:"flex",justifyContent:"flex-end"}}>
+            <button className="btn-out" style={{width:"auto",padding:"0.65rem 1.6rem"}} onClick={()=>setShowSaveExit(true)}>{t.ed_save_exit}</button>
           </div>
         </div>
+
         <div className="aip">
-          <div className="aip-h"><span style={{color:"var(--gold)"}}>✦</span> {t.ai_h}</div>
-          <p className="aip-sub">{t.ai_sub}</p>
-          <div className="ai-btns">
-            <button className="aib" disabled={al} onClick={()=>run("continue")}><span>→</span><span><b>{t.ai_continue}</b> — {t.ai_continue_d}</span></button>
-            <button className="aib" disabled={al} onClick={()=>run("improve")}><span>✦</span><span><b>{t.ai_improve}</b> — {t.ai_improve_d}</span></button>
-            <button className="aib" disabled={al} onClick={()=>run("structure")}><span>◈</span><span><b>{t.ai_structure}</b> — {t.ai_structure_d}</span></button>
-          </div>
-          <hr className="sep"/>
-          <div className="tr-row2">
-            <span className="tr-lbl">{t.translate_to}</span>
-            <select className="sel" style={{flex:1}} value={tl} onChange={e=>setTl(e.target.value)}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
-            <button className="btn-sm" disabled={al} onClick={()=>run("translate")}>{t.go}</button>
-          </div>
-          {al&&<div className="loading"><span className="sp"/>{t.ai_thinking}</div>}
-          {ao&&!al&&(<div><div className="ai-out-lbl">{t.proposal}</div><div className="ai-out">{ao}</div>{(am==="continue"||am==="improve"||am==="translate")&&<button className="apply-btn" onClick={apply}>{am==="continue"?t.add_text:t.replace_text}</button>}</div>)}
           <div className="pm-box">
             <div className="pm-tit">{t.pub_opts}</div>
             <div className="pm-row">
               <div className="pm-feat"><span className="pm-feat-t">{t.unlimited_text}</span><span className="badge free">{t.free}</span></div>
               <div className="pm-feat"><span className="pm-feat-t">{t.one_img}</span><span className="badge free">{t.free}</span></div>
               <div className="pm-feat"><span className="pm-feat-t">{t.permanent_archive}</span><span className="badge free">{t.free}</span></div>
+            </div>
+            <div style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--navy)",borderRadius:"2px"}}>
+              <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--navy)",fontWeight:"600",marginBottom:"0.2rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.ai_sub_label}</div>
+              <div style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginBottom:"0.4rem"}}>{t.ai_hours_note}</div>
+              {!f.assistantActive
+                ? <button className="pm-unlock" style={{borderColor:"var(--navy)",color:"var(--navy)"}} onClick={()=>{setAiTuUsted(null);setAiNameDraft(f.name||"");setShowAiOverlay(true);}}>{t.ai_activate_btn}</button>
+                : <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#2a6a2a"}}>{t.ai_active_msg} <b>{f.assistantName}</b></div>}
             </div>
             <div style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
               <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_photos_h}</div>
@@ -1103,17 +1627,36 @@ function Write({setView,onPublish,t,onLegal}) {
               <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_pdf_sub}</span><span className={`badge ${pdfBought?"on":"prem"}`}>{pdfBought?`DIN ${pdfBought}`:"€5"}</span></div>
               {!pdfBought&&<button className="pm-unlock" onClick={()=>setShowPdfM(true)}>{t.addon_pdf_btn}</button>}
             </div>
-            <div style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--navy)",borderRadius:"2px"}}>
-              <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--navy)",fontWeight:"600",marginBottom:"0.2rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.ai_sub_label}</div>
-              <div style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginBottom:"0.4rem"}}>{t.ai_sub_note}</div>
-              <button className="pm-unlock" style={{borderColor:"var(--navy)",color:"var(--navy)"}} onClick={()=>alert("Próximamente · Coming soon")}>€5/mes</button>
-            </div>
           </div>
+
+          {f.assistantActive&&(<>
+            <hr className="sep"/>
+            <div className="aip-h"><span style={{color:"var(--gold)"}}>✦</span> {t.ai_h}</div>
+            <p className="aip-sub">{t.ai_sub}</p>
+            <div className="ai-btns">
+              <button className="aib" disabled={al} onClick={()=>run("continue")}><span>→</span><span><b>{t.ai_continue}</b> — {t.ai_continue_d}</span></button>
+              <button className="aib" disabled={al} onClick={()=>run("improve")}><span>✦</span><span><b>{t.ai_improve}</b> — {t.ai_improve_d}</span></button>
+              <button className="aib" disabled={al} onClick={()=>run("structure")}><span>◈</span><span><b>{t.ai_structure}</b> — {t.ai_structure_d}</span></button>
+            </div>
+            <hr className="sep"/>
+            <div className="tr-row2">
+              <span className="tr-lbl">{t.translate_to}</span>
+              <select className="sel" style={{flex:1}} value={tl} onChange={e=>setTl(e.target.value)}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
+              <button className="btn-sm" disabled={al} onClick={()=>run("translate")}>{t.go}</button>
+            </div>
+            {al&&<div className="loading"><span className="sp"/>{t.ai_thinking}</div>}
+            {ao&&!al&&(<div><div className="ai-out-lbl">{t.proposal}</div><div className="ai-out">{ao}</div>{(am==="continue"||am==="improve"||am==="translate")&&<button className="apply-btn" onClick={apply}>{am==="continue"?t.add_text:t.replace_text}</button>}</div>)}
+          </>)}
         </div>
       </div>
     </div>
   );
 }
+const optCardStyle={display:"block",width:"100%",textAlign:"left",fontFamily:"var(--body)",fontSize:"0.92rem",padding:"0.9rem 1.1rem",background:"var(--bg2)",border:"1.5px solid var(--border)",borderRadius:"3px",cursor:"pointer",marginBottom:"0.7rem",color:"var(--ink)"};
+const optCardTitleStyle={display:"block",fontFamily:"var(--serif)",fontSize:"1.05rem",fontWeight:500,marginBottom:"0.15rem"};
+const optCardSubStyle={color:"var(--muted)",fontSize:"0.82rem"};
+const editIconStyle={background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:"0.78rem",padding:"0 3px"};
+const arrowStyle={background:"none",border:"none",color:"var(--navy)",cursor:"pointer",fontSize:"0.68rem",lineHeight:1,padding:"1px 4px"};
 
 function Footer({t,onContact,onLegal,onCollab,onFaq}) {
   return (
@@ -1153,7 +1696,7 @@ function App() {
       {view==="home"&&<Home autos={autos} openAuto={open} setView={setView} t={t}/>}
       {view==="library"&&<Library autos={autos} openAuto={open} t={t}/>}
       {view==="read"&&<Read auto={sel} setView={setView} t={t}/>}
-      {view==="write"&&<Write setView={setView} onPublish={a=>{setAutos(p=>[...p,a]);setView("library");}} t={t} onLegal={()=>setShowLegal("condiciones")}/>}
+      {view==="write"&&<Write setView={setView} onPublish={a=>{setAutos(p=>[...p,a]);setView("library");}} t={t} lang={lang} onLegal={()=>setShowLegal("condiciones")}/>}
       <Footer t={t} onContact={()=>setShowContact(true)} onLegal={setShowLegal} onCollab={()=>setShowCollab(true)} onFaq={()=>setShowFaq(true)}/>
       {showContact&&<ContactModal onClose={()=>setShowContact(false)} t={t}/>}
       {showLegal&&<LegalModal docKey={showLegal} onClose={()=>setShowLegal(null)} t={t} lang={lang}/>}
