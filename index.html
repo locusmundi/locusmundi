@@ -479,6 +479,50 @@ const T = {
     ai_tu:"De tú",ai_usted:"De usted",ai_start_using:"Empezar a usar el Asistente",
     ai_activate_btn:"Activar Asistente",ai_active_msg:"✓ Asistente activo — te llamará",
     ai_hours_note:"Ayuda a escribir, mejorar y traducir — ≈30 horas al mes",
+    upload_h:"Sube tu documento",upload_sub:"Aceptamos PDF.",
+    upload_note_photos:"Si tu documento incluye fotos, de momento las omitimos — solo subimos el texto. Más adelante podrás añadirlas como extra de pago, ya maquetadas con el diseño de Locus Mundi.",
+    upload_btn:"Toca para elegir tu archivo",
+    upload_sim_note:"(Simulado: todavía no hay lectura real de PDF — llega en la Fase B)",
+    upload_confirm_h:"Esto es lo que hemos leído",
+    upload_confirm_sub:"Revísalo con calma y corrige lo que haga falta antes de continuar.",
+    upload_confirm_btn:"Esto ya es correcto, continuar",
+    upload_maqueta_h:"Así quedará tu libro",
+    upload_maqueta_sub:"Hemos ajustado tu texto al diseño de la colección.",
+    upload_maqueta_btn:"Continuar",
+    upload_review_h:"Última comprobación",
+    upload_review_ok_btn:"Simular: todo correcto",
+    upload_review_flag_btn:"Simular: hay un pasaje a revisar",
+    upload_review_ok_msg:"Tu texto no contiene contenido ofensivo, discriminatorio ni datos privados de terceros expuestos sin motivo.",
+    upload_flag_reason:"Posible exposición de la privacidad de un tercero identificable",
+    upload_flag_reformular:"Reformular",upload_flag_suprimir:"Suprimir",
+    upload_flag_resolved:"✓ Resuelto",upload_recheck_btn:"Volver a comprobar",
+    upload_continue_unresolved:"Seguir editando sin publicar",
+    upload_publish_btn:"Publicar mi libro",
+    upload_done_h:"¡Publicado!",
+    upload_done_photos_note:"Recuerda: si tu libro tenía fotos, puedes añadirlas ahora como extra de pago, ya maquetadas con nuestro diseño.",
+    upload_done_btn:"Ir a mi libro",
+    upload_reformular_prompt:"Reescribe este pasaje:",
+    unpub_link:"Despublicar mi historia",
+    unpub_confirm_h:"¿Despublicar tu historia?",
+    unpub_confirm_sub:"Tu historia dejará de poder leerse por cualquier visitante. Tu archivo no se borra: seguirá aquí, solo para ti, y podrás volver a publicarlo cuando quieras.",
+    unpub_confirm_btn:"Sí, despublicar",unpub_cancel_btn:"No, dejarlo publicado",
+    unpub_sent_h:"Confirmación enviada",
+    unpub_sent_sub:"Te enviamos un enlace a tu correo. Ábrelo para confirmar (esto es una simulación: pulsa el botón como si lo hubieras abierto).",
+    unpub_sim_btn:"Simular apertura del enlace",
+    unpub_done_msg:"✓ Tu historia ya no es visible públicamente.",
+    unpub_undo_btn:"Deshacer",
+    privacy_link:"Privacidad y mis datos",
+    privacy_h:"Privacidad y mis datos",
+    privacy_delete_h:"Eliminar mi historia por completo",
+    privacy_delete_warn:"Esto borra tu historia para siempre, incluido tu propio archivo. No hay vuelta atrás, ni siquiera para ti. Si solo quieres que no se lea, usa \"Despublicar mi historia\" en vez de esto.",
+    privacy_delete_phrase:"quiero borrar mi historia para siempre",
+    privacy_delete_phrase_lbl:"Escribe exactamente esta frase para continuar:",
+    privacy_delete_input_ph:"Escribe aquí la frase",
+    privacy_delete_btn:"Eliminar por completo",
+    privacy_delete_sent_h:"Confirmación enviada",
+    privacy_delete_sent_sub:"Te enviamos un enlace a tu correo. Ábrelo para confirmar el borrado definitivo (simulación: pulsa el botón como si lo hubieras abierto).",
+    privacy_delete_done_h:"Tu historia se ha eliminado por completo.",
+    privacy_back_btn:"← Volver a mi libro",
     ai_h:"Asistente IA",ai_sub:"La IA se adapta a tu voz y tu idioma.",
     ai_continue:"Continuar",ai_continue_d:"sigue desde donde lo dejé",
     ai_improve:"Mejorar",ai_improve_d:"más evocador, misma voz",
@@ -630,6 +674,50 @@ const T = {
     ai_tu:"Informal",ai_usted:"Formal",ai_start_using:"Start using the Assistant",
     ai_activate_btn:"Activate Assistant",ai_active_msg:"✓ Assistant active — will call you",
     ai_hours_note:"Helps you write, improve and translate — ≈30 hours a month",
+    upload_h:"Upload your document",upload_sub:"We accept PDF.",
+    upload_note_photos:"If your document includes photos, we omit them for now — we only upload the text. You'll be able to add them later as a paid extra, already laid out in Locus Mundi's design.",
+    upload_btn:"Tap to choose your file",
+    upload_sim_note:"(Simulated: real PDF reading isn't built yet — coming in Phase B)",
+    upload_confirm_h:"Here's what we read",
+    upload_confirm_sub:"Take your time reviewing it and fix anything needed before continuing.",
+    upload_confirm_btn:"This is correct, continue",
+    upload_maqueta_h:"This is how your book will look",
+    upload_maqueta_sub:"We've adjusted your text to the collection's design.",
+    upload_maqueta_btn:"Continue",
+    upload_review_h:"Final check",
+    upload_review_ok_btn:"Simulate: all clear",
+    upload_review_flag_btn:"Simulate: a passage needs review",
+    upload_review_ok_msg:"Your text doesn't contain offensive or discriminatory content, nor private third-party data exposed without reason.",
+    upload_flag_reason:"Possible exposure of an identifiable third party's privacy",
+    upload_flag_reformular:"Rephrase",upload_flag_suprimir:"Remove",
+    upload_flag_resolved:"✓ Resolved",upload_recheck_btn:"Check again",
+    upload_continue_unresolved:"Keep editing without publishing",
+    upload_publish_btn:"Publish my book",
+    upload_done_h:"Published!",
+    upload_done_photos_note:"Remember: if your book had photos, you can add them now as a paid extra, already laid out in our design.",
+    upload_done_btn:"Go to my book",
+    upload_reformular_prompt:"Rewrite this passage:",
+    unpub_link:"Unpublish my story",
+    unpub_confirm_h:"Unpublish your story?",
+    unpub_confirm_sub:"Your story will stop being readable by visitors. Your file isn't deleted: it stays here, just for you, and you can publish it again whenever you want.",
+    unpub_confirm_btn:"Yes, unpublish",unpub_cancel_btn:"No, keep it published",
+    unpub_sent_h:"Confirmation sent",
+    unpub_sent_sub:"We've sent a link to your email. Open it to confirm (this is a simulation: click the button as if you had opened it).",
+    unpub_sim_btn:"Simulate opening the link",
+    unpub_done_msg:"✓ Your story is no longer publicly visible.",
+    unpub_undo_btn:"Undo",
+    privacy_link:"Privacy and my data",
+    privacy_h:"Privacy and my data",
+    privacy_delete_h:"Delete my story completely",
+    privacy_delete_warn:"This deletes your story forever, including your own file. There's no going back, not even for you. If you just want it unread, use \"Unpublish my story\" instead.",
+    privacy_delete_phrase:"I want to delete my story forever",
+    privacy_delete_phrase_lbl:"Type this exact phrase to continue:",
+    privacy_delete_input_ph:"Type the phrase here",
+    privacy_delete_btn:"Delete completely",
+    privacy_delete_sent_h:"Confirmation sent",
+    privacy_delete_sent_sub:"We've sent a link to your email. Open it to confirm the permanent deletion (simulation: click the button as if you had opened it).",
+    privacy_delete_done_h:"Your story has been completely deleted.",
+    privacy_back_btn:"← Back to my book",
     ai_h:"AI Assistant",ai_sub:"The AI adapts to your voice and language.",
     ai_continue:"Continue",ai_continue_d:"carry on from where I left off",
     ai_improve:"Improve",ai_improve_d:"more evocative, same voice",
@@ -1262,22 +1350,22 @@ function AuthGate({t,lang,onAuthenticated}) {
   return null;
 }
 
-function Write({setView,onPublish,t,lang,onLegal}) {
+function Write({setView,onPublish,onUnpublish,t,lang,onLegal}) {
   const [session,setSessionState]=useState(()=>getSession());
   if(!session){
     return <AuthGate t={t} lang={lang} onAuthenticated={(email)=>setSessionState(email)}/>;
   }
-  return <AuthoredWrite setView={setView} onPublish={onPublish} t={t} onLegal={onLegal} email={session} onLogout={()=>{setSession(null);setSessionState(null);}}/>;
+  return <AuthoredWrite setView={setView} onPublish={onPublish} onUnpublish={onUnpublish} t={t} onLegal={onLegal} email={session} onLogout={()=>{setSession(null);setSessionState(null);}}/>;
 }
 
-function AuthoredWrite({setView,onPublish,t,onLegal,email,onLogout}) {
+function AuthoredWrite({setView,onPublish,onUnpublish,t,onLegal,email,onLogout}) {
   // Un único libro por Autor: se carga (si existe) o se crea vacío, siempre bajo la misma
   // clave de cuenta — nunca hay un botón para "crear otro libro".
   const [f,setF]=useState(()=>loadBook(email)||{
     name:"",born:"",country:"",lang:"ES",title:"",subtitle:"",text:"",coverImg:null,
     authorNumber:null,founder:false,blocks:[{type:"chapter",title:"",num:1}],
     assistantActive:false,assistantTuUsted:null,assistantName:"",
-    photosSlots:[],wizardDone:false
+    photosSlots:[],wizardDone:false,published:false,publishedId:null
   });
   useEffect(()=>{ saveBook(email,f); },[f,email]);
   const up=(k,v)=>setF(p=>(({...p,[k]:v})));
@@ -1291,6 +1379,11 @@ function AuthoredWrite({setView,onPublish,t,onLegal,email,onLogout}) {
   const [showAiOverlay,setShowAiOverlay]=useState(false);
   const [aiTuUsted,setAiTuUsted]=useState(null);const [aiNameDraft,setAiNameDraft]=useState(f.name||"");
   const [showSaveExit,setShowSaveExit]=useState(false);
+  const [uploadFileName,setUploadFileName]=useState("");
+  const [uploadReviewState,setUploadReviewState]=useState(null); // null | "ok" | "flagged"
+  const [uploadFlagged,setUploadFlagged]=useState([]); // [{excerpt, resolved}]
+  const [uploadAccepted,setUploadAccepted]=useState(false);
+  const MOCK_EXTRACTED_TEXT = "Nací en un pueblo pequeño del norte, en una casa con un huerto grande donde mi madre cultivaba tomates y calabazas. Recuerdo el olor de la tierra mojada después de llover, y las tardes de verano jugando con mis primos hasta que anochecía. Mi vecino Antonio Pérez Ruiz, que vivía en el número 4, tuvo problemas serios con la justicia por aquellos años, algo que toda la calle comentaba.";
   const historyRef=useRef([]);
   const taRef=useRef(null);
 
@@ -1316,10 +1409,13 @@ function AuthoredWrite({setView,onPublish,t,onLegal,email,onLogout}) {
   const publish=(alsoUpload)=>{
     if(!f.name||!f.text)return;
     if(alsoUpload){
-      onPublish({id:Date.now(),name:f.name,born:parseInt(f.born)||0,country:f.country||"—",
+      const pid=Date.now();
+      onPublish({id:pid,name:f.name,born:parseInt(f.born)||0,country:f.country||"—",
         flag:"✍️",lang:f.lang,title:f.title||f.name,subtitle:f.subtitle||"",
         cover:f.coverImg||null,preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"]});
+      setF(p=>({...p,published:true,publishedId:pid}));
       setPub(true);
+      setView("library");
     }
     setShowSaveExit(false);
   };
@@ -1391,6 +1487,66 @@ function AuthoredWrite({setView,onPublish,t,onLegal,email,onLogout}) {
   const setPhotoCaption=(i,cap)=> setF(p=>{ const s=[...p.photosSlots]; s[i]={...s[i],caption:cap}; return {...p,photosSlots:s}; });
   const removePhoto=(i)=> setF(p=>{ const s=[...p.photosSlots]; s[i]={dataUrl:null,caption:""}; return {...p,photosSlots:s}; });
 
+  const runUploadReview=(simulateFlag)=>{
+    if(simulateFlag){
+      const excerpt="Mi vecino Antonio Pérez Ruiz, que vivía en el número 4, tuvo problemas serios con la justicia por aquellos años, algo que toda la calle comentaba.";
+      setUploadFlagged([{excerpt,resolved:false}]);
+      setUploadReviewState("flagged");
+    } else {
+      setUploadFlagged([]);
+      setUploadReviewState("ok");
+    }
+  };
+  const reformularPasaje=(i)=>{
+    const old=uploadFlagged[i].excerpt;
+    const nuevo=prompt(t.upload_reformular_prompt, old);
+    if(nuevo===null) return;
+    up("text", f.text.split(old).join(nuevo.trim()));
+    setUploadFlagged(p=>{const a=[...p];a[i]={...a[i],resolved:true,excerpt:nuevo.trim()};return a;});
+  };
+  const suprimirPasaje=(i)=>{
+    const old=uploadFlagged[i].excerpt;
+    if(!confirm(t.upload_flag_suprimir+"?")) return;
+    up("text", f.text.split(old).join("").replace(/\s{2,}/g," ").trim());
+    setUploadFlagged(p=>{const a=[...p];a[i]={...a[i],resolved:true};return a;});
+  };
+  const allResolved = uploadFlagged.length>0 && uploadFlagged.every(x=>x.resolved);
+
+  const [unpubStep,setUnpubStep]=useState(null); // null | "confirm" | "sent" | "done"
+  const [showUndo,setShowUndo]=useState(false);
+  const lastUnpublishedRef=useRef(null);
+  const undoTimerRef=useRef(null);
+  const doUnpublishConfirmed=()=>{
+    lastUnpublishedRef.current={
+      id:f.publishedId,name:f.name,born:parseInt(f.born)||0,country:f.country||"—",
+      flag:"✍️",lang:f.lang,title:f.title||f.name,subtitle:f.subtitle||"",
+      cover:f.coverImg||null,preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"]
+    };
+    onUnpublish(f.publishedId);
+    up("published",false);
+    setUnpubStep("done");
+    setShowUndo(true);
+    clearTimeout(undoTimerRef.current);
+    undoTimerRef.current=setTimeout(()=>setShowUndo(false),8000);
+  };
+  const undoUnpublish=()=>{
+    if(!lastUnpublishedRef.current) return;
+    onPublish(lastUnpublishedRef.current);
+    up("published",true);
+    setShowUndo(false);
+    setUnpubStep(null);
+    clearTimeout(undoTimerRef.current);
+  };
+
+  const [deletePhrase,setDeletePhrase]=useState("");
+  const [deleteStep,setDeleteStep]=useState(null); // null | "sent" | "done"
+  const doDeleteForever=()=>{
+    if(f.published&&f.publishedId) onUnpublish(f.publishedId);
+    setF(p=>({...p,text:"",title:"",subtitle:"",coverImg:null,blocks:[{type:"chapter",title:"",num:1}],
+      photosSlots:[],wizardDone:false,published:false,publishedId:null,assistantActive:false}));
+    setDeleteStep("done");
+  };
+
   const topBar = (
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"0.6rem",marginBottom:"1.4rem"}}>
       <button className="back" onClick={()=>setView("home")}>{t.back_home}</button>
@@ -1460,12 +1616,171 @@ function AuthoredWrite({setView,onPublish,t,onLegal,email,onLogout}) {
       {narrowCard(<>
         <button className="back" onClick={()=>setWStep("numero")}>{t.auth_back}</button>
         <h2 className="wr-h">{t.wiz_camino_h}</h2>
-        <button className="opt-card" onClick={()=>alert(t.wiz_upload_soon)} style={optCardStyle}>
+        <button className="opt-card" onClick={()=>setWStep("upload")} style={optCardStyle}>
           <b style={optCardTitleStyle}>{t.wiz_camino_upload_t}</b><span style={optCardSubStyle}>{t.wiz_camino_upload_d}</span>
         </button>
         <button className="opt-card" onClick={()=>setWStep("condiciones")} style={optCardStyle}>
           <b style={optCardTitleStyle}>{t.wiz_camino_write_t}</b><span style={optCardSubStyle}>{t.wiz_camino_write_d}</span>
         </button>
+      </>)}
+    </div>
+  );
+
+  // ================= Camino A — subir archivo: paso "subir" =================
+  if(wStep==="upload") return (
+    <div className="wr-wrap">
+      {topBar}
+      {narrowCard(<>
+        <button className="back" onClick={()=>setWStep("camino")}>{t.auth_back}</button>
+        <h2 className="wr-h">{t.upload_h}</h2>
+        <p className="wr-sub">{t.upload_sub}</p>
+        <div style={{background:"rgba(27,58,107,0.05)",border:"1px solid rgba(27,58,107,0.18)",borderRadius:"3px",padding:"0.8rem 1rem",fontSize:"0.82rem",color:"var(--ink)",lineHeight:1.55,marginBottom:"1.2rem"}}>{t.upload_note_photos}</div>
+        <label style={{display:"block",border:"2px dashed var(--border)",borderRadius:"3px",padding:"1.8rem 1rem",textAlign:"center",color:"var(--muted)",fontSize:"0.88rem",cursor:"pointer"}}>
+          📄 {t.upload_btn}
+          <input type="file" accept="application/pdf" style={{display:"none"}} onChange={e=>{
+            const file=e.target.files[0]; if(!file) return;
+            setUploadFileName(file.name);
+            up("text", MOCK_EXTRACTED_TEXT);
+            setWStep("upload_confirm");
+          }}/>
+        </label>
+        <p style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",marginTop:"0.6rem",fontStyle:"italic"}}>{t.upload_sim_note}</p>
+      </>)}
+    </div>
+  );
+
+  // ================= Camino A — confirmar texto extraído =================
+  if(wStep==="upload_confirm") return (
+    <div className="wr-wrap">
+      {topBar}
+      {narrowCard(<>
+        <button className="back" onClick={()=>setWStep("upload")}>{t.auth_back}</button>
+        <h2 className="wr-h">{t.upload_confirm_h}</h2>
+        <p className="wr-sub">{t.upload_confirm_sub}</p>
+        <textarea className="ta" style={{minHeight:"160px"}} value={f.text} onChange={e=>up("text",e.target.value)}/>
+        <button className="btn-pub" style={{width:"100%",marginTop:"1rem"}} onClick={()=>setWStep("upload_maqueta")}>{t.upload_confirm_btn}</button>
+      </>)}
+    </div>
+  );
+
+  // ================= Camino A — maquetación al estilo de la colección =================
+  if(wStep==="upload_maqueta") return (
+    <div className="wr-wrap">
+      {topBar}
+      {narrowCard(<>
+        <button className="back" onClick={()=>setWStep("upload_confirm")}>{t.auth_back}</button>
+        <h2 className="wr-h">{t.upload_maqueta_h}</h2>
+        <p className="wr-sub">{t.upload_maqueta_sub}</p>
+        <div style={{background:"#fffdf8",border:"1px solid var(--border)",borderRadius:"3px",padding:"1.8rem 1.4rem",marginBottom:"1.2rem",boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
+          <div style={{fontFamily:"var(--body)",fontSize:"0.7rem",letterSpacing:"0.2em",textTransform:"uppercase",color:"var(--gold)",marginBottom:"0.3rem"}}>{t.ed_chapter_word.charAt(0).toUpperCase()+t.ed_chapter_word.slice(1)} 1</div>
+          <div style={{fontFamily:"var(--serif)",fontSize:"1.4rem",color:"var(--ink)",marginBottom:"0.9rem"}}>{f.title||f.name}</div>
+          <p style={{fontFamily:"var(--body)",fontSize:"0.95rem",lineHeight:1.8,color:"var(--ink)"}}>{f.text}</p>
+        </div>
+        <button className="btn-pub" style={{width:"100%"}} onClick={()=>{setUploadReviewState(null);setWStep("upload_review");}}>{t.upload_maqueta_btn}</button>
+      </>)}
+    </div>
+  );
+
+  // ================= Camino A — revisión (filtro de contenido) =================
+  if(wStep==="upload_review") return (
+    <div className="wr-wrap">
+      {topBar}
+      {narrowCard(<>
+        <button className="back" onClick={()=>setWStep("upload_maqueta")}>{t.auth_back}</button>
+        <h2 className="wr-h">{t.upload_review_h}</h2>
+
+        {uploadReviewState===null&&(
+          <div style={{display:"flex",flexDirection:"column",gap:"0.6rem",margin:"1rem 0"}}>
+            <p style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",fontStyle:"italic"}}>{t.upload_sim_note}</p>
+            <button className="btn-pub" onClick={()=>runUploadReview(false)}>{t.upload_review_ok_btn}</button>
+            <button className="btn-out" onClick={()=>runUploadReview(true)}>{t.upload_review_flag_btn}</button>
+          </div>
+        )}
+
+        {uploadReviewState==="ok"&&(<>
+          <div style={{display:"flex",alignItems:"center",gap:"0.5rem",padding:"0.5rem 0",fontSize:"0.86rem"}}><span style={{color:"#2a6a2a"}}>✓</span> {t.upload_review_ok_msg}</div>
+          <div className="pol-box">
+            <ul className="pol-li"><li>{t.pol1}</li><li>{t.pol2}</li><li>{t.pol3}</li><li>{t.pol4}</li></ul>
+            <label style={{display:"flex",alignItems:"flex-start",gap:"0.5rem",marginTop:"0.8rem",paddingTop:"0.8rem",borderTop:"1px solid var(--border)",cursor:"pointer",fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--ink)",lineHeight:1.5}}>
+              <input type="checkbox" checked={uploadAccepted} onChange={e=>setUploadAccepted(e.target.checked)} style={{marginTop:"0.2rem"}}/>
+              <span>{t.accept_terms_pre} <span style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={(ev)=>{ev.preventDefault();onLegal();}}>{t.accept_terms_link}</span></span>
+            </label>
+          </div>
+          <button className="btn-pub" style={{width:"100%"}} disabled={!uploadAccepted} onClick={()=>{
+            const pid=Date.now();
+            onPublish({id:pid,name:f.name,born:parseInt(f.born)||0,country:f.country||"—",
+              flag:"✍️",lang:f.lang,title:f.title||f.name,subtitle:f.subtitle||"",
+              cover:f.coverImg||null,preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"]});
+            setF(p=>({...p,wizardDone:true,published:true,publishedId:pid}));
+            setWStep("upload_done");
+          }}>{t.upload_publish_btn}</button>
+        </>)}
+
+        {uploadReviewState==="flagged"&&(<>
+          {uploadFlagged.map((fl,i)=>(
+            <div key={i} style={{background:fl.resolved?"rgba(42,106,42,0.08)":"rgba(178,59,59,0.06)",border:"1px solid "+(fl.resolved?"#2a6a2a":"#b23b3b"),borderRadius:"3px",padding:"0.8rem 1rem",marginBottom:"0.8rem"}}>
+              <p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"var(--ink)",fontStyle:"italic",marginBottom:"0.4rem"}}>&ldquo;{fl.excerpt}&rdquo;</p>
+              {fl.resolved?
+                <span style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#2a6a2a"}}>{t.upload_flag_resolved}</span>
+              :<>
+                <p style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"#b23b3b",marginBottom:"0.6rem"}}>{t.upload_flag_reason}</p>
+                <div style={{display:"flex",gap:"0.5rem"}}>
+                  <button className="toolbar-btn" onClick={()=>reformularPasaje(i)}>{t.upload_flag_reformular}</button>
+                  <button className="toolbar-btn" onClick={()=>suprimirPasaje(i)}>{t.upload_flag_suprimir}</button>
+                </div>
+              </>}
+            </div>
+          ))}
+          {allResolved
+            ? <button className="btn-pub" style={{width:"100%"}} onClick={()=>runUploadReview(false)}>{t.upload_recheck_btn}</button>
+            : <button className="btn-out" style={{width:"100%"}} onClick={()=>{up("wizardDone",true);setWStep("editor");}}>{t.upload_continue_unresolved}</button>}
+        </>)}
+      </>)}
+    </div>
+  );
+
+  // ================= Camino A — publicado =================
+  if(wStep==="upload_done") return (
+    <div className="wr-wrap">
+      {topBar}
+      {narrowCard(<>
+        <h2 className="wr-h">{t.upload_done_h}</h2>
+        <p className="wr-sub">{t.published_ok}</p>
+        <div style={{background:"rgba(196,147,42,0.08)",border:"1px solid var(--gold)",borderRadius:"3px",padding:"0.8rem 1rem",fontSize:"0.84rem",color:"var(--ink)",lineHeight:1.55,marginBottom:"1.2rem"}}>{t.upload_done_photos_note}</div>
+        <button className="btn-pub" style={{width:"100%"}} onClick={()=>setWStep("editor")}>{t.upload_done_btn}</button>
+      </>)}
+    </div>
+  );
+
+  // ================= Privacidad y mis datos — eliminación completa =================
+  if(wStep==="privacy") return (
+    <div className="wr-wrap">
+      {topBar}
+      {narrowCard(<>
+        <button className="back" onClick={()=>setWStep("editor")}>{t.privacy_back_btn}</button>
+        <h2 className="wr-h">{t.privacy_h}</h2>
+        {deleteStep===null&&(<>
+          <div style={{background:"rgba(178,59,59,0.06)",border:"1px solid #b23b3b",borderRadius:"3px",padding:"0.9rem 1rem",marginBottom:"1.1rem"}}>
+            <div style={{fontFamily:"var(--serif)",fontSize:"1.1rem",color:"#b23b3b",marginBottom:"0.5rem"}}>{t.privacy_delete_h}</div>
+            <p style={{fontFamily:"var(--body)",fontSize:"0.84rem",color:"var(--ink)",lineHeight:1.6}}>{t.privacy_delete_warn}</p>
+          </div>
+          <div className="fld">
+            <label className="lbl">{t.privacy_delete_phrase_lbl}</label>
+            <p style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--muted)",fontStyle:"italic",marginBottom:"0.4rem"}}>&ldquo;{t.privacy_delete_phrase}&rdquo;</p>
+            <input className="inp" placeholder={t.privacy_delete_input_ph} value={deletePhrase} onChange={e=>setDeletePhrase(e.target.value)}/>
+          </div>
+          <button className="btn-out" style={{width:"100%",borderColor:"#b23b3b",color:"#b23b3b"}}
+            disabled={deletePhrase.trim().toLowerCase()!==t.privacy_delete_phrase.toLowerCase()}
+            onClick={()=>setDeleteStep("sent")}>{t.privacy_delete_btn}</button>
+        </>)}
+        {deleteStep==="sent"&&(<>
+          <p className="wr-sub">{t.privacy_delete_sent_sub}</p>
+          <button className="btn-pub" style={{width:"100%"}} onClick={doDeleteForever}>{t.unpub_sim_btn}</button>
+        </>)}
+        {deleteStep==="done"&&(<>
+          <p className="ok-msg">{t.privacy_delete_done_h}</p>
+          <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={()=>{setDeleteStep(null);setDeletePhrase("");setWStep("datos");}}>{t.wiz_continue}</button>
+        </>)}
       </>)}
     </div>
   );
@@ -1525,6 +1840,29 @@ function AuthoredWrite({setView,onPublish,t,onLegal,email,onLogout}) {
             <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={()=>publish(false)}>{t.ed_save_private}</button>
             <button className="btn-out" style={{width:"100%"}} disabled={!f.name||!f.text} onClick={()=>publish(true)}>{t.ed_save_upload}</button>
             {pub&&<p className="ok-msg" style={{marginTop:"0.6rem"}}>{t.published_ok}</p>}
+          </div>
+        </div>
+      )}
+      {unpubStep&&(
+        <div className="ov">
+          <div className="modal" style={{maxWidth:"380px"}}>
+            <button className="modal-x" onClick={()=>setUnpubStep(null)}>×</button>
+            {unpubStep==="confirm"&&(<>
+              <div className="modal-h" style={{fontSize:"1.15rem"}}>{t.unpub_confirm_h}</div>
+              <p className="modal-sub">{t.unpub_confirm_sub}</p>
+              <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={()=>setUnpubStep("sent")}>{t.unpub_confirm_btn}</button>
+              <button className="btn-out" style={{width:"100%"}} onClick={()=>setUnpubStep(null)}>{t.unpub_cancel_btn}</button>
+            </>)}
+            {unpubStep==="sent"&&(<>
+              <div className="modal-h" style={{fontSize:"1.15rem"}}>{t.unpub_sent_h}</div>
+              <p className="modal-sub">{t.unpub_sent_sub}</p>
+              <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={doUnpublishConfirmed}>{t.unpub_sim_btn}</button>
+            </>)}
+            {unpubStep==="done"&&(<>
+              <p className="ok-msg">{t.unpub_done_msg}</p>
+              {showUndo&&<button className="btn-out" style={{width:"100%",marginTop:"0.6rem"}} onClick={undoUnpublish}>{t.unpub_undo_btn}</button>}
+              <button className="btn-pub" style={{width:"100%",marginTop:"0.6rem"}} onClick={()=>setUnpubStep(null)}>OK</button>
+            </>)}
           </div>
         </div>
       )}
@@ -1597,7 +1935,11 @@ function AuthoredWrite({setView,onPublish,t,onLegal,email,onLogout}) {
           )}
 
           <p className="wr-sub" style={{marginTop:"0.8rem",fontSize:"0.8rem"}}>Autoguardado activo.</p>
-          <div style={{marginTop:"1.2rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",display:"flex",justifyContent:"flex-end"}}>
+          <div style={{marginTop:"1.2rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"0.6rem"}}>
+            <div style={{display:"flex",gap:"1rem",alignItems:"center"}}>
+              {f.published&&<span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setUnpubStep("confirm")}>{t.unpub_link}</span>}
+              <span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setWStep("privacy")}>{t.privacy_link}</span>
+            </div>
             <button className="btn-out" style={{width:"auto",padding:"0.65rem 1.6rem"}} onClick={()=>setShowSaveExit(true)}>{t.ed_save_exit}</button>
           </div>
         </div>
@@ -1696,7 +2038,7 @@ function App() {
       {view==="home"&&<Home autos={autos} openAuto={open} setView={setView} t={t}/>}
       {view==="library"&&<Library autos={autos} openAuto={open} t={t}/>}
       {view==="read"&&<Read auto={sel} setView={setView} t={t}/>}
-      {view==="write"&&<Write setView={setView} onPublish={a=>{setAutos(p=>[...p,a]);setView("library");}} t={t} lang={lang} onLegal={()=>setShowLegal("condiciones")}/>}
+      {view==="write"&&<Write setView={setView} onPublish={a=>{setAutos(p=>[...p,a]);}} onUnpublish={id=>setAutos(p=>p.filter(x=>x.id!==id))} t={t} lang={lang} onLegal={()=>setShowLegal("condiciones")}/>}
       <Footer t={t} onContact={()=>setShowContact(true)} onLegal={setShowLegal} onCollab={()=>setShowCollab(true)} onFaq={()=>setShowFaq(true)}/>
       {showContact&&<ContactModal onClose={()=>setShowContact(false)} t={t}/>}
       {showLegal&&<LegalModal docKey={showLegal} onClose={()=>setShowLegal(null)} t={t} lang={lang}/>}
