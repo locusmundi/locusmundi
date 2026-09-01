@@ -26,9 +26,9 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:10
   padding:0.6rem 1.5rem;font-family:var(--serif);font-size:0.95rem;
   letter-spacing:0.22em;text-transform:uppercase}
 .hdr{position:sticky;top:0;z-index:100;display:flex;align-items:center;
-  justify-content:space-between;padding:0 2.5rem;height:70px;
+  justify-content:space-between;padding:0 2.5rem;min-height:70px;
   background:rgba(237,224,196,0.96);backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--border)}
+  border-bottom:1px solid var(--border);flex-wrap:wrap;row-gap:0.5rem}
 .logo{display:flex;align-items:center;gap:0.6rem;cursor:pointer}
 .logo img{height:42px;width:auto;object-fit:contain}
 .logo-name{font-family:var(--serif);font-size:1.4rem;font-weight:600;
@@ -46,6 +46,17 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   padding:0.48rem 1.1rem;color:#fff;border:none;cursor:pointer;border-radius:2px;transition:background .2s}
 .btn-navy{background:var(--navy)}.btn-navy:hover{background:var(--gold)}
 .btn-gold-c{background:var(--gold)}.btn-gold-c:hover{background:#9a7219}
+@media(max-width:680px){
+  .hdr{padding:0.6rem 1rem;justify-content:center}
+  .logo{order:1;flex-basis:100%;justify-content:center;margin-bottom:0.3rem}
+  .logo img{height:32px}
+  .logo-name{font-size:1.1rem}
+  nav{order:2;flex-basis:100%;justify-content:center;gap:0.7rem;row-gap:0.5rem}
+  .nl{font-size:0.82rem}
+  .btn-pri{padding:0.4rem 0.85rem;font-size:0.78rem}
+  .lang-btn{padding:0.24rem 0.45rem;font-size:0.72rem}
+  .notice{font-size:0.72rem;letter-spacing:0.12em;padding:0.5rem 0.8rem}
+}
 .hero{min-height:78vh;display:flex;flex-direction:column;align-items:center;
   justify-content:center;text-align:center;padding:4rem 2rem 3.5rem}
 .hero-logo{width:min(320px,68vw);height:auto;margin-bottom:1.5rem;
@@ -145,10 +156,10 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   font-weight:400;line-height:1.1;color:var(--ink);margin-bottom:0.45rem}
 .r-meta{font-family:var(--body);font-size:0.86rem;color:var(--muted);
   margin-bottom:2.2rem;padding-bottom:1.8rem;border-bottom:1px solid var(--border)}
-.r-body{font-family:var(--body);font-size:var(--read-fs,1.15rem);line-height:1.82;color:var(--ink)}
+.r-body{font-family:var(--body);font-size:1.15rem;line-height:1.82;color:var(--ink)}
 .r-body p{margin-bottom:1.3em}
 .fs-ctrl{display:flex;align-items:center;gap:0.5rem;margin:0 0 1.6rem 0}
-.fs-lbl{font-family:var(--body);font-size:0.76rem;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;margin-right:0.2rem}
+.hdr .fs-ctrl{margin:0}
 .fs-btn{font-family:var(--serif);border:1px solid var(--border);background:#fff;color:var(--ink);
   width:2.1rem;height:2.1rem;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;
   transition:background 0.15s,color 0.15s}
@@ -157,8 +168,6 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .fs-btn.a-sm{font-size:0.82rem}
 .fs-btn.a-md{font-size:1.05rem}
 .fs-btn.a-lg{font-size:1.3rem}
-.tr-bar{margin-top:2.5rem;padding:1.4rem;background:var(--bg3);
-  border:1px solid var(--border);border-radius:3px}
 .tr-tit{font-family:var(--body);font-size:0.74rem;letter-spacing:0.2em;
   text-transform:uppercase;color:var(--gold);margin-bottom:0.75rem}
 .tr-row{display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap}
@@ -170,13 +179,6 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   border:none;cursor:pointer;border-radius:2px;transition:background .2s;white-space:nowrap}
 .btn-sm:hover{background:var(--gold)}
 .btn-sm:disabled{background:var(--muted);cursor:not-allowed}
-.tr-result{margin-top:1.1rem;padding:1.1rem;background:var(--bg2);
-  border:1px solid var(--border);border-radius:2px;
-  font-family:var(--body);font-size:1rem;line-height:1.72;color:var(--ink);white-space:pre-wrap}
-.share-btn{font-family:var(--body);font-size:0.83rem;letter-spacing:0.08em;
-  padding:0.38rem 0.95rem;background:transparent;color:var(--navy);
-  border:1.5px solid var(--navy);border-radius:2px;cursor:pointer;transition:background .2s,color .2s}
-.share-btn:hover{background:var(--navy);color:#fff}
 .wr-wrap{max-width:1160px;margin:0 auto;padding:2.8rem 2rem 3.5rem}
 .wr-grid{display:grid;grid-template-columns:1fr 370px;gap:2.2rem;align-items:start}
 @media(max-width:840px){.wr-grid{grid-template-columns:1fr}}
@@ -423,8 +425,11 @@ const T = {
     collab_sub:"Locus Mundi existe para quienes deseamos preservar y compartir nuestra memoria generacional. Además de «recordar, contar, publicar y compartir», hay otras formas de participar activamente en la plataforma:",
     collab_a_h:"Habla de nosotros",
     collab_a_sub:"Cuéntale a tus contactos que existimos, e invítales a hacer lo mismo con los suyos.",
-    collab_copy_btn:"Copiar mensaje para compartir",
-    collab_copied:"✓ Copiado",
+    collab_copy_btn:"Ver y copiar texto para compartir",collab_copy_btn2:"Copiar",
+    collab_copied:"✓ Copiado",collab_copy_manual:"No se pudo copiar automáticamente: selecciona el texto de arriba y cópialo a mano.",
+    share_after_publish_h:"Compártelo con quien quieras",
+    share_after_publish_sub:"Tu historia ya está publicada. Si quieres, aquí tienes un mensaje listo con el enlace, para que lo copies y lo pegues en tu correo, poniendo las direcciones que quieras.",
+    share_copy_btn:"Ver y copiar texto para compartir",
     collab_b_h:"Patrocina la plataforma",
     collab_b_sub:"Si tienes una empresa, escríbenos para estudiar juntos las distintas formas de patrocinio.",
     collab_b_btn:"Escribir sobre patrocinio",
@@ -439,8 +444,11 @@ const T = {
     accept_terms_pre:"He leído y acepto las",accept_terms_link:"Condiciones de Publicación para Autores",
     back:"← Volver a la biblioteca",back_home:"← Volver al inicio",
     fs_label:"Tamaño de letra",fs_smaller:"Reducir tamaño de letra",fs_reset:"Tamaño de letra normal",fs_bigger:"Aumentar tamaño de letra",
-    born:"Nacida/o en",read_in:"✦ Leer en otro idioma",
-    translate:"Traducir",share_btn:"Compartir",share_copied:"¡Enlace copiado!",
+    born:"Nacida/o en",read_in:"Leer historia completa",
+    by_author:"Por",read_in_original:"Leer en",or_translate:"o traducir y leer en otro idioma",
+    translate_and_read:"Traducir y leer",change_lang:"cambiar idioma",
+    read_lang_error:"No se ha podido traducir el texto. Inténtalo de nuevo o léelo en el idioma original.",
+    translate:"Traducir",
     write_h:"Escribe tu autobiografía",
     write_sub:"Cuéntanos quién eres. No hay mínimos ni máximos. La IA te ayuda si lo necesitas.",
     f_title:"Título de la obra",f_title_ph:"p. ej. Recuerdos de mi familia",
@@ -453,6 +461,10 @@ const T = {
     pol4:"Conservas todos los derechos sobre tu texto.",
     f_name:"Nombre de Autor",f_name_ph:"p. ej. X. Batlle — así firmarás tu libro",
     f_born:"Año de nacimiento",f_country:"País de origen",f_lang:"Idioma",f_text:"Tu historia",
+    pub_extra_h:"Antes de publicar, cuéntanos un poco más de ti",
+    pub_city:"Ciudad o lugar donde has vivido tu vida",pub_city_ph:"Ej. Barcelona",
+    pub_profession:"Profesión",pub_profession_ph:"Ej. Poeta",
+    pub_concept:"Una palabra o concepto que resuma tu trayectoria vital",pub_concept_ph:"Ej. Filósofo",
     f_text_ph:"Empieza donde quieras: tu infancia, un lugar, un momento decisivo... No hay reglas.",
     publish:"Publicar en Locus Mundi",published_ok:"✓ Tu historia está en la biblioteca.",
     wiz_continue:"Continuar",
@@ -618,8 +630,11 @@ const T = {
     collab_sub:"Locus Mundi exists for those of us who wish to preserve and share our generational memory. Beyond «remember, tell, publish and share», there are other ways to actively take part in the platform:",
     collab_a_h:"Spread the word",
     collab_a_sub:"Tell your contacts we exist, and invite them to do the same with theirs.",
-    collab_copy_btn:"Copy message to share",
-    collab_copied:"✓ Copied",
+    collab_copy_btn:"View and copy message to share",collab_copy_btn2:"Copy",
+    collab_copied:"✓ Copied",collab_copy_manual:"Couldn't copy automatically: select the text above and copy it manually.",
+    share_after_publish_h:"Share it with anyone you'd like",
+    share_after_publish_sub:"Your story is now published. Here's a ready-made message with the link, so you can copy it and paste it into your own email, with whatever addresses you'd like.",
+    share_copy_btn:"View and copy message to share",
     collab_b_h:"Sponsor the platform",
     collab_b_sub:"If you have a company, write to us to explore sponsorship options together.",
     collab_b_btn:"Write about sponsorship",
@@ -634,8 +649,11 @@ const T = {
     accept_terms_pre:"I have read and accept the",accept_terms_link:"Publishing Terms for Authors",
     back:"← Back to library",back_home:"← Back to home",
     fs_label:"Text size",fs_smaller:"Decrease text size",fs_reset:"Normal text size",fs_bigger:"Increase text size",
-    born:"Born in",read_in:"✦ Read in another language",
-    translate:"Translate",share_btn:"Share",share_copied:"Link copied!",
+    born:"Born in",read_in:"Read full story",
+    by_author:"By",read_in_original:"Read in",or_translate:"or translate and read in another language",
+    translate_and_read:"Translate and read",change_lang:"change language",
+    read_lang_error:"Couldn't translate the text. Try again, or read it in the original language.",
+    translate:"Translate",
     write_h:"Write your autobiography",
     write_sub:"Tell us who you are. No minimum, no maximum. AI helps if you need it.",
     f_title:"Title of your work",f_title_ph:"e.g. Memories of my family",
@@ -648,6 +666,10 @@ const T = {
     pol4:"You retain all rights to your text.",
     f_name:"Author name",f_name_ph:"e.g. X. Batlle — this is how you'll sign your book",
     f_born:"Year of birth",f_country:"Country",f_lang:"Language",f_text:"Your story",
+    pub_extra_h:"Before publishing, tell us a bit more about yourself",
+    pub_city:"City or place where you've lived your life",pub_city_ph:"E.g. Barcelona",
+    pub_profession:"Profession",pub_profession_ph:"E.g. Poet",
+    pub_concept:"A word or concept that sums up your life's path",pub_concept_ph:"E.g. Philosopher",
     f_text_ph:"Start anywhere: your childhood, a place, a key moment... No rules.",
     publish:"Publish on Locus Mundi",published_ok:"✓ Your story is in the library.",
     wiz_continue:"Continue",
@@ -820,15 +842,21 @@ function AutoCard({a,onClick,t}) {
       <div className="c-prev">"{a.preview}"</div>
       <div className="c-foot">
         <div className="tags">
-          {a.tags.slice(0,2).map(tg=><span key={tg} className="tag">{tg}</span>)}
-          {a.profession&&<span className="tag">{a.profession}</span>}
+          {(a.city||a.concept)?(<>
+            {a.city&&<span className="tag">{a.city}</span>}
+            {a.profession&&<span className="tag">{a.profession}</span>}
+            {a.concept&&<span className="tag">{a.concept}</span>}
+          </>):(<>
+            {a.tags.slice(0,2).map(tg=><span key={tg} className="tag">{tg}</span>)}
+            {a.profession&&<span className="tag">{a.profession}</span>}
+          </>)}
         </div>
       </div>
     </div>
   );
 }
 
-function Header({view,setView,lang,setLang,t}) {
+function Header({view,setView,lang,setLang,t,fsStep,setFsStep,fsSteps}) {
   return (
     <>
       <div className="notice">{t.archive}</div>
@@ -839,6 +867,11 @@ function Header({view,setView,lang,setLang,t}) {
         </div>
         <nav>
           <button className={`nl ${view==="home"?"on":""}`} onClick={()=>setView("home")}>{t.nav_home}</button>
+          <div className="fs-ctrl" role="group" aria-label={t.fs_label}>
+            <button type="button" className="fs-btn a-sm" onClick={()=>setFsStep(s=>Math.max(0,s-1))} disabled={fsStep===0} aria-label={t.fs_smaller}>A−</button>
+            <button type="button" className="fs-btn a-md" onClick={()=>setFsStep(1)} disabled={fsStep===1} aria-label={t.fs_reset}>A</button>
+            <button type="button" className="fs-btn a-lg" onClick={()=>setFsStep(s=>Math.min(fsSteps.length-1,s+1))} disabled={fsStep===fsSteps.length-1} aria-label={t.fs_bigger}>A+</button>
+          </div>
           <div className="lang-tog">
             <button className={`lang-btn ${lang==="ES"?"on":""}`} onClick={()=>setLang("ES")}>ES</button>
             <button className={`lang-btn ${lang==="EN"?"on":""}`} onClick={()=>setLang("EN")}>EN</button>
@@ -909,53 +942,84 @@ function Library({autos,openAuto,t}) {
   );
 }
 
-const READ_FS_STEPS=[1.0,1.15,1.3,1.5,1.75];
 function Read({auto,setView,t}) {
-  const [tl,setTl]=useState("ES");const [tr,setTr]=useState("");const [doing,setDoing]=useState(false);const [copied,setCopied]=useState(false);
-  const [fsStep,setFsStep]=useState(()=>{
-    const saved=parseInt(localStorage.getItem("lm_read_fs"),10);
-    return Number.isInteger(saved)&&saved>=0&&saved<READ_FS_STEPS.length?saved:1;
-  });
-  useEffect(()=>{localStorage.setItem("lm_read_fs",String(fsStep));},[fsStep]);
+  const originalLang=auto&&LANGS_UI.find(l=>l.code===auto.lang);
+  const otherLangs=auto?LANGS_UI.filter(l=>l.code!==auto.lang):LANGS_UI;
+  const [entered,setEntered]=useState(false);
+  const [tl,setTl]=useState(otherLangs[0]?.code||"EN");
+  const [tr,setTr]=useState("");
+  const [readLangCode,setReadLangCode]=useState(auto?auto.lang:"ES");
+  const [doing,setDoing]=useState(false);
+  const [errMsg,setErrMsg]=useState("");
   if(!auto){setView("library");return null;}
-  const ln=LANGS_UI.find(l=>l.code===tl)?.label||tl;
-  const translate=async()=>{setDoing(true);setTr("");try{setTr(await callAI(`Eres un traductor literario. Traduce este texto autobiográfico al ${ln} preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia del ${ln} —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Solo la traducción.`,auto.text));}catch(e){setTr("Error.");}setDoing(false);};
-  const share=()=>{setCopied(true);setTimeout(()=>setCopied(false),2200);};
-  return (
-    <div className="read-wrap fu" style={{"--read-fs":`${READ_FS_STEPS[fsStep]}rem`}}>
+
+  const readOriginal=()=>{setTr("");setReadLangCode(auto.lang);setEntered(true);};
+  const readTranslated=async()=>{
+    setDoing(true);setErrMsg("");
+    const ln=LANGS_UI.find(l=>l.code===tl)?.label||tl;
+    try{
+      const out=await callAI(`Eres un traductor literario. Traduce este texto autobiográfico al ${ln} preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia del ${ln} —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Solo la traducción.`,auto.text);
+      setTr(out);setReadLangCode(tl);setEntered(true);
+    }catch(e){setErrMsg(t.read_lang_error);}
+    setDoing(false);
+  };
+  const backToLangChoice=()=>{setEntered(false);setTr("");setErrMsg("");};
+
+  const tagsBlock=(
+    <div className="tags">
+      {(auto.city||auto.concept)?(<>
+        {auto.city&&<span className="tag">{auto.city}</span>}
+        {auto.profession&&<span className="tag">{auto.profession}</span>}
+        {auto.concept&&<span className="tag">{auto.concept}</span>}
+      </>):(<>
+        {auto.tags.slice(0,2).map(tg=><span key={tg} className="tag">{tg}</span>)}
+        {auto.profession&&<span className="tag">{auto.profession}</span>}
+      </>)}
+    </div>
+  );
+
+  if(!entered) return (
+    <div className="read-wrap fu">
       <button className="back" onClick={()=>setView("library")}>{t.back}</button>
       <div style={{fontSize:"1.8rem",marginBottom:"0.45rem"}}>{auto.flag}</div>
-      <div className="r-orig">{auto.country} · {auto.lang}</div>
+      <div className="r-orig">{auto.country} · {originalLang?.label||auto.lang}</div>
       <h1 className="r-name">{auto.title||auto.name}</h1>
-      <div className="r-meta">{t.born} {auto.born||"—"} · {[...auto.tags.slice(0,2),auto.profession].filter(Boolean).join(", ")}</div>
-      <div className="fs-ctrl" role="group" aria-label={t.fs_label}>
-        <span className="fs-lbl">{t.fs_label}</span>
-        <button type="button" className="fs-btn a-sm" onClick={()=>setFsStep(s=>Math.max(0,s-1))} disabled={fsStep===0} aria-label={t.fs_smaller}>A−</button>
-        <button type="button" className="fs-btn a-md" onClick={()=>setFsStep(1)} disabled={fsStep===1} aria-label={t.fs_reset}>A</button>
-        <button type="button" className="fs-btn a-lg" onClick={()=>setFsStep(s=>Math.min(READ_FS_STEPS.length-1,s+1))} disabled={fsStep===READ_FS_STEPS.length-1} aria-label={t.fs_bigger}>A+</button>
-      </div>
-      <div className="r-body">{auto.text.split("\n\n").map((p,i)=><p key={i}>{p}</p>)}</div>
-      <div style={{marginTop:"1.8rem",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"0.9rem"}}>
-        <div className="tags">
-          {auto.tags.slice(0,2).map(tg=><span key={tg} className="tag">{tg}</span>)}
-          {auto.profession&&<span className="tag">{auto.profession}</span>}
+      <div className="r-meta">{t.by_author} {auto.name}</div>
+      <div style={{marginTop:"1.6rem"}}>
+        <div className="tr-tit">{t.read_in}</div>
+        <button className="btn-pub" style={{width:"100%",marginBottom:"0.9rem"}} onClick={readOriginal}>
+          {t.read_in_original} {originalLang?.label||auto.lang}
+        </button>
+        <div className="tr-tit">{t.or_translate}</div>
+        <div className="tr-row">
+          <select className="sel" value={tl} onChange={e=>setTl(e.target.value)}>{otherLangs.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
+          <button className="btn-sm" onClick={readTranslated} disabled={doing}>{doing?<span style={{display:"flex",alignItems:"center",gap:"0.4rem"}}><span className="sp"/>…</span>:t.translate_and_read}</button>
         </div>
-        <button className="share-btn" onClick={share}>{copied?t.share_copied:`↗ ${t.share_btn}`}</button>
+        {errMsg&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginTop:"0.6rem"}}>{errMsg}</p>}
       </div>
-      {auto.fullUrl&&(
+    </div>
+  );
+
+  const shownLang=LANGS_UI.find(l=>l.code===readLangCode);
+  return (
+    <div className="read-wrap fu">
+      <button className="back" onClick={()=>setView("library")}>{t.back}</button>
+      <div style={{fontSize:"1.8rem",marginBottom:"0.45rem"}}>{auto.flag}</div>
+      <div className="r-orig">{auto.country} · {shownLang?.label||readLangCode}
+        {tr&&<> · <span onClick={backToLangChoice} style={{cursor:"pointer",textDecoration:"underline"}}>{t.change_lang}</span></>}
+      </div>
+      <h1 className="r-name">{auto.title||auto.name}</h1>
+      <div className="r-meta">{t.by_author} {auto.name}</div>
+      <div className="r-body">{(tr||auto.text).split("\n\n").map((p,i)=><p key={i}>{p}</p>)}</div>
+      <div style={{marginTop:"1.8rem",display:"flex",alignItems:"center",flexWrap:"wrap",gap:"0.9rem"}}>
+        {tagsBlock}
+      </div>
+      {!tr&&auto.fullUrl&&(
         <div style={{margin:"1.8rem 0",padding:"1.2rem 1.5rem",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"1rem"}}>
           <span style={{fontFamily:"var(--body)",fontSize:"1rem",color:"var(--ink)"}}>Esta historia incluye fotos e índice de capítulos.</span>
           <a href={auto.fullUrl} target="_blank" className="read-full" style={{textDecoration:"none"}}>📖 Leer historia completa</a>
         </div>
       )}
-      <div className="tr-bar">
-        <div className="tr-tit">{t.read_in}</div>
-        <div className="tr-row">
-          <select className="sel" value={tl} onChange={e=>{setTl(e.target.value);setTr("")}}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
-          <button className="btn-sm" onClick={translate} disabled={doing}>{doing?<span style={{display:"flex",alignItems:"center",gap:"0.4rem"}}><span className="sp"/>…</span>:t.translate}</button>
-        </div>
-        {tr&&<div className="tr-result">{tr}</div>}
-      </div>
     </div>
   );
 }
@@ -1079,13 +1143,32 @@ function LegalModal({docKey,onClose,t,lang}) {
 
 function CollaborateModal({onClose,t,lang,onSponsor}) {
   const [copied,setCopied]=useState(false);
+  const [copyFailed,setCopyFailed]=useState(false);
+  const [revealed,setRevealed]=useState(false);
   const [amount,setAmount]=useState(25);
   const [listMe,setListMe]=useState(false);
   const shareText=lang==="EN"
-    ? "I've come across a project that seems interesting. It's called Locus Mundi (locusmundi.com), and it exists so that anyone can preserve their memories and share them with friends and family — but above all, with future generations. It made me think of you. If you think it might interest someone in your circle, please pass it on too."
-    : "He descubierto un proyecto que parece interesante. Se llama Locus Mundi (locusmundi.com) y nace para que cualquier persona pueda preservar sus recuerdos y compartirlos con sus amigos y familiares, pero sobre todo con las generaciones futuras. Me acordé de ti al verlo. Si crees que puede interesarle a alguien de tu entorno o de tus contactos, compárteselo también.";
+    ? "Hi. You came to mind when I discovered a new platform called Locus Mundi (locusmundi.com), where anyone can write down and share their life experiences, and read the stories of others who lived through the same era. After all, the best experiences are the shared ones. I see it as a way of leaving a legacy for the people we love, and for those who come after us. Take a look, put your memories in order, and if you think it might interest someone you know, pass this message along to them.\n\nI think our generation still has one last battle to fight: keeping our memory alive."
+    : "Hola. Me he acordado de ti al descubrir la nueva plataforma Locus Mundi (locusmundi.com), donde cada uno puede escribir y compartir sus vivencias, y leer las historias de quienes han vivido en su misma época. Al fin y al cabo, las mejores experiencias son compartidas. Yo lo veo como una forma de dejar un legado para los seres queridos y para quienes vendrán después. Échale un vistazo, pon en orden tus recuerdos y, si crees que puede interesarle a alguien de tu entorno, envíale este mensaje.\n\nCreo que a nuestra generación aún le queda una última batalla por librar: mantener viva su memoria.";
+  const copyFallback=()=>{
+    try{
+      const ta=document.createElement("textarea");
+      ta.value=shareText;ta.style.position="fixed";ta.style.left="-9999px";ta.style.top="0";
+      document.body.appendChild(ta);ta.focus();ta.select();
+      const ok=document.execCommand("copy");
+      document.body.removeChild(ta);
+      if(ok){setCopied(true);setCopyFailed(false);setTimeout(()=>setCopied(false),2500);}
+      else{setCopyFailed(true);}
+    }catch(e){setCopyFailed(true);}
+  };
   const copyMsg=()=>{
-    if(navigator.clipboard){navigator.clipboard.writeText(shareText).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);});}
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(shareText)
+        .then(()=>{setCopied(true);setCopyFailed(false);setTimeout(()=>setCopied(false),2500);})
+        .catch(copyFallback);
+    } else {
+      copyFallback();
+    }
   };
   const tiers=[10,25,50,100];
   return (
@@ -1101,7 +1184,9 @@ function CollaborateModal({onClose,t,lang,onSponsor}) {
             <span style={{fontFamily:"var(--serif)",fontSize:"1.02rem",color:"var(--ink)",fontWeight:600}}>{t.collab_a_h}</span>
           </div>
           <p style={{fontFamily:"var(--body)",fontSize:"0.85rem",color:"var(--muted)",lineHeight:1.6,marginBottom:"0.6rem"}}>{t.collab_a_sub}</p>
-          <button className="btn-out" onClick={copyMsg}>{copied?t.collab_copied:t.collab_copy_btn}</button>
+          {revealed&&<p style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--ink)",lineHeight:1.6,whiteSpace:"pre-line",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",padding:"0.9rem 1rem",marginBottom:"0.7rem"}}>{shareText}</p>}
+          <button className="btn-out" onClick={()=>revealed?copyMsg():setRevealed(true)}>{copied?t.collab_copied:(revealed?t.collab_copy_btn2:t.collab_copy_btn)}</button>
+          {copyFailed&&<p style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)",marginTop:"0.4rem"}}>{t.collab_copy_manual}</p>}
         </div>
 
         <div style={{borderTop:"1px solid var(--border)",paddingTop:"1rem",marginBottom:"1rem"}}>
@@ -1164,8 +1249,6 @@ function SponsorModal({onClose,t}) {
             <button className="btn-pub" onClick={()=>setSent(true)} disabled={!f.company||!f.name||!f.email||!f.msg}>{t.contact_send}</button>
             <div style={{marginTop:"1.4rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",lineHeight:1.7}}>
               <div><b>Locus Mundi</b> · locusmundi.com</div>
-              <div>Javier Batlle Vilaseca · NIF 46117172X</div>
-              <div>C/ dels Safareigs 7, 08003 Barcelona</div>
             </div>
           </>
         )}
@@ -1192,8 +1275,6 @@ function ContactModal({onClose,t}) {
             <button className="btn-pub" onClick={()=>setSent(true)} disabled={!f.name||!f.email||!f.msg}>{t.contact_send}</button>
             <div style={{marginTop:"1.4rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",lineHeight:1.7}}>
               <div><b>Locus Mundi</b> · locusmundi.com</div>
-              <div>Javier Batlle Vilaseca · NIF 46117172X</div>
-              <div>C/ dels Safareigs 7, 08003 Barcelona</div>
             </div>
           </>
         )}
@@ -1355,20 +1436,49 @@ function Write({setView,onPublish,onUnpublish,t,lang,onLegal}) {
   if(!session){
     return <AuthGate t={t} lang={lang} onAuthenticated={(email)=>setSessionState(email)}/>;
   }
-  return <AuthoredWrite setView={setView} onPublish={onPublish} onUnpublish={onUnpublish} t={t} onLegal={onLegal} email={session} onLogout={()=>{setSession(null);setSessionState(null);}}/>;
+  return <AuthoredWrite setView={setView} onPublish={onPublish} onUnpublish={onUnpublish} t={t} lang={lang} onLegal={onLegal} email={session} onLogout={()=>{setSession(null);setSessionState(null);}}/>;
 }
 
-function AuthoredWrite({setView,onPublish,onUnpublish,t,onLegal,email,onLogout}) {
+function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLogout}) {
   // Un único libro por Autor: se carga (si existe) o se crea vacío, siempre bajo la misma
   // clave de cuenta — nunca hay un botón para "crear otro libro".
   const [f,setF]=useState(()=>loadBook(email)||{
     name:"",born:"",country:"",lang:"ES",title:"",subtitle:"",text:"",coverImg:null,
     authorNumber:null,founder:false,blocks:[{type:"chapter",title:"",num:1}],
     assistantActive:false,assistantTuUsted:null,assistantName:"",
-    photosSlots:[],wizardDone:false,published:false,publishedId:null
+    photosSlots:[],wizardDone:false,published:false,publishedId:null,
+    pubCity:"",pubProfession:"",pubConcept:""
   });
   useEffect(()=>{ saveBook(email,f); },[f,email]);
   const up=(k,v)=>setF(p=>(({...p,[k]:v})));
+
+  const [shareRevealed,setShareRevealed]=useState(false);
+  const [shareCopied,setShareCopied]=useState(false);
+  const [shareCopyFailed,setShareCopyFailed]=useState(false);
+  const [showShareAfterSave,setShowShareAfterSave]=useState(false);
+  const [saveExitStep,setSaveExitStep]=useState("choose"); // "choose" | "fields"
+  const shareLink=f.publishedId?`https://locusmundi.vercel.app/?id=${f.publishedId}`:"https://locusmundi.vercel.app";
+  const shareText2=lang==="EN"
+    ? `Hi. I'm writing to let you know I've published my life story on Locus Mundi (${shareLink}), a platform designed to preserve and share memories and experiences with the people we love, and pass them on to those who come after us.\n\nPersonally, I've loved dusting off the old treasures I had tucked away in storage and turning them into a kind of intangible legacy.\n\nI hope this trip into the past inspires you as much as it did me. I think our generation still has one last battle to fight: keeping our memory alive.`
+    : `Hola. Te escribo para contarte que he publicado mi biografía en Locus Mundi (${shareLink}), una plataforma pensada para preservar y compartir recuerdos y vivencias con nuestros seres queridos, y transmitirlos a quienes vendrán después.\n\nPersonalmente me ha encantado desempolvar los viejos tesoros que guardaba en mi trastero y convertirlos en una especie de legado inmaterial.\n\nOjalá este viaje al pasado te inspire tanto como a mí. Creo que a nuestra generación aún le queda una última batalla por librar: mantener viva nuestra memoria.`;
+  const shareFallback=()=>{
+    try{
+      const ta=document.createElement("textarea");
+      ta.value=shareText2;ta.style.position="fixed";ta.style.left="-9999px";ta.style.top="0";
+      document.body.appendChild(ta);ta.focus();ta.select();
+      const ok=document.execCommand("copy");
+      document.body.removeChild(ta);
+      if(ok){setShareCopied(true);setShareCopyFailed(false);setTimeout(()=>setShareCopied(false),2500);}
+      else{setShareCopyFailed(true);}
+    }catch(e){setShareCopyFailed(true);}
+  };
+  const copyShare=()=>{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(shareText2)
+        .then(()=>{setShareCopied(true);setShareCopyFailed(false);setTimeout(()=>setShareCopied(false),2500);})
+        .catch(shareFallback);
+    } else { shareFallback(); }
+  };
 
   const [wStep,setWStep]=useState(f.wizardDone?"editor":"datos");
 
@@ -1412,10 +1522,14 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,onLegal,email,onLogout})
       const pid=Date.now();
       onPublish({id:pid,name:f.name,born:parseInt(f.born)||0,country:f.country||"—",
         flag:"✍️",lang:f.lang,title:f.title||f.name,subtitle:f.subtitle||"",
-        cover:f.coverImg||null,preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"]});
+        cover:f.coverImg||null,preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"],
+        city:f.pubCity||"",profession:f.pubProfession||"",concept:f.pubConcept||""});
       setF(p=>({...p,published:true,publishedId:pid}));
       setPub(true);
-      setView("library");
+      setShareRevealed(false);
+      setShareCopied(false);
+      setShareCopyFailed(false);
+      setShowShareAfterSave(true);
     }
     setShowSaveExit(false);
   };
@@ -1520,7 +1634,8 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,onLegal,email,onLogout})
     lastUnpublishedRef.current={
       id:f.publishedId,name:f.name,born:parseInt(f.born)||0,country:f.country||"—",
       flag:"✍️",lang:f.lang,title:f.title||f.name,subtitle:f.subtitle||"",
-      cover:f.coverImg||null,preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"]
+      cover:f.coverImg||null,preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"],
+      city:f.pubCity||"",profession:f.pubProfession||"",concept:f.pubConcept||""
     };
     onUnpublish(f.publishedId);
     up("published",false);
@@ -1706,11 +1821,18 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,onLegal,email,onLogout})
               <span>{t.accept_terms_pre} <span style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={(ev)=>{ev.preventDefault();onLegal();}}>{t.accept_terms_link}</span></span>
             </label>
           </div>
+          <div style={{margin:"1rem 0"}}>
+            <div className="wr-sub" style={{marginBottom:"0.5rem"}}>{t.pub_extra_h}</div>
+            <div className="fld"><label className="lbl">{t.pub_city}</label><input className="inp" value={f.pubCity} onChange={e=>up("pubCity",e.target.value)} placeholder={t.pub_city_ph}/></div>
+            <div className="fld"><label className="lbl">{t.pub_profession}</label><input className="inp" value={f.pubProfession} onChange={e=>up("pubProfession",e.target.value)} placeholder={t.pub_profession_ph}/></div>
+            <div className="fld"><label className="lbl">{t.pub_concept}</label><input className="inp" value={f.pubConcept} onChange={e=>up("pubConcept",e.target.value)} placeholder={t.pub_concept_ph}/></div>
+          </div>
           <button className="btn-pub" style={{width:"100%"}} disabled={!uploadAccepted} onClick={()=>{
             const pid=Date.now();
             onPublish({id:pid,name:f.name,born:parseInt(f.born)||0,country:f.country||"—",
               flag:"✍️",lang:f.lang,title:f.title||f.name,subtitle:f.subtitle||"",
-              cover:f.coverImg||null,preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"]});
+              cover:f.coverImg||null,preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"],
+              city:f.pubCity||"",profession:f.pubProfession||"",concept:f.pubConcept||""});
             setF(p=>({...p,wizardDone:true,published:true,publishedId:pid}));
             setWStep("upload_done");
           }}>{t.upload_publish_btn}</button>
@@ -1747,6 +1869,13 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,onLegal,email,onLogout})
         <h2 className="wr-h">{t.upload_done_h}</h2>
         <p className="wr-sub">{t.published_ok}</p>
         <div style={{background:"rgba(196,147,42,0.08)",border:"1px solid var(--gold)",borderRadius:"3px",padding:"0.8rem 1rem",fontSize:"0.84rem",color:"var(--ink)",lineHeight:1.55,marginBottom:"1.2rem"}}>{t.upload_done_photos_note}</div>
+        <div style={{border:"1px solid var(--border)",borderRadius:"3px",padding:"1rem 1.1rem",marginBottom:"1.2rem"}}>
+          <div style={{fontFamily:"var(--serif)",fontSize:"1.02rem",color:"var(--ink)",fontWeight:600,marginBottom:"0.35rem"}}>{t.share_after_publish_h}</div>
+          <p style={{fontFamily:"var(--body)",fontSize:"0.85rem",color:"var(--muted)",lineHeight:1.6,marginBottom:"0.6rem"}}>{t.share_after_publish_sub}</p>
+          {shareRevealed&&<p style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--ink)",lineHeight:1.6,whiteSpace:"pre-line",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",padding:"0.9rem 1rem",marginBottom:"0.7rem"}}>{shareText2}</p>}
+          <button className="btn-out" style={{width:"100%"}} onClick={()=>shareRevealed?copyShare():setShareRevealed(true)}>{shareCopied?t.collab_copied:(shareRevealed?t.collab_copy_btn2:t.share_copy_btn)}</button>
+          {shareCopyFailed&&<p style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)",marginTop:"0.4rem"}}>{t.collab_copy_manual}</p>}
+        </div>
         <button className="btn-pub" style={{width:"100%"}} onClick={()=>setWStep("editor")}>{t.upload_done_btn}</button>
       </>)}
     </div>
@@ -1835,11 +1964,35 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,onLegal,email,onLogout})
       {showSaveExit&&(
         <div className="ov">
           <div className="modal" style={{maxWidth:"380px"}}>
-            <button className="modal-x" onClick={()=>setShowSaveExit(false)}>×</button>
-            <div className="modal-h" style={{fontSize:"1.15rem"}}>{t.ed_save_exit_q}</div>
-            <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={()=>publish(false)}>{t.ed_save_private}</button>
-            <button className="btn-out" style={{width:"100%"}} disabled={!f.name||!f.text} onClick={()=>publish(true)}>{t.ed_save_upload}</button>
-            {pub&&<p className="ok-msg" style={{marginTop:"0.6rem"}}>{t.published_ok}</p>}
+            <button className="modal-x" onClick={()=>{setShowSaveExit(false);setSaveExitStep("choose");}}>×</button>
+            {saveExitStep==="choose"&&(<>
+              <div className="modal-h" style={{fontSize:"1.15rem"}}>{t.ed_save_exit_q}</div>
+              <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={()=>publish(false)}>{t.ed_save_private}</button>
+              <button className="btn-out" style={{width:"100%"}} disabled={!f.name||!f.text} onClick={()=>setSaveExitStep("fields")}>{t.ed_save_upload}</button>
+              {pub&&<p className="ok-msg" style={{marginTop:"0.6rem"}}>{t.published_ok}</p>}
+            </>)}
+            {saveExitStep==="fields"&&(<>
+              <button className="back" onClick={()=>setSaveExitStep("choose")}>{t.auth_back}</button>
+              <div className="modal-h" style={{fontSize:"1.05rem"}}>{t.pub_extra_h}</div>
+              <div className="fld"><label className="lbl">{t.pub_city}</label><input className="inp" value={f.pubCity} onChange={e=>up("pubCity",e.target.value)} placeholder={t.pub_city_ph}/></div>
+              <div className="fld"><label className="lbl">{t.pub_profession}</label><input className="inp" value={f.pubProfession} onChange={e=>up("pubProfession",e.target.value)} placeholder={t.pub_profession_ph}/></div>
+              <div className="fld"><label className="lbl">{t.pub_concept}</label><input className="inp" value={f.pubConcept} onChange={e=>up("pubConcept",e.target.value)} placeholder={t.pub_concept_ph}/></div>
+              <button className="btn-pub" style={{width:"100%",marginTop:"0.6rem"}} onClick={()=>{publish(true);setSaveExitStep("choose");}}>{t.ed_save_upload}</button>
+            </>)}
+          </div>
+        </div>
+      )}
+      {showShareAfterSave&&(
+        <div className="ov">
+          <div className="modal" style={{maxWidth:"420px"}}>
+            <button className="modal-x" onClick={()=>{setShowShareAfterSave(false);setView("library");}}>×</button>
+            <p className="ok-msg" style={{marginBottom:"0.8rem"}}>{t.published_ok}</p>
+            <div className="modal-h" style={{fontSize:"1.02rem"}}>{t.share_after_publish_h}</div>
+            <p className="wr-sub" style={{marginBottom:"0.6rem"}}>{t.share_after_publish_sub}</p>
+            {shareRevealed&&<p style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--ink)",lineHeight:1.6,whiteSpace:"pre-line",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",padding:"0.9rem 1rem",marginBottom:"0.7rem"}}>{shareText2}</p>}
+            <button className="btn-out" style={{width:"100%"}} onClick={()=>shareRevealed?copyShare():setShareRevealed(true)}>{shareCopied?t.collab_copied:(shareRevealed?t.collab_copy_btn2:t.share_copy_btn)}</button>
+            {shareCopyFailed&&<p style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)",marginTop:"0.4rem"}}>{t.collab_copy_manual}</p>}
+            <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={()=>{setShowShareAfterSave(false);setView("library");}}>{t.wiz_continue}</button>
           </div>
         </div>
       )}
@@ -2013,12 +2166,12 @@ function Footer({t,onContact,onLegal,onCollab,onFaq}) {
         <span className="foot-lnk" onClick={()=>onLegal("condiciones")}>{t.foot_condiciones}</span>
         <span className="foot-lnk" onClick={onContact}>{t.foot_contact}</span>
       </div>
-      <p style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--muted)",maxWidth:"460px",lineHeight:1.6,textAlign:"center"}}>{t.foot_policy}</p>
       <div className="foot-copy">locusmundi.com · {new Date().getFullYear()}</div>
     </footer>
   );
 }
 
+const APP_FS_STEPS=[1.0,1.15,1.3,1.5,1.75];
 function App() {
   const [lang,setLang]=useState(()=>{const bl=(navigator.language||"es").slice(0,2).toUpperCase();return bl==="EN"?"EN":"ES";});
   const t=T[lang];
@@ -2031,10 +2184,18 @@ function App() {
   const [showSponsor,setShowSponsor]=useState(false);
   const [showFaq,setShowFaq]=useState(false);
   const [cookieOk,setCookieOk]=useState(false);
+  const [fsStep,setFsStep]=useState(()=>{
+    const saved=parseInt(localStorage.getItem("lm_read_fs"),10);
+    return Number.isInteger(saved)&&saved>=0&&saved<APP_FS_STEPS.length?saved:1;
+  });
+  useEffect(()=>{
+    localStorage.setItem("lm_read_fs",String(fsStep));
+    document.documentElement.style.fontSize=(16*APP_FS_STEPS[fsStep])+"px";
+  },[fsStep]);
   const open=(a)=>{setSel(a);setView("read");};
   return (
     <div>
-      <Header view={view} setView={setView} lang={lang} setLang={setLang} t={t}/>
+      <Header view={view} setView={setView} lang={lang} setLang={setLang} t={t} fsStep={fsStep} setFsStep={setFsStep} fsSteps={APP_FS_STEPS}/>
       {view==="home"&&<Home autos={autos} openAuto={open} setView={setView} t={t}/>}
       {view==="library"&&<Library autos={autos} openAuto={open} t={t}/>}
       {view==="read"&&<Read auto={sel} setView={setView} t={t}/>}
