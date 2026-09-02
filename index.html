@@ -182,6 +182,17 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .wr-wrap{max-width:1160px;margin:0 auto;padding:2.8rem 2rem 3.5rem}
 .wr-grid{display:grid;grid-template-columns:1fr 370px;gap:2.2rem;align-items:start}
 @media(max-width:840px){.wr-grid{grid-template-columns:1fr}}
+.mob-offers-strip{display:none}
+@media(max-width:840px){
+  .mob-offers-strip{display:flex;gap:0.5rem;flex-wrap:wrap;margin:0 0 0.8rem 0;
+    padding:0.55rem 0.6rem;background:var(--bg3);border:1px solid var(--border);border-radius:3px}
+}
+.mob-offer-chip{display:flex;align-items:center;gap:0.3rem;font-family:var(--body);
+  font-size:0.74rem;padding:0.3rem 0.6rem;border-radius:12px;cursor:pointer;
+  border:1px solid var(--border);background:#fff;color:var(--muted);opacity:0.55;transition:opacity .2s}
+.mob-offer-chip.on{opacity:1;color:#fff;border-color:transparent}
+.mob-offer-chip.on.navy{background:var(--navy)}
+.mob-offer-chip.on.gold{background:var(--gold)}
 .wr-h{font-family:var(--serif);font-size:1.85rem;font-weight:400;color:var(--ink);margin-bottom:0.4rem}
 .wr-sub{font-family:var(--body);font-size:0.96rem;color:var(--muted);margin-bottom:1.6rem;line-height:1.6}
 .fld{margin-bottom:1.1rem}
@@ -264,6 +275,17 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   max-width:560px;width:100%;padding:2.2rem;position:relative;max-height:90vh;overflow-y:auto}
 .modal-x{position:absolute;top:0.9rem;right:1.1rem;font-size:1.15rem;cursor:pointer;
   color:var(--muted);background:none;border:none;transition:color .2s}
+.crop-modal{max-width:500px;display:flex;flex-direction:column;align-items:center}
+.crop-stage{position:relative;margin:0.6rem auto 0;touch-action:none;user-select:none;max-width:100%}
+.crop-mask{position:absolute;background:rgba(26,14,7,0.62);pointer-events:none}
+.crop-box{position:absolute;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.35);cursor:move}
+.crop-handle{position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;
+  border:2px solid var(--gold);box-shadow:0 1px 4px rgba(0,0,0,0.35);touch-action:none}
+.ch-nw{left:-11px;top:-11px;cursor:nwse-resize}
+.ch-ne{right:-11px;top:-11px;cursor:nesw-resize}
+.ch-sw{left:-11px;bottom:-11px;cursor:nesw-resize}
+.ch-se{right:-11px;bottom:-11px;cursor:nwse-resize}
+.crop-actions{display:flex;gap:0.7rem;margin-top:0.9rem}
 .modal-x:hover{color:var(--ink)}
 .modal-h{font-family:var(--serif);font-size:1.65rem;font-weight:400;color:var(--ink);margin-bottom:0.45rem}
 .modal-sub{font-family:var(--body);font-size:0.95rem;color:var(--muted);margin-bottom:1.6rem;line-height:1.6}
@@ -465,6 +487,7 @@ const T = {
     pub_city:"Ciudad o lugar donde has vivido tu vida",pub_city_ph:"Ej. Barcelona",
     pub_profession:"Profesión",pub_profession_ph:"Ej. Poeta",
     pub_concept:"Una palabra o concepto que resuma tu trayectoria vital",pub_concept_ph:"Ej. Filósofo",
+    crop_title:"Ajusta tu foto",crop_rotate:"Girar 90°",crop_cancel:"Cancelar",crop_confirm:"Confirmar",
     f_text_ph:"Empieza donde quieras: tu infancia, un lugar, un momento decisivo... No hay reglas.",
     publish:"Publicar en Locus Mundi",published_ok:"✓ Tu historia está en la biblioteca.",
     wiz_continue:"Continuar",
@@ -546,6 +569,7 @@ const T = {
     unlimited_text:"Texto ilimitado",one_img:"1 foto de portada",
     permanent_archive:"Archivo permanente",
     ai_sub_label:"Asistente editorial — €5/mes",
+    mob_strip_ai:"Asistente",mob_strip_photos:"Fotos",mob_strip_pdf:"PDF",
     ai_sub_note:"Activable y desactivable en cualquier momento",
     free_plan:"Base · Gratuita",forever:"siempre",
     addons_title:"Extras",addons_from:"desde €1",addons_sub:"solo pagas por lo que uses",
@@ -670,6 +694,7 @@ const T = {
     pub_city:"City or place where you've lived your life",pub_city_ph:"E.g. Barcelona",
     pub_profession:"Profession",pub_profession_ph:"E.g. Poet",
     pub_concept:"A word or concept that sums up your life's path",pub_concept_ph:"E.g. Philosopher",
+    crop_title:"Adjust your photo",crop_rotate:"Rotate 90°",crop_cancel:"Cancel",crop_confirm:"Confirm",
     f_text_ph:"Start anywhere: your childhood, a place, a key moment... No rules.",
     publish:"Publish on Locus Mundi",published_ok:"✓ Your story is in the library.",
     wiz_continue:"Continue",
@@ -751,6 +776,7 @@ const T = {
     unlimited_text:"Unlimited text",one_img:"1 cover photo",
     permanent_archive:"Permanent archive",
     ai_sub_label:"Editorial assistant — €5/month",
+    mob_strip_ai:"Assistant",mob_strip_photos:"Photos",mob_strip_pdf:"PDF",
     ai_sub_note:"Activate and deactivate anytime",
     free_plan:"Base · Free",forever:"always",
     addons_title:"Add-ons",addons_from:"from €1",addons_sub:"pay only for what you use",
@@ -1020,6 +1046,123 @@ function Read({auto,setView,t}) {
           <a href={auto.fullUrl} target="_blank" className="read-full" style={{textDecoration:"none"}}>📖 Leer historia completa</a>
         </div>
       )}
+    </div>
+  );
+}
+
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+
+function CropRotateModal({file,t,onCancel,onConfirm}) {
+  const canvasRef=useRef(null);
+  const stageRef=useRef(null);
+  const imgRef=useRef(null);
+  const dragRef=useRef(null);
+  const [rotation,setRotation]=useState(0);
+  const [nat,setNat]=useState({w:0,h:0});
+  const [disp,setDisp]=useState({w:0,h:0});
+  const [rect,setRect]=useState(null);
+  const [ready,setReady]=useState(false);
+
+  const drawRotated=(img,rot,resetRect)=>{
+    const cw=(rot===90||rot===270)?img.naturalHeight:img.naturalWidth;
+    const ch=(rot===90||rot===270)?img.naturalWidth:img.naturalHeight;
+    const canvas=canvasRef.current;
+    canvas.width=cw;canvas.height=ch;
+    const ctx=canvas.getContext("2d");
+    ctx.save();ctx.translate(cw/2,ch/2);ctx.rotate(rot*Math.PI/180);
+    ctx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);
+    ctx.restore();
+    setNat({w:cw,h:ch});
+    const maxW=Math.min(440,(stageRef.current?stageRef.current.clientWidth:340));
+    const scale=Math.min(maxW/cw,420/ch);
+    const dW=cw*scale,dH=ch*scale;
+    setDisp({w:dW,h:dH});
+    if(resetRect){
+      const m=Math.min(dW,dH)*0.08;
+      setRect({x:m,y:m,w:dW-m*2,h:dH-m*2});
+    }
+    setReady(true);
+  };
+
+  useEffect(()=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{imgRef.current=img;drawRotated(img,0,true);};
+    img.src=url;
+    return ()=>URL.revokeObjectURL(url);
+  },[file]);
+
+  const rotate=(dir)=>{
+    const r=(rotation+ (dir>0?90:270))%360;
+    setRotation(r);
+    if(imgRef.current) drawRotated(imgRef.current,r,true);
+  };
+
+  const startDrag=(mode)=>(e)=>{
+    e.stopPropagation();e.preventDefault();
+    e.currentTarget.setPointerCapture&&e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current={mode,startX:e.clientX,startY:e.clientY,orig:{...rect}};
+  };
+  const onMove=(e)=>{
+    const d=dragRef.current;if(!d)return;
+    const dx=e.clientX-d.startX,dy=e.clientY-d.startY;
+    const o=d.orig;const minSize=44;
+    let {x,y,w,h}=o;
+    if(d.mode==="move"){
+      x=clamp(o.x+dx,0,disp.w-o.w);
+      y=clamp(o.y+dy,0,disp.h-o.h);
+    } else {
+      if(d.mode.includes("w")){const nx=clamp(o.x+dx,0,o.x+o.w-minSize);w=o.w-(nx-o.x);x=nx;}
+      if(d.mode.includes("e")){w=clamp(o.w+dx,minSize,disp.w-o.x);}
+      if(d.mode.includes("n")){const ny=clamp(o.y+dy,0,o.y+o.h-minSize);h=o.h-(ny-o.y);y=ny;}
+      if(d.mode.includes("s")){h=clamp(o.h+dy,minSize,disp.h-o.y);}
+    }
+    setRect({x,y,w,h});
+  };
+  const onUp=()=>{dragRef.current=null;};
+
+  const confirm=()=>{
+    if(!rect)return;
+    const scale=nat.w/disp.w;
+    const sx=rect.x*scale,sy=rect.y*scale,sw=rect.w*scale,sh=rect.h*scale;
+    const maxSide=1600;
+    let outW=sw,outH=sh;
+    if(Math.max(outW,outH)>maxSide){const f=maxSide/Math.max(outW,outH);outW*=f;outH*=f;}
+    const out=document.createElement("canvas");
+    out.width=Math.max(1,Math.round(outW));out.height=Math.max(1,Math.round(outH));
+    out.getContext("2d").drawImage(canvasRef.current,sx,sy,sw,sh,0,0,out.width,out.height);
+    onConfirm(out.toDataURL("image/jpeg",0.86));
+  };
+
+  return (
+    <div className="ov">
+      <div className="modal crop-modal">
+        <button className="modal-x" onClick={onCancel}>×</button>
+        <div className="modal-h" style={{fontSize:"1.05rem"}}>{t.crop_title}</div>
+        <div ref={stageRef} className="crop-stage" style={{width:disp.w||340,height:disp.h||260}}
+          onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>
+          <canvas ref={canvasRef} style={{width:disp.w,height:disp.h,display:"block"}}/>
+          {ready&&rect&&(<>
+            <div className="crop-mask" style={{left:0,top:0,width:disp.w,height:rect.y}}/>
+            <div className="crop-mask" style={{left:0,top:rect.y+rect.h,width:disp.w,height:disp.h-rect.y-rect.h}}/>
+            <div className="crop-mask" style={{left:0,top:rect.y,width:rect.x,height:rect.h}}/>
+            <div className="crop-mask" style={{left:rect.x+rect.w,top:rect.y,width:disp.w-rect.x-rect.w,height:rect.h}}/>
+            <div className="crop-box" style={{left:rect.x,top:rect.y,width:rect.w,height:rect.h}} onPointerDown={startDrag("move")}>
+              {["nw","ne","sw","se"].map(c=>(
+                <div key={c} className={`crop-handle ch-${c}`} onPointerDown={startDrag(c)}/>
+              ))}
+            </div>
+          </>)}
+        </div>
+        <div className="crop-actions">
+          <button className="btn-sm" type="button" onClick={()=>rotate(-1)}>⟲ {t.crop_rotate}</button>
+          <button className="btn-sm" type="button" onClick={()=>rotate(1)}>⟳ {t.crop_rotate}</button>
+        </div>
+        <div style={{display:"flex",gap:"0.7rem",marginTop:"1rem"}}>
+          <button className="btn-out" style={{flex:1}} onClick={onCancel}>{t.crop_cancel}</button>
+          <button className="btn-pub" style={{flex:1}} onClick={confirm}>{t.crop_confirm}</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1457,6 +1600,15 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [shareCopyFailed,setShareCopyFailed]=useState(false);
   const [showShareAfterSave,setShowShareAfterSave]=useState(false);
   const [saveExitStep,setSaveExitStep]=useState("choose"); // "choose" | "fields"
+  const [cropFile,setCropFile]=useState(null);
+  const [cropTarget,setCropTarget]=useState(null); // {type:"cover"} | {type:"slot",index}
+  const startCrop=(target)=>(e)=>{const file=e.target.files[0];if(!file)return;e.target.value="";setCropTarget(target);setCropFile(file);};
+  const cancelCrop=()=>{setCropFile(null);setCropTarget(null);};
+  const confirmCrop=(dataUrl)=>{
+    if(cropTarget?.type==="cover") up("coverImg",dataUrl);
+    else if(cropTarget?.type==="slot") setPhotoSlot(cropTarget.index,dataUrl);
+    setCropFile(null);setCropTarget(null);
+  };
   const shareLink=f.publishedId?`https://locusmundi.vercel.app/?id=${f.publishedId}`:"https://locusmundi.vercel.app";
   const shareText2=lang==="EN"
     ? `Hi. I'm writing to let you know I've published my life story on Locus Mundi (${shareLink}), a platform designed to preserve and share memories and experiences with the people we love, and pass them on to those who come after us.\n\nPersonally, I've loved dusting off the old treasures I had tucked away in storage and turning them into a kind of intangible legacy.\n\nI hope this trip into the past inspires you as much as it did me. I think our generation still has one last battle to fight: keeping our memory alive.`
@@ -1698,7 +1850,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
           <div style={{display:"flex",alignItems:"center",gap:"0.8rem",flexWrap:"wrap"}}>
             <label style={{fontFamily:"var(--body)",fontSize:"0.88rem",padding:"0.45rem 1rem",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:"2px",cursor:"pointer",color:"var(--navy)"}}>
               {t.f_cover_btn}
-              <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>up("coverImg",ev.target.result);r.readAsDataURL(file);}}/>
+              <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"cover"})}/>
             </label>
             {f.coverImg&&<img src={f.coverImg} alt="portada" style={{height:"60px",width:"auto",borderRadius:"2px",border:"1px solid var(--border)"}}/>}
             <span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{t.f_cover_note}</span>
@@ -1996,6 +2148,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
           </div>
         </div>
       )}
+      {cropFile&&<CropRotateModal file={cropFile} t={t} onCancel={cancelCrop} onConfirm={confirmCrop}/>}
       {unpubStep&&(
         <div className="ov">
           <div className="modal" style={{maxWidth:"380px"}}>
@@ -2032,7 +2185,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
               {f.coverImg&&<img src={f.coverImg} alt="portada" style={{height:"52px",width:"38px",objectFit:"cover",borderRadius:"2px",border:"1px solid var(--border)"}}/>}
               <label style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
                 {t.ed_change_cover}
-                <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>up("coverImg",ev.target.result);r.readAsDataURL(file);}}/>
+                <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"cover"})}/>
               </label>
             </div>
           </div>
@@ -2056,6 +2209,11 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
             </div>
           </div>
 
+          <div className="mob-offers-strip">
+            <span className={`mob-offer-chip ${f.assistantActive?"on navy":""}`} onClick={()=>document.getElementById("lm-offer-ai")?.scrollIntoView({behavior:"smooth"})}>✦ {t.mob_strip_ai}</span>
+            <span className={`mob-offer-chip ${photosBought>0?"on gold":""}`} onClick={()=>document.getElementById("lm-offer-photos")?.scrollIntoView({behavior:"smooth"})}>📷 {t.mob_strip_photos}</span>
+            <span className={`mob-offer-chip ${pdfBought?"on gold":""}`} onClick={()=>document.getElementById("lm-offer-pdf")?.scrollIntoView({behavior:"smooth"})}>📄 {t.mob_strip_pdf}</span>
+          </div>
           <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
             <button type="button" className="toolbar-btn" style={photosBought>0?{}:{opacity:0.4,cursor:"not-allowed"}}
               onClick={()=>{ if(photosBought===0){return;} document.getElementById("lm-photos-added")?.scrollIntoView({behavior:"smooth"}); }}>{t.ed_add_photo}</button>
@@ -2077,7 +2235,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
                     <div style={{display:"flex",gap:"0.4rem",fontSize:"0.7rem"}}>
                       <label style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
                         {ph.dataUrl?t.ed_photo_replace:t.ed_photo_upload}
-                        <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>setPhotoSlot(i,ev.target.result);r.readAsDataURL(file);}}/>
+                        <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"slot",index:i})}/>
                       </label>
                       {ph.dataUrl&&<span style={{color:"#b23b3b",textDecoration:"underline",cursor:"pointer"}} onClick={()=>removePhoto(i)}>{t.ed_photo_remove}</span>}
                     </div>
@@ -2105,19 +2263,19 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
               <div className="pm-feat"><span className="pm-feat-t">{t.one_img}</span><span className="badge free">{t.free}</span></div>
               <div className="pm-feat"><span className="pm-feat-t">{t.permanent_archive}</span><span className="badge free">{t.free}</span></div>
             </div>
-            <div style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--navy)",borderRadius:"2px"}}>
+            <div id="lm-offer-ai" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--navy)",borderRadius:"2px"}}>
               <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--navy)",fontWeight:"600",marginBottom:"0.2rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.ai_sub_label}</div>
               <div style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginBottom:"0.4rem"}}>{t.ai_hours_note}</div>
               {!f.assistantActive
                 ? <button className="pm-unlock" style={{borderColor:"var(--navy)",color:"var(--navy)"}} onClick={()=>{setAiTuUsted(null);setAiNameDraft(f.name||"");setShowAiOverlay(true);}}>{t.ai_activate_btn}</button>
                 : <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#2a6a2a"}}>{t.ai_active_msg} <b>{f.assistantName}</b></div>}
             </div>
-            <div style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
+            <div id="lm-offer-photos" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
               <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_photos_h}</div>
               <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_photos_sub}</span><span className={`badge ${photosBought>0?"on":"prem"}`}>{photosBought>0?`${photosBought} ${t.photo_word}s`:`€1/${t.photo_word}`}</span></div>
               <button className="pm-unlock" onClick={()=>setShowPhotosM(true)}>{photosBought>0?t.addon_photos_add_more:t.addon_photos_btn}</button>
             </div>
-            <div style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
+            <div id="lm-offer-pdf" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
               <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_pdf_h}</div>
               <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_pdf_sub}</span><span className={`badge ${pdfBought?"on":"prem"}`}>{pdfBought?`DIN ${pdfBought}`:"€5"}</span></div>
               {!pdfBought&&<button className="pm-unlock" onClick={()=>setShowPdfM(true)}>{t.addon_pdf_btn}</button>}
