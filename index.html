@@ -471,6 +471,25 @@ const T = {
     translate_and_read:"Traducir y leer",change_lang:"cambiar idioma",
     read_lang_error:"No se ha podido traducir el texto. Inténtalo de nuevo o léelo en el idioma original.",
     translate:"Traducir",
+    report_link:"🚩 Denunciar contenido inapropiado",
+    report_h:"Denunciar contenido inapropiado",
+    report_sub:"Describe el problema y te mostraremos el mensaje ya listo, con la referencia de esta obra incluida, para que lo copies y lo envíes tú mismo por correo a Locus Mundi.",
+    report_field_label:"Describe el problema",
+    report_field_ph:"Explica qué contenido te parece inapropiado y por qué…",
+    report_reveal_btn:"Ver y copiar mensaje de denuncia",
+    report_copy_btn2:"Copiar",
+    report_copied:"¡Copiado!",
+    report_copy_manual:"No se ha podido copiar automáticamente. Selecciona el texto y cópialo a mano.",
+    report_to_label:"Para",
+    report_subject_label:"Asunto",
+    report_ref_label:"Obra denunciada",
+    report_cancel:"Cancelar",
+    report_empty_error:"Escribe una breve descripción antes de continuar.",
+    contact_reveal_btn:"Ver y copiar mensaje",
+    contact_copy_btn2:"Copiar",
+    contact_copied:"¡Copiado!",
+    contact_copy_manual:"No se ha podido copiar automáticamente. Selecciona el texto y cópialo a mano.",
+    contact_sub2:"Rellena los datos y te mostraremos el mensaje ya listo para que lo copies y lo envíes tú mismo por correo a Locus Mundi.",
     write_h:"Escribe tu autobiografía",
     write_sub:"Cuéntanos quién eres. No hay mínimos ni máximos. La IA te ayuda si lo necesitas.",
     f_title:"Título de la obra",f_title_ph:"p. ej. Recuerdos de mi familia",
@@ -677,6 +696,25 @@ const T = {
     by_author:"By",read_in_original:"Read in",or_translate:"or translate and read in another language",
     translate_and_read:"Translate and read",change_lang:"change language",
     read_lang_error:"Couldn't translate the text. Try again, or read it in the original language.",
+    report_link:"🚩 Report inappropriate content",
+    report_h:"Report inappropriate content",
+    report_sub:"Describe the issue and we'll show you the message, with this work's reference already included, for you to copy and send yourself by email to Locus Mundi.",
+    report_field_label:"Describe the issue",
+    report_field_ph:"Explain what content you find inappropriate and why…",
+    report_reveal_btn:"View and copy report message",
+    report_copy_btn2:"Copy",
+    report_copied:"Copied!",
+    report_copy_manual:"Couldn't copy automatically. Select the text and copy it by hand.",
+    report_to_label:"To",
+    report_subject_label:"Subject",
+    report_ref_label:"Work reported",
+    report_cancel:"Cancel",
+    report_empty_error:"Please write a brief description before continuing.",
+    contact_reveal_btn:"View and copy message",
+    contact_copy_btn2:"Copy",
+    contact_copied:"Copied!",
+    contact_copy_manual:"Couldn't copy automatically. Select the text and copy it by hand.",
+    contact_sub2:"Fill in the details and we'll show you the message ready for you to copy and send yourself by email to Locus Mundi.",
     translate:"Translate",
     write_h:"Write your autobiography",
     write_sub:"Tell us who you are. No minimum, no maximum. AI helps if you need it.",
@@ -977,6 +1015,7 @@ function Read({auto,setView,t}) {
   const [readLangCode,setReadLangCode]=useState(auto?auto.lang:"ES");
   const [doing,setDoing]=useState(false);
   const [errMsg,setErrMsg]=useState("");
+  const [showReport,setShowReport]=useState(false);
   if(!auto){setView("library");return null;}
 
   const readOriginal=()=>{setTr("");setReadLangCode(auto.lang);setEntered(true);};
@@ -1046,8 +1085,72 @@ function Read({auto,setView,t}) {
           <a href={auto.fullUrl} target="_blank" className="read-full" style={{textDecoration:"none"}}>📖 Leer historia completa</a>
         </div>
       )}
+      <div style={{marginTop:"2.2rem",paddingTop:"1.2rem",borderTop:"1px solid var(--border)",textAlign:"center"}}>
+        <span onClick={()=>setShowReport(true)} style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}}>{t.report_link}</span>
+      </div>
+      {showReport&&<ReportModal auto={auto} t={t} onClose={()=>setShowReport(false)}/>}
     </div>
   );
+}
+
+function ReportModal({auto,t,onClose}) {
+  const [desc,setDesc]=useState("");
+  const [err,setErr]=useState("");
+  const [revealed,setRevealed]=useState(false);
+  const [copied,setCopied]=useState(false);
+  const [copyFailed,setCopyFailed]=useState(false);
+
+  const ref=`${auto.id} — ${auto.title||auto.name}`;
+  const reportText=`${t.report_to_label}: contactlocusmundi@gmail.com\n${t.report_subject_label}: ${t.report_h}\n\n${t.report_ref_label}: ${ref}\n\n${desc.trim()}`;
+
+  const copyFallback=()=>{
+    try{
+      const ta=document.createElement("textarea");
+      ta.value=reportText;ta.style.position="fixed";ta.style.left="-9999px";ta.style.top="0";
+      document.body.appendChild(ta);ta.focus();ta.select();
+      const ok=document.execCommand("copy");
+      document.body.removeChild(ta);
+      if(ok){setCopied(true);setCopyFailed(false);setTimeout(()=>setCopied(false),2500);}
+      else{setCopyFailed(true);}
+    }catch(e){setCopyFailed(true);}
+  };
+  const copyMsg=()=>{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(reportText)
+        .then(()=>{setCopied(true);setCopyFailed(false);setTimeout(()=>setCopied(false),2500);})
+        .catch(copyFallback);
+    } else {
+      copyFallback();
+    }
+  };
+  const reveal=()=>{
+    if(!desc.trim()){setErr(t.report_empty_error);return;}
+    setErr("");
+    setRevealed(true);
+  };
+
+  return ReactDOM.createPortal((
+    <div className="ov" onClick={onClose}>
+      <div className="modal" style={{maxWidth:"480px"}} onClick={e=>e.stopPropagation()}>
+        <button className="modal-x" onClick={onClose}>✕</button>
+        <div className="modal-h">{t.report_h}</div>
+        <p className="modal-sub">{t.report_sub}</p>
+        {!revealed&&(<>
+          <div className="fld">
+            <label className="lbl">{t.report_field_label}</label>
+            <textarea className="ta" style={{minHeight:"120px"}} placeholder={t.report_field_ph} value={desc} onChange={e=>setDesc(e.target.value)}/>
+          </div>
+          {err&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginTop:"0.3rem"}}>{err}</p>}
+        </>)}
+        {revealed&&<p style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--ink)",lineHeight:1.6,whiteSpace:"pre-line",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",padding:"0.9rem 1rem",marginBottom:"0.7rem"}}>{reportText}</p>}
+        <div style={{display:"flex",gap:"0.7rem",marginTop:"1rem"}}>
+          <button className="btn-out" onClick={onClose}>{t.report_cancel}</button>
+          <button className="btn-pub" onClick={()=>revealed?copyMsg():reveal()}>{copied?t.report_copied:(revealed?t.report_copy_btn2:t.report_reveal_btn)}</button>
+        </div>
+        {copyFailed&&<p style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)",marginTop:"0.4rem"}}>{t.report_copy_manual}</p>}
+      </div>
+    </div>
+  ), document.body);
 }
 
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
@@ -1291,8 +1394,8 @@ function CollaborateModal({onClose,t,lang,onSponsor}) {
   const [amount,setAmount]=useState(25);
   const [listMe,setListMe]=useState(false);
   const shareText=lang==="EN"
-    ? "Hi. You came to mind when I discovered a new platform called Locus Mundi (locusmundi.com), where anyone can write down and share their life experiences, and read the stories of others who lived through the same era. After all, the best experiences are the shared ones. I see it as a way of leaving a legacy for the people we love, and for those who come after us. Take a look, put your memories in order, and if you think it might interest someone you know, pass this message along to them.\n\nI think our generation still has one last battle to fight: keeping our memory alive."
-    : "Hola. Me he acordado de ti al descubrir la nueva plataforma Locus Mundi (locusmundi.com), donde cada uno puede escribir y compartir sus vivencias, y leer las historias de quienes han vivido en su misma época. Al fin y al cabo, las mejores experiencias son compartidas. Yo lo veo como una forma de dejar un legado para los seres queridos y para quienes vendrán después. Échale un vistazo, pon en orden tus recuerdos y, si crees que puede interesarle a alguien de tu entorno, envíale este mensaje.\n\nCreo que a nuestra generación aún le queda una última batalla por librar: mantener viva su memoria.";
+    ? "Hi. You came to mind when I discovered the new platform Locus Mundi (locusmundi.com), where anyone can publish and share memories and life experiences with their loved ones, and pass them on to those who come after us. Take a look, and if you know someone who might be interested, forward them this message.\n\nI think our generation still has one last battle to fight: keeping its memory alive."
+    : "Hola. Me he acordado de ti al descubrir la nueva plataforma Locus Mundi (locusmundi.com), donde todo el mundo puede publicar y compartir recuerdos y vivencias con sus seres queridos, y transmitirlos a quienes vendrán después. Échale un vistazo y, si conoces a alguien a quien pueda interesarle, reenvíale este mensaje.\n\nCreo que a nuestra generación aún le queda una última batalla por librar: mantener viva su memoria.";
   const copyFallback=()=>{
     try{
       const ta=document.createElement("textarea");
@@ -1401,26 +1504,53 @@ function SponsorModal({onClose,t}) {
 }
 
 function ContactModal({onClose,t}) {
-  const [f,setF]=useState({name:"",email:"",subject:"",msg:""});const [sent,setSent]=useState(false);
+  const [f,setF]=useState({name:"",email:"",subject:"",msg:""});
+  const [revealed,setRevealed]=useState(false);
+  const [copied,setCopied]=useState(false);
+  const [copyFailed,setCopyFailed]=useState(false);
   const up=(k,v)=>setF(p=>(({...p,[k]:v})));
+
+  const contactText=`${t.report_to_label}: contactlocusmundi@gmail.com\n${t.report_subject_label}: ${f.subject.trim()||t.contact_h}\n\n${t.contact_name}: ${f.name.trim()}\n${t.contact_email}: ${f.email.trim()}\n\n${f.msg.trim()}`;
+
+  const copyFallback=()=>{
+    try{
+      const ta=document.createElement("textarea");
+      ta.value=contactText;ta.style.position="fixed";ta.style.left="-9999px";ta.style.top="0";
+      document.body.appendChild(ta);ta.focus();ta.select();
+      const ok=document.execCommand("copy");
+      document.body.removeChild(ta);
+      if(ok){setCopied(true);setCopyFailed(false);setTimeout(()=>setCopied(false),2500);}
+      else{setCopyFailed(true);}
+    }catch(e){setCopyFailed(true);}
+  };
+  const copyMsg=()=>{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(contactText)
+        .then(()=>{setCopied(true);setCopyFailed(false);setTimeout(()=>setCopied(false),2500);})
+        .catch(copyFallback);
+    } else {
+      copyFallback();
+    }
+  };
+
   return (
     <div className="ov" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <button className="modal-x" onClick={onClose}>✕</button>
-        {sent?(<div style={{textAlign:"center",padding:"1.8rem 0"}}><div style={{fontSize:"2rem",color:"var(--gold)",marginBottom:"0.9rem"}}>✦</div><p style={{fontFamily:"var(--body)",color:"var(--muted)"}}>{t.contact_sent}</p></div>):(
-          <>
-            <div className="modal-h">{t.contact_h}</div>
-            <p className="modal-sub">{t.contact_sub}</p>
-            <div className="fld"><label className="lbl">{t.contact_name}</label><input className="inp" value={f.name} onChange={e=>up("name",e.target.value)}/></div>
-            <div className="fld"><label className="lbl">{t.contact_email}</label><input className="inp" type="email" value={f.email} onChange={e=>up("email",e.target.value)}/></div>
-            <div className="fld"><label className="lbl">{t.subject_label}</label><input className="inp" placeholder={t.subject_placeholder} value={f.subject} onChange={e=>up("subject",e.target.value)}/></div>
-            <div className="fld"><label className="lbl">{t.contact_msg}</label><textarea className="ta" style={{minHeight:"130px"}} value={f.msg} onChange={e=>up("msg",e.target.value)}/></div>
-            <button className="btn-pub" onClick={()=>setSent(true)} disabled={!f.name||!f.email||!f.msg}>{t.contact_send}</button>
-            <div style={{marginTop:"1.4rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",lineHeight:1.7}}>
-              <div><b>Locus Mundi</b> · locusmundi.com</div>
-            </div>
-          </>
-        )}
+        <div className="modal-h">{t.contact_h}</div>
+        <p className="modal-sub">{t.contact_sub2}</p>
+        {!revealed&&(<>
+          <div className="fld"><label className="lbl">{t.contact_name}</label><input className="inp" value={f.name} onChange={e=>up("name",e.target.value)}/></div>
+          <div className="fld"><label className="lbl">{t.contact_email}</label><input className="inp" type="email" value={f.email} onChange={e=>up("email",e.target.value)}/></div>
+          <div className="fld"><label className="lbl">{t.subject_label}</label><input className="inp" placeholder={t.subject_placeholder} value={f.subject} onChange={e=>up("subject",e.target.value)}/></div>
+          <div className="fld"><label className="lbl">{t.contact_msg}</label><textarea className="ta" style={{minHeight:"130px"}} value={f.msg} onChange={e=>up("msg",e.target.value)}/></div>
+        </>)}
+        {revealed&&<p style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--ink)",lineHeight:1.6,whiteSpace:"pre-line",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",padding:"0.9rem 1rem",marginBottom:"0.7rem"}}>{contactText}</p>}
+        <button className="btn-pub" onClick={()=>revealed?copyMsg():setRevealed(true)} disabled={!revealed&&(!f.name||!f.email||!f.msg)}>{copied?t.contact_copied:(revealed?t.contact_copy_btn2:t.contact_reveal_btn)}</button>
+        {copyFailed&&<p style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)",marginTop:"0.4rem"}}>{t.contact_copy_manual}</p>}
+        <div style={{marginTop:"1.4rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",lineHeight:1.7}}>
+          <div><b>Locus Mundi</b> · locusmundi.com</div>
+        </div>
       </div>
     </div>
   );
