@@ -521,7 +521,7 @@ const T = {
     ed_blocks_h:"Orden del libro — sube, baja, renombra o borra. Si no divides, todo vive en el Capítulo 1.",
     ed_add_chapter:"+ Capítulo",ed_add_apartado:"+ Apartado",
     ed_chapter_word:"capítulo",ed_apartado_word:"apartado",ed_untitled:"sin título",
-    ed_rename_prompt:"Título de este",ed_confirm_delete:"¿Borrar este bloque de la lista?",
+    ed_rename_prompt:"Título de este",ed_new_block_prompt:"Título del nuevo",ed_confirm_delete:"¿Borrar este bloque de la lista?",
     ed_need_one_block:"Tu libro necesita al menos un bloque.",
     ed_italic:"Cursiva",ed_undo:"↺ Deshacer",ed_add_photo:"+ Fotografía",
     ed_save_exit:"Guardar y salir",ed_save_exit_q:"¿Quieres guardar este trabajo solo para ti, o subirlo ya a la plataforma?",
@@ -747,7 +747,7 @@ const T = {
     ed_blocks_h:"Book order — move up, down, rename or delete. If you don't split it, everything lives in Chapter 1.",
     ed_add_chapter:"+ Chapter",ed_add_apartado:"+ Section",
     ed_chapter_word:"chapter",ed_apartado_word:"section",ed_untitled:"untitled",
-    ed_rename_prompt:"Title for this",ed_confirm_delete:"Delete this block from the list?",
+    ed_rename_prompt:"Title for this",ed_new_block_prompt:"Title for the new",ed_confirm_delete:"Delete this block from the list?",
     ed_need_one_block:"Your book needs at least one block.",
     ed_italic:"Italics",ed_undo:"↺ Undo",ed_add_photo:"+ Photo",
     ed_save_exit:"Save and exit",ed_save_exit_q:"Do you want to save this just for yourself, or upload it to the platform now?",
@@ -1833,7 +1833,11 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const blockLabel=(b)=> b.type==="chapter"
     ? (t.ed_chapter_word.charAt(0).toUpperCase()+t.ed_chapter_word.slice(1))+" "+b.num+(b.title?" — "+b.title:"")
     : (t.ed_apartado_word.charAt(0).toUpperCase()+t.ed_apartado_word.slice(1))+(b.title?" — "+b.title:" — "+t.ed_untitled);
-  const addBlock=(type)=> setF(p=>({...p,blocks:renumberBlocks([...p.blocks,{type,title:""}])}));
+  const addBlock=(type)=>{
+    const nt=prompt(t.ed_new_block_prompt+" "+(type==="chapter"?t.ed_chapter_word:t.ed_apartado_word)+":","");
+    if(nt===null) return;
+    setF(p=>({...p,blocks:renumberBlocks([...p.blocks,{type,title:nt.trim()}])}));
+  };
   const moveBlock=(i,dir)=> setF(p=>{
     const j=i+dir; if(j<0||j>=p.blocks.length) return p;
     const bl=[...p.blocks]; [bl[i],bl[j]]=[bl[j],bl[i]];
@@ -2345,6 +2349,8 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
             <span className={`mob-offer-chip ${pdfBought?"on gold":""}`} onClick={()=>document.getElementById("lm-offer-pdf")?.scrollIntoView({behavior:"smooth"})}>📄 {t.mob_strip_pdf}</span>
           </div>
           <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
+            <button type="button" className="toolbar-btn" onClick={()=>addBlock("chapter")}>{t.ed_add_chapter}</button>
+            <button type="button" className="toolbar-btn" onClick={()=>addBlock("apartado")}>{t.ed_add_apartado}</button>
             <button type="button" className="toolbar-btn" style={photosBought>0?{}:{opacity:0.4,cursor:"not-allowed"}}
               onClick={()=>{ if(photosBought===0){return;} document.getElementById("lm-photos-added")?.scrollIntoView({behavior:"smooth"}); }}>{t.ed_add_photo}</button>
             <button type="button" className="toolbar-btn" onClick={applyItalic}><i>{t.ed_italic}</i></button>
