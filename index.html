@@ -157,7 +157,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .r-meta{font-family:var(--body);font-size:0.86rem;color:var(--muted);
   margin-bottom:2.2rem;padding-bottom:1.8rem;border-bottom:1px solid var(--border)}
 .r-body{font-family:var(--body);font-size:1.15rem;line-height:1.82;color:var(--ink)}
-.r-body p{margin-bottom:1.3em}
+.r-body p{margin-bottom:1.3em;white-space:pre-line}
 .fs-ctrl{display:flex;align-items:center;gap:0.5rem;margin:0 0 1.6rem 0}
 .hdr .fs-ctrl{margin:0}
 .fs-btn{font-family:var(--serif);border:1px solid var(--border);background:#fff;color:var(--ink);
@@ -2094,6 +2094,19 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // texto plano que también usa el Asistente) y deshacer con historial de las últimas versiones ----
   const pushHistory=()=>{ historyRef.current=[...historyRef.current.slice(-19), f.text]; };
   const onTextChange=(v)=>{ pushHistory(); up("text",v); };
+  // Al pulsar Intro, se genera directamente un párrafo nuevo (línea en blanco incluida),
+  // sin que el Autor tenga que pulsarlo dos veces — así los dos idiomas leen igual en pantalla
+  // y nadie corre el riesgo de que su texto quede todo en un único párrafo.
+  const onTextKeyDown=(e)=>{
+    if(e.key!=="Enter") return;
+    e.preventDefault();
+    const ta=e.target;
+    const s=ta.selectionStart, eIdx=ta.selectionEnd;
+    pushHistory();
+    const nv=f.text.slice(0,s)+"\n\n"+f.text.slice(eIdx);
+    up("text",nv);
+    requestAnimationFrame(()=>{ if(taRef.current){ taRef.current.selectionStart=taRef.current.selectionEnd=s+2; } });
+  };
   const applyItalic=()=>{
     const ta=taRef.current; if(!ta) return;
     const {selectionStart:s,selectionEnd:eIdx}=ta;
@@ -2587,7 +2600,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
             <button type="button" className="toolbar-btn" onClick={applyItalic}><i>{t.ed_italic}</i></button>
             <button type="button" className="toolbar-btn" onClick={undo}>{t.ed_undo}</button>
           </div>
-          <textarea ref={taRef} className="ta" placeholder={t.f_text_ph} value={f.text} onChange={e=>onTextChange(e.target.value)}/>
+          <textarea ref={taRef} className="ta" placeholder={t.f_text_ph} value={f.text} onChange={e=>onTextChange(e.target.value)} onKeyDown={onTextKeyDown}/>
 
           {f.photosSlots.length>0&&(
             <div id="lm-photos-added" style={{marginTop:"1rem"}}>
