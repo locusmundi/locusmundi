@@ -1008,7 +1008,7 @@ function Header({view,setView,lang,setLang,t,fsStep,setFsStep,fsSteps}) {
 }
 
 function Home({autos,openAuto,setView,t}) {
-  const sorted = [...autos].sort((a,b)=>a.id-b.id);
+  const sorted = [...autos].sort((a,b)=>(typeof a.id==="number"&&typeof b.id==="number")?a.id-b.id:0);
   return (
     <div>
       <section className="hero">
@@ -1052,7 +1052,7 @@ function Home({autos,openAuto,setView,t}) {
 
 function Library({autos,openAuto,t}) {
   const [q,setQ]=useState("");
-  const sorted=[...autos].sort((a,b)=>a.id-b.id);
+  const sorted=[...autos].sort((a,b)=>(typeof a.id==="number"&&typeof b.id==="number")?a.id-b.id:0);
   const filt=sorted.filter(a=>{const s=q.toLowerCase();return !s||a.name.toLowerCase().includes(s)||a.country.toLowerCase().includes(s)||a.text.toLowerCase().includes(s)||a.tags.some(tg=>tg.toLowerCase().includes(s));});
   return (
     <section className="sec">
@@ -2731,6 +2731,39 @@ function App() {
   const [view,setView]=useState(()=>isRecoveryLink()?"write":"home");
   const [sel,setSel]=useState(null);
   const [autos,setAutos]=useState(SAMPLE);
+  // Trae de Supabase las historias publicadas de verdad (además de las 4 de
+  // muestra fijas) para que la Biblioteca no dependa solo de la memoria del
+  // navegador. Las fotos aún no viven en Supabase, así que estas entradas
+  // aparecen sin portada por ahora — pendiente de una sesión futura.
+  useEffect(()=>{
+    (async () => {
+      const { data, error } = await supa.from("historias")
+        .select("id, titulo, contenido, idioma_original, fecha_publicacion")
+        .eq("estado_publicacion","publicado")
+        .order("fecha_publicacion",{ascending:false});
+      if(!error && data && data.length){
+        const mapped = data.map(row=>{
+          const c = row.contenido || {};
+          return {
+            id: row.id,
+            name: c.name || "",
+            born: parseInt(c.born) || 0,
+            country: c.country || "—",
+            flag: "🌍",
+            lang: row.idioma_original || c.lang || "ES",
+            title: row.titulo || c.title || c.name || "",
+            subtitle: c.subtitle || "",
+            cover: null,
+            preview: (c.text||"").slice(0,88)+"...",
+            text: c.text || "",
+            tags: ["memoria"],
+            city: c.pubCity || "", profession: c.pubProfession || "", concept: c.pubConcept || ""
+          };
+        });
+        setAutos(p=>[...p,...mapped]);
+      }
+    })();
+  },[]);
   const [showContact,setShowContact]=useState(false);
   const [showLegal,setShowLegal]=useState(null);
   const [showCollab,setShowCollab]=useState(false);
