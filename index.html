@@ -384,7 +384,44 @@ const SUPABASE_URL = "https://olpfybpykuascwltnqtv.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_p0cfcLah6MHGQ7ELm9b60g_jTHho-g8";
 const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Hash SHA-256 en hexadecimal (Web Crypto, nativo del navegador, sin
+// ---- Números romanos, para el marcador de capítulo que se inserta en el texto ----
+function toRoman(num) {
+  const vals=[[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
+  let n=num,out="";
+  for(const [v,s] of vals){ while(n>=v){ out+=s; n-=v; } }
+  return out||"I";
+}
+
+// ---- Conversión del texto plano (con los marcadores de capítulo/apartado en mayúsculas que
+// inserta el editor) al aspecto del "Estándar de Formato de Colección": número de capítulo en
+// una línea, título debajo con más peso, apartados como subtítulo. También normaliza el guion
+// largo (—) al guion corto (–) que exige el estándar en todo el documento. (La conversión
+// completa a comillas angulares queda pendiente — es más delicada de automatizar sin arriesgar
+// texto ya bien puntuado, se deja para una revisión futura.)
+const CHAPTER_MARKER_WORDS = ["CAPÍTULO","CAPITULO","CHAPTER"];
+const isAllCapsLine = (s) => { const letters = s.replace(/[^A-Za-zÀ-ÿ]/g,""); return letters.length>0 && letters===letters.toUpperCase(); };
+const isChapterMarker = (s) => CHAPTER_MARKER_WORDS.some(w=>s.toUpperCase().startsWith(w));
+function renderStoryBody(text) {
+  return (text||"").split("\n\n").map((raw,i)=>{
+    const p = raw.replace(/—/g,"–");
+    const trimmed = p.trim();
+    if(trimmed && isAllCapsLine(trimmed)){
+      if(isChapterMarker(trimmed)){
+        const idx = trimmed.indexOf(":");
+        const label = idx>-1 ? trimmed.slice(0,idx) : trimmed;
+        const rest = idx>-1 ? trimmed.slice(idx+1).trim() : "";
+        return (
+          <div key={i} style={{marginTop:i===0?0:"2.6rem"}}>
+            <div style={{fontFamily:"var(--serif)",fontSize:"0.8rem",textTransform:"uppercase",letterSpacing:"0.2em",color:"var(--navy)",marginBottom:"0.3rem"}}>{label}</div>
+            {rest&&<div style={{fontFamily:"var(--serif)",fontSize:"1.5rem",fontWeight:700,color:"var(--ink)",paddingBottom:"0.8rem",borderBottom:"1px solid var(--border)",marginBottom:"1.2rem"}}>{rest}</div>}
+          </div>
+        );
+      }
+      return <h3 key={i} style={{fontFamily:"var(--serif)",fontSize:"1.15rem",color:"var(--navy)",margin:"2rem 0 0.8rem",paddingBottom:"0.4rem",borderBottom:"1px solid var(--border)"}}>{trimmed}</h3>;
+    }
+    return <p key={i}>{p}</p>;
+  });
+}
 // librerías). Se usa para la respuesta de seguridad: nunca se guarda en
 // claro, igual que ocurre con una contraseña.
 async function sha256Hex(text) {
@@ -1134,7 +1171,7 @@ function Read({auto,setView,t}) {
       </div>
       <h1 className="r-name">{auto.title||auto.name}</h1>
       <div className="r-meta">{t.by_author} {auto.name}</div>
-      <div className="r-body">{(tr||auto.text).split("\n\n").map((p,i)=><p key={i}>{p}</p>)}</div>
+      <div className="r-body">{renderStoryBody(tr||auto.text)}</div>
       <div style={{marginTop:"1.8rem",display:"flex",alignItems:"center",flexWrap:"wrap",gap:"0.9rem"}}>
         {tagsBlock}
       </div>
@@ -2020,7 +2057,21 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const addBlock=(type)=>{
     const nt=prompt(t.ed_new_block_prompt+" "+(type==="chapter"?t.ed_chapter_word:t.ed_apartado_word)+":","");
     if(nt===null) return;
-    setF(p=>({...p,blocks:renumberBlocks([...p.blocks,{type,title:nt.trim()}])}));
+    const title=nt.trim();
+    setF(p=>({...p,blocks:renumberBlocks([...p.blocks,{type,title}])}));
+    // Además de añadirlo al índice, insertamos un marcador en mayúsculas en el propio texto,
+    // en el punto donde esté el cursor — la caja de texto no puede mostrar negrita de verdad
+    // (es un campo plano), pero al leerse/publicarse este marcador se reconoce y se muestra
+    // con el formato del estándar de colección (ver renderStoryBody).
+    const marker = type==="chapter"
+      ? t.ed_chapter_word.toUpperCase()+" "+toRoman(f.blocks.filter(b=>b.type==="chapter").length+1)+(title?": "+title.toUpperCase():"")
+      : (title?title.toUpperCase():t.ed_untitled.toUpperCase());
+    const ta=taRef.current;
+    const pos = ta ? ta.selectionStart : f.text.length;
+    pushHistory();
+    const needsLeadingBreak = pos>0 && f.text[pos-1]!=="\n";
+    const nv = f.text.slice(0,pos) + (needsLeadingBreak?"\n\n":"") + marker + "\n\n" + f.text.slice(pos);
+    up("text",nv);
   };
   const moveBlock=(i,dir)=> setF(p=>{
     const j=i+dir; if(j<0||j>=p.blocks.length) return p;
