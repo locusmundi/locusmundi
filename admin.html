@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Locus Mundi — Admin</title>
+<style>
+  body { font-family: sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+  label { display:block; margin-top: 16px; font-weight: bold; }
+  input, select, textarea { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+  textarea { min-height: 120px; }
+  button { margin-top: 20px; padding: 10px 20px; font-size: 16px; }
+  #resultado { margin-top: 20px; padding: 12px; border-radius: 6px; white-space: pre-wrap; }
+  .ok { background: #dff5df; }
+  .error { background: #f8d7da; }
+</style>
+</head>
+<body>
+<h2>Locus Mundi — Acción de administrador</h2>
+<p>Uso excepcional, solo por causa legal grave y documentada. Cada uso queda registrado permanentemente.</p>
+
+<label>Clave de administrador</label>
+<input type="password" id="clave">
+
+<label>Tu nombre (queda registrado como responsable)</label>
+<input type="text" id="realizado_por" value="Javier Batlle">
+
+<label>ID de la historia</label>
+<input type="text" id="historia_id" placeholder="El id (UUID) de la fila en 'historias'">
+
+<label>Acción</label>
+<select id="accion">
+  <option value="retirar">Retirar publicación (ocultar de la Biblioteca)</option>
+  <option value="modificar">Modificar el texto</option>
+</select>
+
+<div id="campoTexto" style="display:none">
+  <label>Nuevo texto completo</label>
+  <textarea id="nuevo_texto"></textarea>
+</div>
+
+<label>Motivo (obligatorio, se registra tal cual)</label>
+<textarea id="motivo"></textarea>
+
+<button onclick="enviar()">Aplicar acción</button>
+
+<div id="resultado"></div>
+
+<script>
+document.getElementById('accion').addEventListener('change', function() {
+  document.getElementById('campoTexto').style.display = this.value === 'modificar' ? 'block' : 'none';
+});
+
+async function enviar() {
+  const resultado = document.getElementById('resultado');
+  resultado.className = '';
+  resultado.textContent = 'Enviando...';
+
+  const body = {
+    clave: document.getElementById('clave').value,
+    realizado_por: document.getElementById('realizado_por').value,
+    historia_id: document.getElementById('historia_id').value,
+    accion: document.getElementById('accion').value,
+    motivo: document.getElementById('motivo').value,
+    nuevo_texto: document.getElementById('nuevo_texto').value,
+  };
+
+  if (!body.motivo) {
+    resultado.className = 'error';
+    resultado.textContent = 'El motivo es obligatorio.';
+    return;
+  }
+  if (!confirm('¿Seguro? Esta acción queda registrada de forma permanente.')) {
+    resultado.textContent = '';
+    return;
+  }
+
+  try {
+    const r = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    resultado.className = r.ok ? 'ok' : 'error';
+    resultado.textContent = r.ok ? data.mensaje : ('Error: ' + data.error);
+  } catch (e) {
+    resultado.className = 'error';
+    resultado.textContent = 'Error de red: ' + e.message;
+  }
+}
+</script>
+</body>
+</html>
