@@ -7,7 +7,7 @@
 
 const SUPABASE_URL = "https://olpfybpykuascwltnqtv.supabase.co";
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Método no permitido" });
     return;
@@ -52,4 +52,37 @@ export default async function handler(req, res) {
 
     let cambios = {};
     if (accion === "retirar") {
-      cambios = {
+      cambios = { estado_publicacion: "despublicado" };
+    } else {
+      cambios = { contenido: { ...historiaActual.contenido, text: nuevo_texto } };
+    }
+
+    const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/historias?id=eq.${historia_id}`, {
+      method: "PATCH",
+      headers: { ...headers, Prefer: "return=minimal" },
+      body: JSON.stringify(cambios),
+    });
+    if (!patchRes.ok) {
+      throw new Error("Error al actualizar la historia: " + (await patchRes.text()));
+    }
+
+    const logRes = await fetch(`${SUPABASE_URL}/rest/v1/admin_log`, {
+      method: "POST",
+      headers: { ...headers, Prefer: "return=minimal" },
+      body: JSON.stringify({
+        historia_id,
+        accion,
+        motivo,
+        realizado_por,
+        contenido_anterior: historiaActual.contenido,
+      }),
+    });
+    if (!logRes.ok) {
+      throw new Error("Historia modificada pero el registro en admin_log falló: " + (await logRes.text()));
+    }
+
+    res.status(200).json({ ok: true, mensaje: `Acción "${accion}" aplicada y registrada.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
