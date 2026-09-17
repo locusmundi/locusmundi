@@ -1906,7 +1906,9 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       if(!user) return;
       const { coverImg, photosSlots, ...contenido } = f;
       const estado = f.published ? "publicado" : (f.publishedId ? "despublicado" : "borrador");
-      const justPublished = f.published && !wasPublishedRef.current;
+      const wasPublished = wasPublishedRef.current;
+      const justPublished = f.published && !wasPublished;
+      const justUnpublished = !f.published && wasPublished;
       wasPublishedRef.current = f.published;
       const payload = {
         autor_id: user.id,
@@ -1920,6 +1922,16 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       } else {
         const { data, error } = await supa.from("historias").insert(payload).select("id").single();
         if(!error && data) historiaIdRef.current = data.id;
+      }
+      if(justPublished || justUnpublished){
+        fetch("/api/registro-lssi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            accion: justPublished ? "publicacion" : "despublicacion",
+            autor_id: user.id
+          })
+        }).catch(()=>{}); // si falla, no debe bloquear el guardado de la historia
       }
     }, 1200);
     return ()=>clearTimeout(saveTimerRef.current);
