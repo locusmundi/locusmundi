@@ -1668,7 +1668,7 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
     if(pw!==pw2){setErr(t.auth_err_mismatch);return;}
     setBusy(true);
     const secAHash = await sha256Hex(clean(secA));
-    const { error } = await supa.auth.signUp({
+    const { data: signUpData, error } = await supa.auth.signUp({
       email: email.trim(),
       password: pw,
       options: { data: { legalName: legalName.trim(), secQ, secAHash } }
@@ -1678,6 +1678,13 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
       // Supabase devuelve un error genérico "User already registered" si el correo ya existe
       setErr(error.message.toLowerCase().includes("already") ? t.auth_err_exists : error.message);
       return;
+    }
+    if(signUpData && signUpData.user){
+      fetch("/api/registro-lssi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "alta", autor_id: signUpData.user.id })
+      }).catch(()=>{}); // si falla, no debe bloquear el alta del Autor
     }
     setStep("signup_check_email");
   };
