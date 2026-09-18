@@ -535,30 +535,21 @@ const T = {
     translate:"Traducir",
     report_link:"🚩 Denunciar contenido inapropiado",
     report_h:"Denunciar contenido inapropiado",
-    report_sub:"Describe el problema y te mostraremos el mensaje ya listo, con la referencia de esta obra incluida, para que lo copies y lo envíes tú mismo por correo a Locus Mundi.",
+    report_sub:"Describe el problema y enviaremos tu denuncia a Locus Mundi, con la referencia de esta obra incluida.",
     report_field_label:"Describe el problema",
     report_field_ph:"Explica qué contenido te parece inapropiado y por qué…",
-    report_reveal_btn:"Ver y copiar mensaje de denuncia",
-    report_copy_btn2:"Copiar",
-    report_copied:"¡Copiado!",
-    report_copy_manual:"No se ha podido copiar automáticamente. Selecciona el texto y cópialo a mano.",
-    report_to_label:"Para",
-    report_subject_label:"Asunto",
+    report_send_btn:"Enviar denuncia",
     report_ref_label:"Obra denunciada",
     report_cancel:"Cancelar",
     report_empty_error:"Escribe una breve descripción antes de continuar.",
-        report_sending:"Enviando…",
+    report_sending:"Enviando…",
     report_sent:"✓ Denuncia recibida. Gracias por ayudarnos a mantener la plataforma.",
     report_send_error:"No se ha podido enviar la denuncia. Escribe directamente a contactlocusmundi@gmail.com.",
     contact_sending:"Enviando…",
     contact_send_error:"No se ha podido enviar el mensaje. Escribe directamente a contactlocusmundi@gmail.com.",
     sponsor_sending:"Enviando…",
     sponsor_send_error:"No se ha podido enviar el mensaje. Escribe directamente a contactlocusmundi@gmail.com.",
-    contact_reveal_btn:"Ver y copiar mensaje",
-    contact_copy_btn2:"Copiar",
-    contact_copied:"¡Copiado!",
-    contact_copy_manual:"No se ha podido copiar automáticamente. Selecciona el texto y cópialo a mano.",
-    contact_sub2:"Rellena los datos y te mostraremos el mensaje ya listo para que lo copies y lo envíes tú mismo por correo a Locus Mundi.",
+    contact_sub2:"Rellena los datos y te responderemos en cuanto podamos.",
     write_h:"Escribe tu autobiografía",
     write_sub:"Cuéntanos quién eres. No hay mínimos ni máximos. La IA te ayuda si lo necesitas.",
     f_title:"Título de la obra",f_title_ph:"p. ej. Recuerdos de mi familia",
@@ -784,30 +775,21 @@ const T = {
     read_lang_error:"Couldn't translate the text. Try again, or read it in the original language.",
     report_link:"🚩 Report inappropriate content",
     report_h:"Report inappropriate content",
-    report_sub:"Describe the issue and we'll show you the message, with this work's reference already included, for you to copy and send yourself by email to Locus Mundi.",
+    report_sub:"Describe the issue and we'll send your report to Locus Mundi, with this work's reference included.",
     report_field_label:"Describe the issue",
     report_field_ph:"Explain what content you find inappropriate and why…",
-    report_reveal_btn:"View and copy report message",
-    report_copy_btn2:"Copy",
-    report_copied:"Copied!",
-    report_copy_manual:"Couldn't copy automatically. Select the text and copy it by hand.",
-    report_to_label:"To",
-    report_subject_label:"Subject",
+    report_send_btn:"Send report",
     report_ref_label:"Work reported",
     report_cancel:"Cancel",
     report_empty_error:"Please write a brief description before continuing.",
-        report_sending:"Sending…",
+    report_sending:"Sending…",
     report_sent:"✓ Report received. Thank you for helping us keep the platform safe.",
     report_send_error:"The report could not be sent. Please write directly to contactlocusmundi@gmail.com.",
     contact_sending:"Sending…",
     contact_send_error:"The message could not be sent. Please write directly to contactlocusmundi@gmail.com.",
     sponsor_sending:"Sending…",
     sponsor_send_error:"The message could not be sent. Please write directly to contactlocusmundi@gmail.com.",
-    contact_reveal_btn:"View and copy message",
-    contact_copy_btn2:"Copy",
-    contact_copied:"Copied!",
-    contact_copy_manual:"Couldn't copy automatically. Select the text and copy it by hand.",
-    contact_sub2:"Fill in the details and we'll show you the message ready for you to copy and send yourself by email to Locus Mundi.",
+    contact_sub2:"Fill in the details and we'll get back to you as soon as we can.",
     translate:"Translate",
     write_h:"Write your autobiography",
     write_sub:"Tell us who you are. No minimum, no maximum. AI helps if you need it.",
@@ -1205,37 +1187,24 @@ function Read({auto,setView,t}) {
 function ReportModal({auto,t,onClose}) {
   const [desc,setDesc]=useState("");
   const [err,setErr]=useState("");
-  const [revealed,setRevealed]=useState(false);
-  const [copied,setCopied]=useState(false);
-  const [copyFailed,setCopyFailed]=useState(false);
+  const [sending,setSending]=useState(false);
+  const [sent,setSent]=useState(false);
 
   const ref=`${auto.id} — ${auto.title||auto.name}`;
-  const reportText=`${t.report_to_label}: contactlocusmundi@gmail.com\n${t.report_subject_label}: ${t.report_h}\n\n${t.report_ref_label}: ${ref}\n\n${desc.trim()}`;
 
-  const copyFallback=()=>{
-    try{
-      const ta=document.createElement("textarea");
-      ta.value=reportText;ta.style.position="fixed";ta.style.left="-9999px";ta.style.top="0";
-      document.body.appendChild(ta);ta.focus();ta.select();
-      const ok=document.execCommand("copy");
-      document.body.removeChild(ta);
-      if(ok){setCopied(true);setCopyFailed(false);setTimeout(()=>setCopied(false),2500);}
-      else{setCopyFailed(true);}
-    }catch(e){setCopyFailed(true);}
-  };
-  const copyMsg=()=>{
-    if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(reportText)
-        .then(()=>{setCopied(true);setCopyFailed(false);setTimeout(()=>setCopied(false),2500);})
-        .catch(copyFallback);
-    } else {
-      copyFallback();
-    }
-  };
-  const reveal=()=>{
+  const send=async()=>{
     if(!desc.trim()){setErr(t.report_empty_error);return;}
     setErr("");
-    setRevealed(true);
+    setSending(true);
+    try{
+      const r=await fetch("/api/enviar-formulario",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"denuncia",ref,desc:desc.trim()})});
+      if(!r.ok) throw new Error("fallo");
+      setSent(true);
+    }catch(e){
+      setErr(t.report_send_error);
+    }finally{
+      setSending(false);
+    }
   };
 
   return ReactDOM.createPortal((
@@ -1243,20 +1212,20 @@ function ReportModal({auto,t,onClose}) {
       <div className="modal" style={{maxWidth:"480px"}} onClick={e=>e.stopPropagation()}>
         <button className="modal-x" onClick={onClose}>✕</button>
         <div className="modal-h">{t.report_h}</div>
-        <p className="modal-sub">{t.report_sub}</p>
-        {!revealed&&(<>
+        {sent?(
+          <p style={{fontFamily:"var(--body)",color:"var(--muted)",textAlign:"center",padding:"1.2rem 0"}}>{t.report_sent}</p>
+        ):(<>
+          <p className="modal-sub">{t.report_sub}</p>
           <div className="fld">
             <label className="lbl">{t.report_field_label}</label>
             <textarea className="ta" style={{minHeight:"120px"}} placeholder={t.report_field_ph} value={desc} onChange={e=>setDesc(e.target.value)}/>
           </div>
           {err&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginTop:"0.3rem"}}>{err}</p>}
+          <div style={{display:"flex",gap:"0.7rem",marginTop:"1rem"}}>
+            <button className="btn-out" onClick={onClose}>{t.report_cancel}</button>
+            <button className="btn-pub" onClick={send} disabled={sending}>{sending?t.report_sending:t.report_send_btn}</button>
+          </div>
         </>)}
-        {revealed&&<p style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--ink)",lineHeight:1.6,whiteSpace:"pre-line",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",padding:"0.9rem 1rem",marginBottom:"0.7rem"}}>{reportText}</p>}
-        <div style={{display:"flex",gap:"0.7rem",marginTop:"1rem"}}>
-          <button className="btn-out" onClick={onClose}>{t.report_cancel}</button>
-          <button className="btn-pub" onClick={()=>revealed?copyMsg():reveal()}>{copied?t.report_copied:(revealed?t.report_copy_btn2:t.report_reveal_btn)}</button>
-        </div>
-        {copyFailed&&<p style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)",marginTop:"0.4rem"}}>{t.report_copy_manual}</p>}
       </div>
     </div>
   ), document.body);
@@ -1586,8 +1555,26 @@ function CollaborateModal({onClose,t,lang,onSponsor}) {
 }
 
 function SponsorModal({onClose,t}) {
-  const [f,setF]=useState({company:"",name:"",email:"",msg:""});const [sent,setSent]=useState(false);
+  const [f,setF]=useState({company:"",name:"",email:"",msg:""});
+  const [sending,setSending]=useState(false);
+  const [sent,setSent]=useState(false);
+  const [err,setErr]=useState("");
   const up=(k,v)=>setF(p=>(({...p,[k]:v})));
+
+  const send=async()=>{
+    setErr("");
+    setSending(true);
+    try{
+      const r=await fetch("/api/enviar-formulario",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"patrocinio",company:f.company.trim(),name:f.name.trim(),email:f.email.trim(),msg:f.msg.trim()})});
+      if(!r.ok) throw new Error("fallo");
+      setSent(true);
+    }catch(e){
+      setErr(t.sponsor_send_error);
+    }finally{
+      setSending(false);
+    }
+  };
+
   return (
     <div className="ov" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
@@ -1601,7 +1588,8 @@ function SponsorModal({onClose,t}) {
             <div className="fld"><label className="lbl">{t.contact_name}</label><input className="inp" value={f.name} onChange={e=>up("name",e.target.value)}/></div>
             <div className="fld"><label className="lbl">{t.contact_email}</label><input className="inp" type="email" value={f.email} onChange={e=>up("email",e.target.value)}/></div>
             <div className="fld"><label className="lbl">{t.contact_msg}</label><textarea className="ta" style={{minHeight:"130px"}} value={f.msg} onChange={e=>up("msg",e.target.value)}/></div>
-            <button className="btn-pub" onClick={()=>setSent(true)} disabled={!f.company||!f.name||!f.email||!f.msg}>{t.contact_send}</button>
+            {err&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginBottom:"0.6rem"}}>{err}</p>}
+            <button className="btn-pub" onClick={send} disabled={sending||!f.company||!f.name||!f.email||!f.msg}>{sending?t.sponsor_sending:t.contact_send}</button>
             <div style={{marginTop:"1.4rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",lineHeight:1.7}}>
               <div><b>Locus Mundi</b> · locusmundi.com</div>
             </div>
@@ -1614,31 +1602,22 @@ function SponsorModal({onClose,t}) {
 
 function ContactModal({onClose,t}) {
   const [f,setF]=useState({name:"",email:"",subject:"",msg:""});
-  const [revealed,setRevealed]=useState(false);
-  const [copied,setCopied]=useState(false);
-  const [copyFailed,setCopyFailed]=useState(false);
+  const [sending,setSending]=useState(false);
+  const [sent,setSent]=useState(false);
+  const [err,setErr]=useState("");
   const up=(k,v)=>setF(p=>(({...p,[k]:v})));
 
-  const contactText=`${t.report_to_label}: contactlocusmundi@gmail.com\n${t.report_subject_label}: ${f.subject.trim()||t.contact_h}\n\n${t.contact_name}: ${f.name.trim()}\n${t.contact_email}: ${f.email.trim()}\n\n${f.msg.trim()}`;
-
-  const copyFallback=()=>{
+  const send=async()=>{
+    setErr("");
+    setSending(true);
     try{
-      const ta=document.createElement("textarea");
-      ta.value=contactText;ta.style.position="fixed";ta.style.left="-9999px";ta.style.top="0";
-      document.body.appendChild(ta);ta.focus();ta.select();
-      const ok=document.execCommand("copy");
-      document.body.removeChild(ta);
-      if(ok){setCopied(true);setCopyFailed(false);setTimeout(()=>setCopied(false),2500);}
-      else{setCopyFailed(true);}
-    }catch(e){setCopyFailed(true);}
-  };
-  const copyMsg=()=>{
-    if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(contactText)
-        .then(()=>{setCopied(true);setCopyFailed(false);setTimeout(()=>setCopied(false),2500);})
-        .catch(copyFallback);
-    } else {
-      copyFallback();
+      const r=await fetch("/api/enviar-formulario",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"contacto",name:f.name.trim(),email:f.email.trim(),subject:f.subject.trim(),msg:f.msg.trim()})});
+      if(!r.ok) throw new Error("fallo");
+      setSent(true);
+    }catch(e){
+      setErr(t.contact_send_error);
+    }finally{
+      setSending(false);
     }
   };
 
@@ -1647,19 +1626,20 @@ function ContactModal({onClose,t}) {
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <button className="modal-x" onClick={onClose}>✕</button>
         <div className="modal-h">{t.contact_h}</div>
-        <p className="modal-sub">{t.contact_sub2}</p>
-        {!revealed&&(<>
+        {sent?(
+          <p style={{fontFamily:"var(--body)",color:"var(--muted)",textAlign:"center",padding:"1.4rem 0"}}>{t.contact_sent}</p>
+        ):(<>
+          <p className="modal-sub">{t.contact_sub2}</p>
           <div className="fld"><label className="lbl">{t.contact_name}</label><input className="inp" value={f.name} onChange={e=>up("name",e.target.value)}/></div>
           <div className="fld"><label className="lbl">{t.contact_email}</label><input className="inp" type="email" value={f.email} onChange={e=>up("email",e.target.value)}/></div>
           <div className="fld"><label className="lbl">{t.subject_label}</label><input className="inp" placeholder={t.subject_placeholder} value={f.subject} onChange={e=>up("subject",e.target.value)}/></div>
           <div className="fld"><label className="lbl">{t.contact_msg}</label><textarea className="ta" style={{minHeight:"130px"}} value={f.msg} onChange={e=>up("msg",e.target.value)}/></div>
+          {err&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginBottom:"0.6rem"}}>{err}</p>}
+          <button className="btn-pub" onClick={send} disabled={sending||!f.name||!f.email||!f.msg}>{sending?t.contact_sending:t.contact_send}</button>
+          <div style={{marginTop:"1.4rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",lineHeight:1.7}}>
+            <div><b>Locus Mundi</b> · locusmundi.com</div>
+          </div>
         </>)}
-        {revealed&&<p style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--ink)",lineHeight:1.6,whiteSpace:"pre-line",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",padding:"0.9rem 1rem",marginBottom:"0.7rem"}}>{contactText}</p>}
-        <button className="btn-pub" onClick={()=>revealed?copyMsg():setRevealed(true)} disabled={!revealed&&(!f.name||!f.email||!f.msg)}>{copied?t.contact_copied:(revealed?t.contact_copy_btn2:t.contact_reveal_btn)}</button>
-        {copyFailed&&<p style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)",marginTop:"0.4rem"}}>{t.contact_copy_manual}</p>}
-        <div style={{marginTop:"1.4rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",lineHeight:1.7}}>
-          <div><b>Locus Mundi</b> · locusmundi.com</div>
-        </div>
       </div>
     </div>
   );
