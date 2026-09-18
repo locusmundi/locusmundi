@@ -3,6 +3,7 @@
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "crons": [
-    { "path": "/api/purgar-borrados", "schedule": "0 3 * * 0" }
+    { "path": "/api/purgar-borrados", "schedule": "0 3 * * 0" },
+    { "path": "/api/backup-semanal", "schedule": "0 4 * * 0" }
   ]
 }
