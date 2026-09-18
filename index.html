@@ -486,6 +486,7 @@ const T = {
     btn_write:"Escribe tu historia",btn_explore:"Explorar la biblioteca",
     recent_lbl:"Historias recientes",recent_h:"Voces del mundo",see_all:"Ver toda la biblioteca",
     lib_incentive:"Tu historia importa y no está en venta. Escribe y lee gratis en cualquier idioma del mundo.",
+    lib_total_suffix:"historias publicadas",
     cta_h1:"No hace falta ser escritor.",cta_h2:"Solo tener una vida que contar.",
     cta_body:"¿A quién no le gustaría mantener una última conversación con sus abuelos sobre el mundo que conocieron? Locus Mundi te invita a mantener esa conversación en el futuro con tus nietos.",
     cta_btn:"Empezar ahora — es gratis",
@@ -727,6 +728,7 @@ const T = {
     btn_write:"Write your story",btn_explore:"Explore the library",
     recent_lbl:"Recent stories",recent_h:"Voices of the world",see_all:"See the full library",
     lib_incentive:"Your story matters, and it's not for sale. Write and read for free, in any language of the world.",
+    lib_total_suffix:"stories published",
     cta_h1:"You don't need to be a writer.",cta_h2:"Just have a life to tell.",
     cta_body:"Who wouldn't want one last conversation with their grandparents about the world they knew? Locus Mundi invites you to have that conversation in the future with your grandchildren.",
     cta_btn:"Start now — it's free",
@@ -1084,12 +1086,23 @@ function Home({autos,openAuto,setView,t}) {
 
 function Library({autos,openAuto,t}) {
   const [q,setQ]=useState("");
+  const [totalPub,setTotalPub]=useState(null);
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const r=await fetch("/api/contador-historias");
+        const d=await r.json();
+        if(typeof d.total==="number") setTotalPub(d.total);
+      }catch(e){}
+    })();
+  },[]);
   const sorted=[...autos].sort((a,b)=>(typeof a.id==="number"&&typeof b.id==="number")?a.id-b.id:0);
   const filt=sorted.filter(a=>{const s=q.toLowerCase();return !s||a.name.toLowerCase().includes(s)||a.country.toLowerCase().includes(s)||a.text.toLowerCase().includes(s)||a.tags.some(tg=>tg.toLowerCase().includes(s));});
   return (
     <section className="sec">
       <div className="sec-lbl">Archivo global</div>
       <div className="sec-h">{t.recent_h}</div>
+      {totalPub!==null&&<p style={{fontFamily:"var(--body)",fontWeight:600,color:"var(--navy)",marginTop:"-0.4rem",marginBottom:"0.6rem"}}>{totalPub} {t.lib_total_suffix}</p>}
       <p style={{fontFamily:"var(--body)",fontStyle:"italic",fontSize:"0.92rem",color:"var(--muted)",marginTop:"-0.5rem",marginBottom:"1.2rem"}}>{t.lib_incentive}</p>
       <div className="sw"><span className="sico">🔍</span><input className="si" placeholder={t.search_ph} value={q} onChange={e=>setQ(e.target.value)}/></div>
       {filt.length===0?<p style={{fontFamily:"var(--body)",color:"var(--muted)",fontStyle:"italic"}}>{t.no_results}</p>:<div className="grid">{filt.map(a=><AutoCard key={a.id} a={a} onClick={()=>openAuto(a)} t={t}/>)}</div>}
