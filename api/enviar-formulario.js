@@ -3,9 +3,9 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
-  const { tipo, name, email, subject, msg, ref, desc } = req.body || {};
+  const { tipo, name, email, subject, msg, ref, desc, company } = req.body || {};
 
-  if (tipo !== 'contacto' && tipo !== 'denuncia') {
+  if (tipo !== 'contacto' && tipo !== 'denuncia' && tipo !== 'patrocinio') {
     return res.status(400).json({ error: 'Tipo de formulario no válido' });
   }
 
@@ -17,12 +17,18 @@ module.exports = async function handler(req, res) {
     }
     asunto = `[Contacto] ${subject && subject.trim() ? subject.trim() : 'Sin asunto'}`;
     cuerpo = `Nombre: ${name}\nCorreo: ${email}\n\n${msg}`;
-  } else {
+  } else if (tipo === 'denuncia') {
     if (!desc) {
       return res.status(400).json({ error: 'Falta la descripción de la denuncia' });
     }
     asunto = `[Denuncia] ${ref || 'Sin referencia'}`;
     cuerpo = `Obra denunciada: ${ref || '(no especificada)'}\n\n${desc}`;
+  } else {
+    if (!company || !name || !email || !msg) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios' });
+    }
+    asunto = `[Patrocinio] ${company}`;
+    cuerpo = `Empresa: ${company}\nNombre: ${name}\nCorreo: ${email}\n\n${msg}`;
   }
 
   try {
@@ -35,7 +41,7 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         from: 'Locus Mundi <onboarding@resend.dev>',
         to: 'contactlocusmundi@gmail.com',
-        reply_to: tipo === 'contacto' && email ? email : undefined,
+        reply_to: email || undefined,
         subject: asunto,
         text: cuerpo,
       }),
