@@ -5,7 +5,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { system, userMsg } = req.body;
+    const { system, userMsg, history } = req.body || {};
 
     if (!userMsg) {
       res.status(400).json({ error: 'Falta userMsg' });
@@ -21,12 +21,19 @@ module.exports = async function handler(req, res) {
     const model = 'gemini-3.5-flash';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-    const body = {
-      contents: [
-        { role: 'user', parts: [{ text: userMsg }] }
-      ]
-    };
+    // Turnos anteriores de la conversación (si los hay).
+    // Cada turno: { role: "user" | "model", text: "..." }
+    const previousTurns = Array.isArray(history) ? history : [];
 
+    const contents = [
+      ...previousTurns.map(turn => ({
+        role: turn.role === 'model' ? 'model' : 'user',
+        parts: [{ text: turn.text }]
+      })),
+      { role: 'user', parts: [{ text: userMsg }] }
+    ];
+
+    const body = { contents };
     if (system) {
       body.system_instruction = { parts: [{ text: system }] };
     }
