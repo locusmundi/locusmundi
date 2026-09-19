@@ -2015,6 +2015,150 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const historyRef=useRef([]);
   const taRef=useRef(null);
 
+  const [chatMsgs,setChatMsgs]=useState([]); // {role:"user"|"model", text}
+  const [chatStage,setChatStage]=useState("welcome"); // "welcome" | "chatting"
+  const [chatInput,setChatInput]=useState("");
+  const [chatLoading,setChatLoading]=useState(false);
+  const [listening,setListening]=useState(false);
+  const recognitionRef=useRef(null);
+
+  const buildAssistantSystemPrompt=()=>{
+    const nombre=f.assistantName||f.name||"";
+    const tratamiento=f.assistantTuUsted==="usted"?"usted":"tú";
+    return `Eres el Agente Editorial de Locus Mundi. Tu función es la de un editor al
+servicio del Autor, nunca su sustituto: ayudas a ordenar, dar forma y
+plasmar sus recuerdos para que queden registrados tal y como los vivió,
+manteniendo siempre su propia voz.
+
+TRATAMIENTO: el Autor se llama ${nombre}. Dirígete a él o ella por su
+nombre de pila con naturalidad (no en cada frase, para no sonar forzado),
+y de ${tratamiento} durante toda la conversación.
+
+REGLA DE ORO — NUNCA INVENTAR: jamás añadas datos, hechos, nombres, fechas
+o lugares que el Autor no te haya facilitado. No rellenes lagunas de
+memoria con suposiciones. El dato lo aporta el Autor; la forma la propones
+tú, y siempre con validación previa antes de darla por definitiva.
+
+RESPETO A LA MEMORIA: un recuerdo no se cuestiona. Si detectas una
+contradicción interna o una inconsistencia con hechos históricos de
+dominio público, señálalo como una duda abierta y con delicadeza —nunca
+como una corrección—, y respeta siempre la decisión final del Autor.
+
+ÉL Y SUS CIRCUNSTANCIAS: no se trata solo de narrar la propia vida, sino
+de situarla en el mundo que le tocó vivir —el marco social, histórico y
+material de cada época—. En cualquier módulo, cuando sea natural, invita
+al Autor a describir también ese contexto (cómo era su pueblo o su país
+entonces, qué se vivía colectivamente, cómo era el oficio o la técnica de
+la época), no solo lo que a él o ella le sucedió.
+
+IDIOMA: detecta el idioma en el que te escribe el Autor en cada mensaje y
+respóndele siempre en ese mismo idioma —incluidas las sugerencias de
+mejora, corrección o reformulación—, aunque cambie de un idioma a otro
+durante la conversación.
+
+VARIANTES REGIONALES: respeta el habla regional y los modismos propios
+del Autor (por ejemplo, el voseo argentino "vos tenés/decís" frente al
+"tú tienes/dices" peninsular, otros modismos hispanoamericanos, el
+catalán central frente al valenciano o el balear, el inglés británico
+frente al americano o el australiano). No los trates como errores que
+haya que corregir: son parte legítima de su voz. Cuando propongas una
+mejora de estilo, hazlo respetando esa misma variante, no un estándar
+distinto por defecto.
+
+RITMO: haz una sola pregunta o repregunta por turno. Tienes prohibido
+lanzar cuestionarios o listas de preguntas acumuladas.
+
+VALIDACIÓN: no dés ninguna reescritura, corrección de estilo o ajuste
+gramatical como definitivo sin que el Autor lo confirme explícitamente.
+
+LÍMITES:
+- Ante difamación o faltas éticas hacia terceros identificables, ofrece
+  anonimizar o reformular. Excepción: protege los testimonios históricos
+  sobre prejuicios o lenguaje de épocas pasadas, para preservar la
+  memoria colectiva tal como fue.
+- Ante incitación a la violencia, daño grave o relatos de delitos,
+  niégate con respeto a redactar o mejorar ese fragmento, e indica que
+  puede contactar con el canal de soporte de Locus Mundi.
+
+GUÍA TEMÁTICA (usa el módulo que corresponda según por dónde quiera
+empezar el Autor, o el que sigue de forma natural a lo último que contó;
+no los repases en orden fijo si la conversación pide otra cosa):
+
+1. Raíces y legado familiar — de dónde viene su familia, migraciones,
+   abuelos, cómo se conocieron sus padres, objetos heredados.
+2. Infancia y primeros recuerdos — la casa, el barrio, olores y sonidos,
+   mudanzas, juegos, primeros años de escuela.
+3. Juventud y descubrimiento del mundo — estudios u oficio, maestros
+   determinantes, amistades, primeros amores o viajes.
+4. Trayectoria profesional, aficiones y pasiones — primer empleo,
+   evolución de su carrera, logros, aficiones constantes.
+5. Pareja, familia propia y vínculos cercanos — cómo formó su núcleo
+   familiar, llegada de hijos, enseñanzas transmitidas.
+6. Anécdotas y "batallitas" recurrentes — historias contadas una y otra
+   vez, equivocaciones memorables, coincidencias asombrosas.
+7. Pruebas de vida, salud y épocas convulsas — enfermedades, pérdidas o
+   crisis superadas, grandes acontecimientos históricos vividos.
+8. Balance vital, filosofía de vida y legado — sentido de su recorrido,
+   consejo a su yo de 20 años, mensaje final para sus descendientes.
+
+FORMATO DE SALIDA: cuando el Autor te pida una propuesta de texto ya
+redactado (no una pregunta de conversación), devuélvela en HTML5 limpio:
+<h2> para títulos de capítulo o sección, <p> para cada párrafo (uno por
+etiqueta, sin fusionarlos), <blockquote> para una reflexión o frase que
+el propio Autor quiera destacar. No uses bloques de código, ni Markdown
+(asteriscos, almohadillas), ni <hr>. Mientras estés conversando y
+preguntando, responde en texto normal, sin ninguna de estas etiquetas.`;
+  };
+
+  const sendChatMessage=async(text)=>{
+    if(!text.trim()||chatLoading) return;
+    const userTurn={role:"user",text};
+    const newHist=[...chatMsgs,userTurn];
+    setChatMsgs(newHist);
+    setChatInput("");
+    setChatLoading(true);
+    try{
+      const res=await fetch("/api/asistente",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          system: buildAssistantSystemPrompt(),
+          history: chatMsgs,
+          userMsg: text
+        })
+      });
+      const d=await res.json();
+      if(d.error) throw new Error(d.error);
+      setChatMsgs(h=>[...h,{role:"model",text:d.text}]);
+    }catch(e){
+      setChatMsgs(h=>[...h,{role:"model",text:"He tenido un problema para responder. ¿Puedes repetir tu último mensaje?"}]);
+    }
+    setChatLoading(false);
+  };
+
+  const startListening=()=>{
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ alert(lang==="EN"?"Voice dictation is not available in this browser.":"El dictado por voz no está disponible en este navegador."); return; }
+    const rec=new SR();
+    rec.lang=lang==="EN"?"en-US":"es-ES";
+    rec.interimResults=false;
+    rec.maxAlternatives=1;
+    rec.onresult=(e)=>{
+      const transcript=e.results[0][0].transcript;
+      setChatInput(prev=>(prev?prev+" ":"")+transcript);
+    };
+    rec.onend=()=>setListening(false);
+    rec.onerror=()=>setListening(false);
+    recognitionRef.current=rec;
+    setListening(true);
+    rec.start();
+  };
+  const stopListening=()=>{ recognitionRef.current?.stop(); setListening(false); };
+
+  const addChatToStory=(text)=>{
+    const clean=text.replace(/<[^>]+>/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
+    up("text", f.text?f.text+"\n\n"+clean:clean);
+  };
+
   const binaryLangs=["ES","CA","GL","FR","IT","PT","DE"];
   const asksTuUsted = binaryLangs.includes(f.lang);
 
@@ -2704,7 +2848,11 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
 
         <AssistantPanel open={showAiPanel} onClose={()=>{if("speechSynthesis" in window)window.speechSynthesis.cancel();setSpeaking(false);setShowAiPanel(false);}} t={t}
           al={al} ao={ao} am={am} run={run} apply={apply} tl={tl} setTl={setTl}
-          speak={speak} speaking={speaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}/>
+          speak={speak} speaking={speaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}
+          lang={lang} f={f} chatMsgs={chatMsgs} chatStage={chatStage} setChatStage={setChatStage}
+          chatInput={chatInput} setChatInput={setChatInput} chatLoading={chatLoading}
+          sendChatMessage={sendChatMessage} listening={listening} startListening={startListening}
+          stopListening={stopListening} addChatToStory={addChatToStory}/>
       </div>
     </div>
   );
@@ -2715,10 +2863,36 @@ const optCardSubStyle={color:"var(--muted)",fontSize:"0.82rem"};
 const editIconStyle={background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:"0.78rem",padding:"0 3px"};
 const arrowStyle={background:"none",border:"none",color:"var(--navy)",cursor:"pointer",fontSize:"0.68rem",lineHeight:1,padding:"1px 4px"};
 
-function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaking,aiUsage,rechargeMsg,setRechargeMsg}) {
+function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaking,aiUsage,rechargeMsg,setRechargeMsg,
+  lang,f,chatMsgs,chatStage,setChatStage,chatInput,setChatInput,chatLoading,sendChatMessage,listening,startListening,stopListening,addChatToStory}) {
   if(!open) return null;
   const usageLabel=aiUsage<=0?t.ai_usage_none:aiUsage<20?t.ai_usage_low:aiUsage<50?t.ai_usage_mid:t.ai_usage_ok;
   const usageColor=aiUsage<=0?"#b23b3b":aiUsage<20?"#C4932A":aiUsage<50?"#C4932A":"#3f7a4e";
+  const [panelMode,setPanelMode]=useState("tools"); // "tools" | "chat"
+  const nombre=f.assistantName||f.name||"";
+  const tratamiento=f.assistantTuUsted==="usted"?"usted":"tú";
+  const posesivo=tratamiento==="usted"?"su":"tu";
+  const chatBoxRef=useRef(null);
+  useEffect(()=>{ if(chatBoxRef.current) chatBoxRef.current.scrollTop=chatBoxRef.current.scrollHeight; },[chatMsgs,chatLoading]);
+
+  const welcomeText = lang==="EN"
+    ? `Hello${nombre?", "+nombre:""}. Welcome to Write your story on Locus Mundi. It's a real pleasure to accompany you in this process. My role here is that of an editor at your service: to help you order, shape and put into words your memories so they're recorded just as you lived them, always keeping your own voice.\n\nWhere would you like to start today?`
+    : `Hola${nombre?", "+nombre:""}. Te doy la bienvenida a Escribe tu historia en Locus Mundi. Es un verdadero placer acompañar${tratamiento==="usted"?"le":"te"} en este proceso. Mi función aquí es la de un editor a ${posesivo} servicio: ayudar${tratamiento==="usted"?"le":"te"} a ordenar, dar forma y plasmar ${posesivo}s recuerdos para que queden registrados tal y como ${tratamiento==="usted"?"los vivió":"los viviste"}, manteniendo siempre ${posesivo} propia voz.\n\n¿Por dónde ${tratamiento==="usted"?"le apetece":"te apetece"} más empezar hoy?`;
+
+  const entryOptions = lang==="EN"
+    ? [
+        {key:"familia", label:"Family history and ancestors", prompt:"I'd like to start with my family history and ancestors."},
+        {key:"infancia", label:"My own life since childhood", prompt:"I'd like to start with my own life since childhood."},
+        {key:"anecdota", label:"A special memory or anecdote", prompt:"I'd like to start with a special memory or anecdote I have very vivid in my mind."}
+      ]
+    : [
+        {key:"familia", label:"La historia familiar y mis antepasados", prompt:"Quiero empezar por la historia familiar y mis antepasados."},
+        {key:"infancia", label:"Mi propia vida desde la infancia", prompt:"Quiero empezar por mi propia vida desde la infancia."},
+        {key:"anecdota", label:"Un recuerdo o anécdota especial", prompt:"Quiero empezar por un recuerdo o anécdota especial que tengo muy vivo en la memoria."}
+      ];
+
+  const startEntry=(opt)=>{ setChatStage("chatting"); sendChatMessage(opt.prompt); };
+
   return ReactDOM.createPortal((
     <div className="ai-panel-ov" onClick={onClose}>
       <div className="ai-panel" onClick={e=>e.stopPropagation()}>
@@ -2726,34 +2900,89 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
         <div className="aip-h"><span style={{color:"var(--gold)"}}>✦</span> {t.ai_h}</div>
         <p className="aip-sub">{t.ai_sub}</p>
 
-        <div className="ai-usage-lbl">{t.ai_usage_h}</div>
-        <div className="ai-usage-track"><div className="ai-usage-fill" style={{width:aiUsage+"%",background:usageColor}}/></div>
-        <p className="ai-usage-txt" style={{color:usageColor}}>{usageLabel}</p>
-        {aiUsage<=0&&(
-          <button className="btn-out" style={{width:"100%",marginBottom:"1rem"}} onClick={()=>setRechargeMsg(true)}>{t.ai_recharge_btn}</button>
-        )}
-        {rechargeMsg&&<p className="ai-usage-notice">{t.ai_recharge_notice}</p>}
+        <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.9rem"}}>
+          <button className={panelMode==="tools"?"btn-pub":"btn-out"} style={{flex:1,padding:"0.4rem"}} onClick={()=>setPanelMode("tools")}>{lang==="EN"?"Quick tools":"Herramientas rápidas"}</button>
+          <button className={panelMode==="chat"?"btn-pub":"btn-out"} style={{flex:1,padding:"0.4rem"}} onClick={()=>setPanelMode("chat")}>{lang==="EN"?"Guided conversation":"Conversación guiada"}</button>
+        </div>
 
-        <div className="ai-btns">
-          <button className="aib" disabled={al||aiUsage<=0} onClick={()=>run("continue")}><span>→</span><span><b>{t.ai_continue}</b> — {t.ai_continue_d}</span></button>
-          <button className="aib" disabled={al||aiUsage<=0} onClick={()=>run("improve")}><span>✦</span><span><b>{t.ai_improve}</b> — {t.ai_improve_d}</span></button>
-          <button className="aib" disabled={al||aiUsage<=0} onClick={()=>run("structure")}><span>◈</span><span><b>{t.ai_structure}</b> — {t.ai_structure_d}</span></button>
-        </div>
-        <hr className="sep"/>
-        <div className="tr-row2">
-          <span className="tr-lbl">{t.translate_to}</span>
-          <select className="sel" style={{flex:1}} value={tl} onChange={e=>setTl(e.target.value)}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
-          <button className="btn-sm" disabled={al||aiUsage<=0} onClick={()=>run("translate")}>{t.go}</button>
-        </div>
-        {al&&<div className="loading"><span className="sp"/>{t.ai_thinking}</div>}
-        {ao&&!al&&(
-          <div>
-            <div className="ai-out-lbl">{t.proposal}</div>
-            <div className="ai-out">{ao}</div>
-            <div style={{display:"flex",gap:"0.5rem",marginTop:"0.65rem"}}>
-              {(am==="continue"||am==="improve"||am==="translate")&&<button className="apply-btn" style={{marginTop:0,flex:1}} onClick={apply}>{am==="continue"?t.add_text:t.replace_text}</button>}
-              {"speechSynthesis" in window&&<button className="btn-out" style={{width:"auto",padding:"0.45rem 0.9rem",fontSize:"0.81rem"}} onClick={()=>speak(ao)}>{speaking?`⏹ ${t.ai_stop_listen}`:`🔊 ${t.ai_listen}`}</button>}
+        {panelMode==="tools" && (<>
+          <div className="ai-usage-lbl">{t.ai_usage_h}</div>
+          <div className="ai-usage-track"><div className="ai-usage-fill" style={{width:aiUsage+"%",background:usageColor}}/></div>
+          <p className="ai-usage-txt" style={{color:usageColor}}>{usageLabel}</p>
+          {aiUsage<=0&&(
+            <button className="btn-out" style={{width:"100%",marginBottom:"1rem"}} onClick={()=>setRechargeMsg(true)}>{t.ai_recharge_btn}</button>
+          )}
+          {rechargeMsg&&<p className="ai-usage-notice">{t.ai_recharge_notice}</p>}
+
+          <div className="ai-btns">
+            <button className="aib" disabled={al||aiUsage<=0} onClick={()=>run("continue")}><span>→</span><span><b>{t.ai_continue}</b> — {t.ai_continue_d}</span></button>
+            <button className="aib" disabled={al||aiUsage<=0} onClick={()=>run("improve")}><span>✦</span><span><b>{t.ai_improve}</b> — {t.ai_improve_d}</span></button>
+            <button className="aib" disabled={al||aiUsage<=0} onClick={()=>run("structure")}><span>◈</span><span><b>{t.ai_structure}</b> — {t.ai_structure_d}</span></button>
+          </div>
+          <hr className="sep"/>
+          <div className="tr-row2">
+            <span className="tr-lbl">{t.translate_to}</span>
+            <select className="sel" style={{flex:1}} value={tl} onChange={e=>setTl(e.target.value)}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
+            <button className="btn-sm" disabled={al||aiUsage<=0} onClick={()=>run("translate")}>{t.go}</button>
+          </div>
+          {al&&<div className="loading"><span className="sp"/>{t.ai_thinking}</div>}
+          {ao&&!al&&(
+            <div>
+              <div className="ai-out-lbl">{t.proposal}</div>
+              <div className="ai-out">{ao}</div>
+              <div style={{display:"flex",gap:"0.5rem",marginTop:"0.65rem"}}>
+                {(am==="continue"||am==="improve"||am==="translate")&&<button className="apply-btn" style={{marginTop:0,flex:1}} onClick={apply}>{am==="continue"?t.add_text:t.replace_text}</button>}
+                {"speechSynthesis" in window&&<button className="btn-out" style={{width:"auto",padding:"0.45rem 0.9rem",fontSize:"0.81rem"}} onClick={()=>speak(ao)}>{speaking?`⏹ ${t.ai_stop_listen}`:`🔊 ${t.ai_listen}`}</button>}
+              </div>
             </div>
+          )}
+        </>)}
+
+        {panelMode==="chat" && (
+          <div style={{display:"flex",flexDirection:"column",height:"420px"}}>
+            {chatStage==="welcome" && chatMsgs.length===0 ? (
+              <div style={{flex:1,overflowY:"auto"}}>
+                <p style={{fontFamily:"var(--body)",fontSize:"0.9rem",lineHeight:1.6,whiteSpace:"pre-line"}}>{welcomeText}</p>
+                <div style={{display:"flex",flexDirection:"column",gap:"0.5rem",marginTop:"0.8rem"}}>
+                  {entryOptions.map(opt=>(
+                    <button key={opt.key} className="btn-out" style={{width:"100%",textAlign:"left"}} onClick={()=>startEntry(opt)}>{opt.label}</button>
+                  ))}
+                </div>
+              </div>
+            ) : (<>
+              <div ref={chatBoxRef} style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:"0.6rem",paddingRight:"0.3rem"}}>
+                {chatMsgs.map((m,i)=>{
+                  const isHtml = m.role==="model" && /<[a-z][\s\S]*>/i.test(m.text);
+                  return (
+                    <div key={i} style={{alignSelf:m.role==="user"?"flex-end":"flex-start",maxWidth:"85%"}}>
+                      {isHtml ? (
+                        <div style={{background:"#f1ede3",color:"var(--ink)",borderRadius:"10px",padding:"0.55rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.5}} dangerouslySetInnerHTML={{__html:m.text}}/>
+                      ) : (
+                        <div style={{background:m.role==="user"?"var(--navy)":"#f1ede3",color:m.role==="user"?"#fff":"var(--ink)",borderRadius:"10px",padding:"0.55rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.5,whiteSpace:"pre-line"}}>{m.text}</div>
+                      )}
+                      {m.role==="model" && (
+                        <button className="btn-out" style={{marginTop:"0.3rem",padding:"0.25rem 0.6rem",fontSize:"0.72rem"}} onClick={()=>addChatToStory(m.text)}>
+                          {lang==="EN"?"+ Add to my story":"+ Añadir a mi historia"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                {chatLoading && <div className="loading"><span className="sp"/>{t.ai_thinking}</div>}
+              </div>
+              <div style={{display:"flex",gap:"0.4rem",marginTop:"0.6rem"}}>
+                <input className="inp" style={{flex:1}} value={chatInput}
+                  placeholder={lang==="EN"?"Type your answer...":"Escribe tu respuesta..."}
+                  onChange={e=>setChatInput(e.target.value)}
+                  onKeyDown={e=>{if(e.key==="Enter"&&!chatLoading) sendChatMessage(chatInput);}}/>
+                <button className="btn-out" style={{padding:"0.45rem 0.7rem"}} onClick={listening?stopListening:startListening} title={lang==="EN"?"Voice dictation":"Dictado por voz"}>
+                  {listening?"⏹":"🎙"}
+                </button>
+                <button className="btn-pub" style={{padding:"0.45rem 0.9rem"}} disabled={chatLoading||!chatInput.trim()} onClick={()=>sendChatMessage(chatInput)}>
+                  {lang==="EN"?"Send":"Enviar"}
+                </button>
+              </div>
+            </>)}
           </div>
         )}
       </div>
