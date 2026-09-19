@@ -1,44 +1,58 @@
-// api/asistente.js
-// Vercel Function: intermediario seguro entre el navegador y la API de Anthropic.
-// La clave de verdad (ANTHROPIC_API_KEY) vive solo aquí, como variable de entorno
-// del servidor — nunca llega al navegador. El navegador solo le manda el texto.
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Método no permitido" });
-    return;
-  }
-
-  const { system, userMsg } = req.body || {};
-  if (!system || !userMsg) {
-    res.status(400).json({ error: "Faltan datos (system o userMsg)" });
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Método no permitido' });
     return;
   }
 
   try {
-    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system,
-        messages: [{ role: "user", content: userMsg }]
-      })
-    });
+    const { system, userMsg } = req.body;
 
-    const data = await anthropicRes.json();
-
-    if (data.error) {
-      res.status(502).json({ error: data.error.message });
+    if (!userMsg) {
+      res.status(400).json({ error: 'Falta userMsg' });
       return;
     }
 
-    res.status(200).json({ text: data.content[0].text });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      res.status(500).json({ error: 'Falta GEMINI_API_KEY en el servidor' });
+      return;
+    }
+
+    const model = 'gemini-3.5-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+    const body = {
+      contents: [
+        { role: 'user', parts: [{ text: userMsg }] }
+      ]
+    };
+
+    if (system) {
+      body.system_instruction = { parts: [{ text: system }] };
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Error de Gemini:', data);
+      res.status(response.status).json({ error: data.error?.message || 'Error al llamar a Gemini' });
+      return;
+    }
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    res.status(200).json({ text });
   } catch (err) {
-    res.status(500).json({ error: "Error interno al contactar con la IA" });
+    console.error('Error en asistente.js:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
-}
+};
