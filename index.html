@@ -2355,7 +2355,7 @@ preguntando, responde en texto normal, sin ninguna de estas etiquetas.`;
     <div className="wr-wrap">
       {topBar}
       {narrowCard(<>
-        <button className="back" onClick={()=>setWStep("editor")}>{t.privacy_back_btn}</button>
+        <button className="back" onClick={()=>{setDeleteStep(null);setDeletePhrase("");setWStep("editor");}}>{t.privacy_back_btn}</button>
         <h2 className="wr-h">{t.privacy_h}</h2>
         {deleteStep===null&&(<>
           <div style={{background:"rgba(178,59,59,0.06)",border:"1px solid #b23b3b",borderRadius:"3px",padding:"0.9rem 1rem",marginBottom:"1.1rem"}}>
@@ -2372,6 +2372,7 @@ preguntando, responde en texto normal, sin ninguna de estas etiquetas.`;
             onClick={()=>setDeleteStep("sent")}>{t.privacy_delete_btn}</button>
         </>)}
         {deleteStep==="sent"&&(<>
+          <button className="back" onClick={()=>setDeleteStep(null)}>{t.auth_back}</button>
           <p className="wr-sub">{t.privacy_delete_sent_sub}</p>
           <button className="btn-pub" style={{width:"100%"}} onClick={doDeleteForever}>{t.unpub_sim_btn}</button>
         </>)}
@@ -2477,6 +2478,7 @@ preguntando, responde en texto normal, sin ninguna de estas etiquetas.`;
               <button className="btn-out" style={{width:"100%"}} onClick={()=>setUnpubStep(null)}>{t.unpub_cancel_btn}</button>
             </>)}
             {unpubStep==="sent"&&(<>
+              <button className="back" onClick={()=>setUnpubStep("confirm")}>{t.auth_back}</button>
               <div className="modal-h" style={{fontSize:"1.15rem"}}>{t.unpub_sent_h}</div>
               <p className="modal-sub">{t.unpub_sent_sub}</p>
               <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={doUnpublishConfirmed}>{t.unpub_sim_btn}</button>
