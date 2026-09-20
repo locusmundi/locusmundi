@@ -626,8 +626,8 @@ const T = {
     unpub_sim_btn:"Simular apertura del enlace",
     unpub_done_msg:"✓ Tu historia ya no es visible públicamente.",
     unpub_undo_btn:"Deshacer",
-    privacy_link:"Privacidad y mis datos",
-    privacy_h:"Privacidad y mis datos",
+    privacy_link:"Eliminar mi historia",
+    privacy_h:"Eliminar mi historia",
     privacy_delete_h:"Eliminar mi historia por completo",
     privacy_delete_warn:"Esto borra tu historia para siempre, incluido tu propio archivo. No hay vuelta atrás, ni siquiera para ti. Si solo quieres que no se lea, usa \"Despublicar mi historia\" en vez de esto.",
     privacy_delete_phrase:"quiero borrar mi historia para siempre",
@@ -639,7 +639,7 @@ const T = {
     privacy_delete_done_h:"Tu historia se ha eliminado por completo.",
     privacy_back_btn:"← Volver a mi libro",
     ai_h:"Asistente IA",ai_sub:"La IA se adapta a tu voz y tu idioma.",
-    ai_open_panel:"Abrir el Asistente",ai_listen:"Escuchar",ai_stop_listen:"Detener",
+    ai_open_panel:"Abrir el Asistente",ai_listen:"Escucha y habla",ai_stop_listen:"Detener",
     ai_usage_h:"Uso de IA",ai_usage_ok:"Con margen de sobra",ai_usage_mid:"Se está acabando",
     ai_usage_low:"Casi agotado",ai_usage_none:"Se ha agotado",
     ai_recharge_btn:"Recargar 5€",
@@ -868,8 +868,8 @@ const T = {
     unpub_sim_btn:"Simulate opening the link",
     unpub_done_msg:"✓ Your story is no longer publicly visible.",
     unpub_undo_btn:"Undo",
-    privacy_link:"Privacy and my data",
-    privacy_h:"Privacy and my data",
+    privacy_link:"Delete my story",
+    privacy_h:"Delete my story",
     privacy_delete_h:"Delete my story completely",
     privacy_delete_warn:"This deletes your story forever, including your own file. There's no going back, not even for you. If you just want it unread, use \"Unpublish my story\" instead.",
     privacy_delete_phrase:"I want to delete my story forever",
@@ -881,7 +881,7 @@ const T = {
     privacy_delete_done_h:"Your story has been completely deleted.",
     privacy_back_btn:"← Back to my book",
     ai_h:"AI Assistant",ai_sub:"The AI adapts to your voice and language.",
-    ai_open_panel:"Open the Assistant",ai_listen:"Listen",ai_stop_listen:"Stop",
+    ai_open_panel:"Open the Assistant",ai_listen:"Listen and speak",ai_stop_listen:"Stop",
     ai_usage_h:"AI usage",ai_usage_ok:"Plenty left",ai_usage_mid:"Running low",
     ai_usage_low:"Almost out",ai_usage_none:"Used up",
     ai_recharge_btn:"Top up €5",
@@ -2868,7 +2868,21 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
   if(!open) return null;
   const usageLabel=aiUsage<=0?t.ai_usage_none:aiUsage<20?t.ai_usage_low:aiUsage<50?t.ai_usage_mid:t.ai_usage_ok;
   const usageColor=aiUsage<=0?"#b23b3b":aiUsage<20?"#C4932A":aiUsage<50?"#C4932A":"#3f7a4e";
-  const [panelMode,setPanelMode]=useState("tools"); // "tools" | "chat"
+  const [voiceMode,setVoiceMode]=useState(false);
+  const prevMsgCount=useRef(chatMsgs.length);
+  useEffect(()=>{
+    if(voiceMode && chatMsgs.length>prevMsgCount.current){
+      const last=chatMsgs[chatMsgs.length-1];
+      if(last && last.role==="model"){
+        speak(last.text.replace(/<[^>]+>/g," ").trim());
+      }
+    }
+    prevMsgCount.current=chatMsgs.length;
+  },[chatMsgs,voiceMode]);
+  const toggleVoiceMode=()=>{
+    if(voiceMode){ stopListening(); if("speechSynthesis" in window) window.speechSynthesis.cancel(); setVoiceMode(false); }
+    else { setVoiceMode(true); startListening(); }
+  };
   const nombre=f.assistantName||f.name||"";
   const tratamiento=f.assistantTuUsted==="usted"?"usted":"tú";
   const posesivo=tratamiento==="usted"?"su":"tu";
@@ -2900,46 +2914,15 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
         <div className="aip-h"><span style={{color:"var(--gold)"}}>✦</span> {t.ai_h}</div>
         <p className="aip-sub">{t.ai_sub}</p>
 
-        <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.9rem"}}>
-          <button className={panelMode==="tools"?"btn-pub":"btn-out"} style={{flex:1,padding:"0.4rem"}} onClick={()=>setPanelMode("tools")}>{lang==="EN"?"Quick tools":"Herramientas rápidas"}</button>
-          <button className={panelMode==="chat"?"btn-pub":"btn-out"} style={{flex:1,padding:"0.4rem"}} onClick={()=>setPanelMode("chat")}>{lang==="EN"?"Guided conversation":"Conversación guiada"}</button>
-        </div>
+        <div className="ai-usage-lbl">{t.ai_usage_h}</div>
+        <div className="ai-usage-track"><div className="ai-usage-fill" style={{width:aiUsage+"%",background:usageColor}}/></div>
+        <p className="ai-usage-txt" style={{color:usageColor}}>{usageLabel}</p>
+        {aiUsage<=0&&(
+          <button className="btn-out" style={{width:"100%",marginBottom:"1rem"}} onClick={()=>setRechargeMsg(true)}>{t.ai_recharge_btn}</button>
+        )}
+        {rechargeMsg&&<p className="ai-usage-notice">{t.ai_recharge_notice}</p>}
 
-        {panelMode==="tools" && (<>
-          <div className="ai-usage-lbl">{t.ai_usage_h}</div>
-          <div className="ai-usage-track"><div className="ai-usage-fill" style={{width:aiUsage+"%",background:usageColor}}/></div>
-          <p className="ai-usage-txt" style={{color:usageColor}}>{usageLabel}</p>
-          {aiUsage<=0&&(
-            <button className="btn-out" style={{width:"100%",marginBottom:"1rem"}} onClick={()=>setRechargeMsg(true)}>{t.ai_recharge_btn}</button>
-          )}
-          {rechargeMsg&&<p className="ai-usage-notice">{t.ai_recharge_notice}</p>}
-
-          <div className="ai-btns">
-            <button className="aib" disabled={al||aiUsage<=0} onClick={()=>run("continue")}><span>→</span><span><b>{t.ai_continue}</b> — {t.ai_continue_d}</span></button>
-            <button className="aib" disabled={al||aiUsage<=0} onClick={()=>run("improve")}><span>✦</span><span><b>{t.ai_improve}</b> — {t.ai_improve_d}</span></button>
-            <button className="aib" disabled={al||aiUsage<=0} onClick={()=>run("structure")}><span>◈</span><span><b>{t.ai_structure}</b> — {t.ai_structure_d}</span></button>
-          </div>
-          <hr className="sep"/>
-          <div className="tr-row2">
-            <span className="tr-lbl">{t.translate_to}</span>
-            <select className="sel" style={{flex:1}} value={tl} onChange={e=>setTl(e.target.value)}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
-            <button className="btn-sm" disabled={al||aiUsage<=0} onClick={()=>run("translate")}>{t.go}</button>
-          </div>
-          {al&&<div className="loading"><span className="sp"/>{t.ai_thinking}</div>}
-          {ao&&!al&&(
-            <div>
-              <div className="ai-out-lbl">{t.proposal}</div>
-              <div className="ai-out">{ao}</div>
-              <div style={{display:"flex",gap:"0.5rem",marginTop:"0.65rem"}}>
-                {(am==="continue"||am==="improve"||am==="translate")&&<button className="apply-btn" style={{marginTop:0,flex:1}} onClick={apply}>{am==="continue"?t.add_text:t.replace_text}</button>}
-                {"speechSynthesis" in window&&<button className="btn-out" style={{width:"auto",padding:"0.45rem 0.9rem",fontSize:"0.81rem"}} onClick={()=>speak(ao)}>{speaking?`⏹ ${t.ai_stop_listen}`:`🔊 ${t.ai_listen}`}</button>}
-              </div>
-            </div>
-          )}
-        </>)}
-
-        {panelMode==="chat" && (
-          <div style={{display:"flex",flexDirection:"column",height:"420px"}}>
+        <div style={{display:"flex",flexDirection:"column",height:"420px"}}>
             {chatStage==="welcome" && chatMsgs.length===0 ? (
               <div style={{flex:1,overflowY:"auto"}}>
                 <p style={{fontFamily:"var(--body)",fontSize:"0.9rem",lineHeight:1.6,whiteSpace:"pre-line"}}>{welcomeText}</p>
@@ -2975,8 +2958,8 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
                   placeholder={lang==="EN"?"Type your answer...":"Escribe tu respuesta..."}
                   onChange={e=>setChatInput(e.target.value)}
                   onKeyDown={e=>{if(e.key==="Enter"&&!chatLoading) sendChatMessage(chatInput);}}/>
-                <button className="btn-out" style={{padding:"0.45rem 0.7rem"}} onClick={listening?stopListening:startListening} title={lang==="EN"?"Voice dictation":"Dictado por voz"}>
-                  {listening?"⏹":"🎙"}
+                <button className={voiceMode?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleVoiceMode} title={lang==="EN"?"Listen and speak":"Escucha y habla"}>
+                  {voiceMode?`⏹ ${t.ai_stop_listen}`:`🎙 ${t.ai_listen}`}
                 </button>
                 <button className="btn-pub" style={{padding:"0.45rem 0.9rem"}} disabled={chatLoading||!chatInput.trim()} onClick={()=>sendChatMessage(chatInput)}>
                   {lang==="EN"?"Send":"Enviar"}
@@ -2984,7 +2967,6 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
               </div>
             </>)}
           </div>
-        )}
       </div>
     </div>
   ), document.body);
