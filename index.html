@@ -180,8 +180,9 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .btn-sm:hover{background:var(--gold)}
 .btn-sm:disabled{background:var(--muted);cursor:not-allowed}
 .wr-wrap{max-width:1160px;margin:0 auto;padding:2.8rem 2rem 3.5rem}
-.wr-grid{display:grid;grid-template-columns:1fr 370px;gap:2.2rem;align-items:start}
-@media(max-width:840px){.wr-grid{grid-template-columns:1fr}}
+.wr-grid{display:flex;flex-direction:column;gap:1.8rem}
+.wr-work{display:grid;grid-template-columns:1fr;gap:1.4rem;align-items:start}
+@media(min-width:841px){.wr-work.wr-work-split{grid-template-columns:1.7fr 1fr}}
 .mob-offers-strip{display:none}
 @media(max-width:840px){
   .mob-offers-strip{display:flex;gap:0.5rem;flex-wrap:wrap;margin:0 0 0.8rem 0;
@@ -227,8 +228,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .btn-pub:disabled{background:var(--muted);cursor:not-allowed}
 .ok-msg{font-family:var(--body);font-size:0.9rem;color:#2a6a2a;
   padding:0.42rem 0.85rem;background:#e8f5e8;border:1px solid #a8d8a8;border-radius:2px}
-.aip{background:var(--bg3);border:1px solid var(--border);border-radius:3px;
-  padding:1.4rem;position:sticky;top:84px}
+.wr-ai-col{display:flex;flex-direction:column}
 .aip-h{font-family:var(--serif);font-size:1.12rem;font-weight:500;color:var(--ink);
   margin-bottom:0.28rem;display:flex;align-items:center;gap:0.45rem}
 .aip-sub{font-family:var(--body);font-size:0.84rem;color:var(--muted);margin-bottom:1.3rem;line-height:1.5}
@@ -253,17 +253,11 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   padding:0.45rem;background:var(--navy);color:#fff;
   border:none;cursor:pointer;border-radius:2px;transition:background .2s}
 .apply-btn:hover{background:var(--gold)}
-.ai-panel-ov{position:fixed;inset:0;background:rgba(20,30,45,0.55);z-index:400;
-  display:flex;justify-content:flex-end}
-.ai-panel{position:relative;width:100%;max-width:420px;height:100%;
-  background:#E9F2FA;border-left:1px solid #B9D3E8;
-  padding:1.6rem 1.4rem;overflow-y:auto;box-shadow:-6px 0 24px rgba(20,30,45,0.18)}
+.ai-panel{position:relative;width:100%;
+  background:#E9F2FA;border:1px solid #B9D3E8;border-radius:3px;
+  padding:1.6rem 1.4rem;box-shadow:0 2px 10px rgba(20,30,45,0.08)}
 .ai-panel-x{position:absolute;top:0.9rem;right:1.1rem;font-size:1.15rem;cursor:pointer;
   background:none;border:none;color:var(--muted)}
-@media (min-width:900px){
-  .ai-panel-ov{background:transparent;pointer-events:none}
-  .ai-panel{pointer-events:auto;max-width:380px;box-shadow:-4px 0 18px rgba(20,30,45,0.12)}
-}
 .ai-usage-lbl{font-family:var(--body);font-size:0.68rem;letter-spacing:0.14em;
   text-transform:uppercase;color:var(--muted);margin-bottom:0.35rem}
 .ai-usage-track{width:100%;height:8px;border-radius:5px;background:rgba(20,30,45,0.1);overflow:hidden}
@@ -2565,6 +2559,7 @@ en texto normal, sin ninguna de estas etiquetas.`;
       )}
       {topBar}
       <div className="wr-grid">
+        <div className={"wr-work"+(f.assistantActive?" wr-work-split":"")}>
         <div>
           <div className="frow" style={{marginBottom:"0.9rem"}}>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_title}</label><input className="inp" value={f.title} onChange={e=>up("title",e.target.value)}/></div>
@@ -2634,58 +2629,60 @@ en texto normal, sin ninguna de estas etiquetas.`;
             </div>
           )}
 
-          <p className="wr-sub" style={{marginTop:"0.8rem",fontSize:"0.8rem"}}>Autoguardado activo.</p>
-          <div style={{marginTop:"1.2rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"0.6rem"}}>
-            <div style={{display:"flex",gap:"1rem",alignItems:"center"}}>
-              {f.published&&<span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setUnpubStep("confirm")}>{t.unpub_link}</span>}
-              <span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setWStep("privacy")}>{t.privacy_link}</span>
-            </div>
-            <button className="btn-out" style={{width:"auto",padding:"0.65rem 1.6rem"}} onClick={()=>setShowSaveExit(true)}>{t.ed_save_exit}</button>
+        </div>
+
+        {f.assistantActive&&(
+          <div className="wr-ai-col">
+            {showAiPanel
+              ? <AssistantPanel open={showAiPanel} onClose={()=>{if("speechSynthesis" in window)window.speechSynthesis.cancel();setSpeaking(false);setShowAiPanel(false);}} t={t}
+                  al={al} ao={ao} am={am} run={run} apply={apply} tl={tl} setTl={setTl}
+                  speak={speak} speaking={speaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}
+                  lang={lang} f={f} chatMsgs={chatMsgs} chatStage={chatStage} setChatStage={setChatStage}
+                  chatInput={chatInput} setChatInput={setChatInput} chatLoading={chatLoading}
+                  sendChatMessage={sendChatMessage} listening={listening} startListening={startListening}
+                  stopListening={stopListening} addChatToStory={addChatToStory}/>
+              : <button className="btn-out" style={{width:"100%"}} onClick={()=>setShowAiPanel(true)}>
+                  <span style={{color:"var(--gold)"}}>✦</span> {t.ai_open_panel}
+                </button>}
+          </div>
+        )}
+        </div>
+
+        <div style={{paddingTop:"1rem",borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"0.6rem"}}>
+          <p className="wr-sub" style={{margin:0,fontSize:"0.8rem"}}>Autoguardado activo.</p>
+          <button className="btn-out" style={{width:"auto",padding:"0.65rem 1.6rem"}} onClick={()=>setShowSaveExit(true)}>{t.ed_save_exit}</button>
+        </div>
+
+        <div className="pm-box">
+          <div className="pm-tit">{t.pub_opts}</div>
+          <div className="pm-row">
+            <div className="pm-feat"><span className="pm-feat-t">{t.unlimited_text}</span><span className="badge free">{t.free}</span></div>
+            <div className="pm-feat"><span className="pm-feat-t">{t.one_img}</span><span className="badge free">{t.free}</span></div>
+            <div className="pm-feat"><span className="pm-feat-t">{t.permanent_archive}</span><span className="badge free">{t.free}</span></div>
+          </div>
+          <div id="lm-offer-ai" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--navy)",borderRadius:"2px"}}>
+            <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--navy)",fontWeight:"600",marginBottom:"0.2rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.ai_sub_label}</div>
+            <div style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginBottom:"0.4rem"}}>{t.ai_hours_note}</div>
+            {!f.assistantActive
+              ? <button className="pm-unlock" style={{borderColor:"var(--navy)",color:"var(--navy)"}} onClick={()=>{setAiTuUsted(null);setAiNameDraft(f.name||"");setShowAiOverlay(true);}}>{t.ai_activate_btn}</button>
+              : <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#2a6a2a"}}>{t.ai_active_msg} <b>{f.assistantName}</b></div>}
+          </div>
+          <div id="lm-offer-photos" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
+            <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_photos_h}</div>
+            <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_photos_sub}</span><span className={`badge ${photosBought>0?"on":"prem"}`}>{photosBought>0?`${photosBought} ${t.photo_word}s`:`€1/${t.photo_word}`}</span></div>
+            <button className="pm-unlock" onClick={()=>setShowPhotosM(true)}>{photosBought>0?t.addon_photos_add_more:t.addon_photos_btn}</button>
+          </div>
+          <div id="lm-offer-pdf" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
+            <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_pdf_h}</div>
+            <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_pdf_sub}</span><span className={`badge ${pdfBought?"on":"prem"}`}>{pdfBought?`DIN ${pdfBought}`:"€5"}</span></div>
+            {!pdfBought&&<button className="pm-unlock" onClick={()=>setShowPdfM(true)}>{t.addon_pdf_btn}</button>}
           </div>
         </div>
 
-        <div className="aip">
-          <div className="pm-box">
-            <div className="pm-tit">{t.pub_opts}</div>
-            <div className="pm-row">
-              <div className="pm-feat"><span className="pm-feat-t">{t.unlimited_text}</span><span className="badge free">{t.free}</span></div>
-              <div className="pm-feat"><span className="pm-feat-t">{t.one_img}</span><span className="badge free">{t.free}</span></div>
-              <div className="pm-feat"><span className="pm-feat-t">{t.permanent_archive}</span><span className="badge free">{t.free}</span></div>
-            </div>
-            <div id="lm-offer-ai" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--navy)",borderRadius:"2px"}}>
-              <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--navy)",fontWeight:"600",marginBottom:"0.2rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.ai_sub_label}</div>
-              <div style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginBottom:"0.4rem"}}>{t.ai_hours_note}</div>
-              {!f.assistantActive
-                ? <button className="pm-unlock" style={{borderColor:"var(--navy)",color:"var(--navy)"}} onClick={()=>{setAiTuUsted(null);setAiNameDraft(f.name||"");setShowAiOverlay(true);}}>{t.ai_activate_btn}</button>
-                : <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#2a6a2a"}}>{t.ai_active_msg} <b>{f.assistantName}</b></div>}
-            </div>
-            <div id="lm-offer-photos" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
-              <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_photos_h}</div>
-              <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_photos_sub}</span><span className={`badge ${photosBought>0?"on":"prem"}`}>{photosBought>0?`${photosBought} ${t.photo_word}s`:`€1/${t.photo_word}`}</span></div>
-              <button className="pm-unlock" onClick={()=>setShowPhotosM(true)}>{photosBought>0?t.addon_photos_add_more:t.addon_photos_btn}</button>
-            </div>
-            <div id="lm-offer-pdf" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
-              <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_pdf_h}</div>
-              <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_pdf_sub}</span><span className={`badge ${pdfBought?"on":"prem"}`}>{pdfBought?`DIN ${pdfBought}`:"€5"}</span></div>
-              {!pdfBought&&<button className="pm-unlock" onClick={()=>setShowPdfM(true)}>{t.addon_pdf_btn}</button>}
-            </div>
-          </div>
-
-          {f.assistantActive&&(<>
-            <hr className="sep"/>
-            <button className="btn-out" style={{width:"100%"}} onClick={()=>setShowAiPanel(true)}>
-              <span style={{color:"var(--gold)"}}>✦</span> {t.ai_open_panel}
-            </button>
-          </>)}
+        <div style={{display:"flex",justifyContent:"center",gap:"1.2rem",flexWrap:"wrap"}}>
+          {f.published&&<span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setUnpubStep("confirm")}>{t.unpub_link}</span>}
+          <span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setWStep("privacy")}>{t.privacy_link}</span>
         </div>
-
-        <AssistantPanel open={showAiPanel} onClose={()=>{if("speechSynthesis" in window)window.speechSynthesis.cancel();setSpeaking(false);setShowAiPanel(false);}} t={t}
-          al={al} ao={ao} am={am} run={run} apply={apply} tl={tl} setTl={setTl}
-          speak={speak} speaking={speaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}
-          lang={lang} f={f} chatMsgs={chatMsgs} chatStage={chatStage} setChatStage={setChatStage}
-          chatInput={chatInput} setChatInput={setChatInput} chatLoading={chatLoading}
-          sendChatMessage={sendChatMessage} listening={listening} startListening={startListening}
-          stopListening={stopListening} addChatToStory={addChatToStory}/>
       </div>
     </div>
   );
@@ -2740,9 +2737,8 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
 
   const startEntry=(opt)=>{ setChatStage("chatting"); sendChatMessage(opt.prompt); };
 
-  return ReactDOM.createPortal((
-    <div className="ai-panel-ov" onClick={onClose}>
-      <div className="ai-panel" onClick={e=>e.stopPropagation()}>
+  return (
+    <div className="ai-panel">
         <button className="ai-panel-x" onClick={onClose}>✕</button>
         <div className="aip-h"><span style={{color:"var(--gold)"}}>✦</span> {t.ai_h}</div>
         <p className="aip-sub">{t.ai_sub}</p>
@@ -2801,8 +2797,7 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
             </>)}
           </div>
       </div>
-    </div>
-  ), document.body);
+  );
 }
 
 function GiftModal({onClose,t}) {
