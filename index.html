@@ -1776,6 +1776,12 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
   return null;
 }
 
+function splitAssistantReply(text){
+  const m = /<[a-z][\s\S]*>/i.exec(text);
+  if(!m) return {preamble:"", html:""};
+  return {preamble:text.slice(0,m.index).trim(), html:text.slice(m.index)};
+}
+
 function Write({setView,onPublish,onUnpublish,t,lang,onLegal,recoveryMode,onRecoveryDone}) {
   const [session,setSessionState]=useState(null);
   const [checking,setChecking]=useState(true);
@@ -1951,7 +1957,6 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const taRef=useRef(null);
 
   const [chatMsgs,setChatMsgs]=useState([]); // {role:"user"|"model", text}
-  const [chatStage,setChatStage]=useState("welcome"); // "welcome" | "chatting"
   const [chatInput,setChatInput]=useState("");
   const [chatInputFromAssistant,setChatInputFromAssistant]=useState(false);
   const [chatLoading,setChatLoading]=useState(false);
@@ -2114,13 +2119,19 @@ diga que no sabe qué más contar. No los ofrezcas por iniciativa propia:
    consejo a su yo de 20 años, mensaje final para sus descendientes.
 
 FORMATO DE SALIDA: cuando, y solo cuando, la excepción de redacción
-asistida te autorice a proponer un texto ya redactado, devuélvelo en
-HTML5 limpio: <h2> para títulos de capítulo o sección, <p> para cada
-párrafo (uno por etiqueta, sin fusionarlos), <blockquote> para una
-reflexión o frase que el propio Autor quiera destacar. No uses bloques de
-código, ni Markdown (asteriscos, almohadillas), ni <hr>. En cualquier
-otro momento —conversando, preguntando, señalando, apreciando— responde
-en texto normal, sin ninguna de estas etiquetas.`;
+asistida te autorice a proponer un texto ya redactado, tu respuesta
+COMPLETA debe ir en HTML5 limpio: <h2> para títulos de capítulo o
+sección, <p> para cada párrafo (uno por etiqueta, sin fusionarlos),
+<blockquote> para una reflexión o frase que el propio Autor quiera
+destacar. No uses bloques de código, ni Markdown (asteriscos,
+almohadillas), ni <hr>. Nunca antepongas ni añadas, dentro de esa misma
+respuesta, ninguna frase de presentación o cierre en texto normal (del
+tipo "aquí tienes una propuesta...") fuera de esas etiquetas — la
+respuesta entera es la redacción, sin nada alrededor. Si además quieres
+comentar algo al respecto, hazlo en un turno de conversación aparte, en
+texto normal y sin HTML. En cualquier otro momento —conversando,
+preguntando, señalando, apreciando— responde siempre en texto normal,
+sin ninguna de estas etiquetas.`;
   };
 
   const htmlToPlain=(text)=>text.replace(/<[^>]+>/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
@@ -2145,8 +2156,9 @@ en texto normal, sin ninguna de estas etiquetas.`;
       const d=await res.json();
       if(d.error) throw new Error(d.error);
       setChatMsgs(h=>[...h,{role:"model",text:d.text}]);
-      if(/<[a-z][\s\S]*>/i.test(d.text)){
-        setChatInput(htmlToPlain(d.text));
+      const {html}=splitAssistantReply(d.text);
+      if(html){
+        setChatInput(htmlToPlain(html));
         setChatInputFromAssistant(true);
       }
     }catch(e){
@@ -2160,12 +2172,18 @@ en texto normal, sin ninguna de estas etiquetas.`;
     if(!SR){ alert(lang==="EN"?"Voice dictation is not available in this browser.":"El dictado por voz no está disponible en este navegador."); return; }
     const rec=new SR();
     rec.lang=lang==="EN"?"en-US":"es-ES";
+    rec.continuous=true;
     rec.interimResults=false;
     rec.maxAlternatives=1;
     rec.onresult=(e)=>{
-      const transcript=e.results[0][0].transcript;
-      setChatInputFromAssistant(false);
-      setChatInput(prev=>(prev?prev+" ":"")+transcript);
+      let finalText="";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal) finalText+=e.results[i][0].transcript+" ";
+      }
+      if(finalText.trim()){
+        setChatInputFromAssistant(false);
+        setChatInput(prev=>(prev?prev+" ":"")+finalText.trim());
+      }
     };
     rec.onend=()=>setListening(false);
     rec.onerror=()=>setListening(false);
@@ -2653,7 +2671,7 @@ en texto normal, sin ninguna de estas etiquetas.`;
               ? <AssistantPanel open={showAiPanel} onClose={()=>{if("speechSynthesis" in window)window.speechSynthesis.cancel();setSpeaking(false);setShowAiPanel(false);}} t={t}
                   al={al} ao={ao} am={am} run={run} apply={apply} tl={tl} setTl={setTl}
                   speak={speak} speaking={speaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}
-                  lang={lang} f={f} chatMsgs={chatMsgs} chatStage={chatStage} setChatStage={setChatStage}
+                  lang={lang} f={f} chatMsgs={chatMsgs} setChatMsgs={setChatMsgs}
                   chatInput={chatInput} setChatInput={setChatInput} chatInputFromAssistant={chatInputFromAssistant} setChatInputFromAssistant={setChatInputFromAssistant} chatLoading={chatLoading}
                   sendChatMessage={sendChatMessage} listening={listening} startListening={startListening}
                   stopListening={stopListening} addChatToStory={addChatToStory}/>
@@ -2710,7 +2728,7 @@ const editIconStyle={background:"none",border:"none",color:"var(--muted)",cursor
 const arrowStyle={background:"none",border:"none",color:"var(--navy)",cursor:"pointer",fontSize:"0.68rem",lineHeight:1,padding:"1px 4px"};
 
 function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaking,aiUsage,rechargeMsg,setRechargeMsg,
-  lang,f,chatMsgs,chatStage,setChatStage,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,startListening,stopListening,addChatToStory}) {
+  lang,f,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,startListening,stopListening,addChatToStory}) {
   if(!open) return null;
   const usageLabel=aiUsage<=0?t.ai_usage_none:aiUsage<20?t.ai_usage_low:aiUsage<50?t.ai_usage_mid:t.ai_usage_ok;
   const usageColor=aiUsage<=0?"#b23b3b":aiUsage<20?"#C4932A":aiUsage<50?"#C4932A":"#3f7a4e";
@@ -2724,8 +2742,8 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
     if(voiceMode && chatMsgs.length>prevMsgCount.current){
       const last=chatMsgs[chatMsgs.length-1];
       if(last && last.role==="model"){
-        const isHtml=/<[a-z][\s\S]*>/i.test(last.text);
-        speak(isHtml?assistantAnnouncement:last.text.replace(/<[^>]+>/g," ").trim());
+        const {preamble,html}=splitAssistantReply(last.text);
+        speak(html?(preamble||assistantAnnouncement):last.text);
       }
     }
     prevMsgCount.current=chatMsgs.length;
@@ -2740,23 +2758,15 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
   const chatBoxRef=useRef(null);
   useEffect(()=>{ if(chatBoxRef.current) chatBoxRef.current.scrollTop=chatBoxRef.current.scrollHeight; },[chatMsgs,chatLoading]);
 
-  const welcomeText = lang==="EN"
-    ? `Hello${nombre?", "+nombre:""}. Welcome to Write your story on Locus Mundi. It's a real pleasure to accompany you in this process. My role here is that of an editor at your service: to help you order, shape and put into words your memories so they're recorded just as you lived them, always keeping your own voice.\n\nWhere would you like to start today?`
-    : `Hola${nombre?", "+nombre:""}. Te doy la bienvenida a Escribe tu historia en Locus Mundi. Es un verdadero placer acompañar${tratamiento==="usted"?"le":"te"} en este proceso. Mi función aquí es la de un editor a ${posesivo} servicio: ayudar${tratamiento==="usted"?"le":"te"} a ordenar, dar forma y plasmar ${posesivo}s recuerdos para que queden registrados tal y como ${tratamiento==="usted"?"los vivió":"los viviste"}, manteniendo siempre ${posesivo} propia voz.\n\n¿Por dónde ${tratamiento==="usted"?"le apetece":"te apetece"} más empezar hoy?`;
+  const greeting = lang==="EN"
+    ? `Hello${nombre?", "+nombre:""}. Welcome to Write your story on Locus Mundi. My role here is that of an editor at your service: to help you order, shape and put into words your memories, always keeping your own voice.\n\nYou can start wherever you'd rather: the story of your family and ancestors, your own life since childhood, or a particular scene or memory you have very vivid in mind.`
+    : `Hola${nombre?", "+nombre:""}. Te doy la bienvenida a Escribe tu historia en Locus Mundi. Mi función aquí es la de un editor a ${posesivo} servicio: ayudar${tratamiento==="usted"?"le":"te"} a ordenar, dar forma y plasmar ${posesivo}s recuerdos, manteniendo siempre ${posesivo} propia voz.\n\nPuedes empezar por donde ${tratamiento==="usted"?"prefiera":"prefieras"}: la historia de ${posesivo} familia y ${tratamiento==="usted"?"sus":"tus"} antepasados, ${posesivo} propia vida desde la infancia, o alguna escena o recuerdo que ${tratamiento==="usted"?"tenga":"tengas"} muy vivo en la memoria.`;
 
-  const entryOptions = lang==="EN"
-    ? [
-        {key:"familia", label:"Family history and ancestors", prompt:"I'd like to start with my family history and ancestors."},
-        {key:"infancia", label:"My own life since childhood", prompt:"I'd like to start with my own life since childhood."},
-        {key:"anecdota", label:"A special memory or anecdote", prompt:"I'd like to start with a special memory or anecdote I have very vivid in my mind."}
-      ]
-    : [
-        {key:"familia", label:"La historia familiar y mis antepasados", prompt:"Quiero empezar por la historia familiar y mis antepasados."},
-        {key:"infancia", label:"Mi propia vida desde la infancia", prompt:"Quiero empezar por mi propia vida desde la infancia."},
-        {key:"anecdota", label:"Un recuerdo o anécdota especial", prompt:"Quiero empezar por un recuerdo o anécdota especial que tengo muy vivo en la memoria."}
-      ];
-
-  const startEntry=(opt)=>{ setChatStage("chatting"); sendChatMessage(opt.prompt); };
+  useEffect(()=>{
+    if(open && chatMsgs.length===0){
+      setChatMsgs([{role:"model",text:greeting}]);
+    }
+  },[open]);
 
   return (
     <div className="ai-panel">
@@ -2773,21 +2783,11 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
         {rechargeMsg&&<p className="ai-usage-notice">{t.ai_recharge_notice}</p>}
 
         <div style={{display:"flex",flexDirection:"column",height:"460px"}}>
-            {chatStage==="welcome" && chatMsgs.length===0 ? (
-              <div style={{flex:1,overflowY:"auto"}}>
-                <p style={{fontFamily:"var(--body)",fontSize:"0.9rem",lineHeight:1.6,whiteSpace:"pre-line"}}>{welcomeText}</p>
-                <div style={{display:"flex",flexDirection:"column",gap:"0.5rem",marginTop:"0.8rem"}}>
-                  {entryOptions.map(opt=>(
-                    <button key={opt.key} className="btn-out" style={{width:"100%",textAlign:"left"}} onClick={()=>startEntry(opt)}>{opt.label}</button>
-                  ))}
-                </div>
-              </div>
-            ) : (<>
               <div style={{fontFamily:"var(--body)",fontSize:"0.7rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"0.3rem"}}>{t.ai_h}</div>
               <div ref={chatBoxRef} style={{height:"190px",overflowY:"auto",display:"flex",flexDirection:"column",gap:"0.6rem",paddingRight:"0.3rem",border:"1px solid #B9D3E8",borderRadius:"8px",padding:"0.6rem"}}>
                 {chatMsgs.filter(m=>m.role==="model").map((m,i)=>{
-                  const isHtml = /<[a-z][\s\S]*>/i.test(m.text);
-                  const displayText = isHtml ? assistantAnnouncement : m.text;
+                  const {preamble,html} = splitAssistantReply(m.text);
+                  const displayText = html ? (preamble || assistantAnnouncement) : m.text;
                   return (
                     <div key={i} style={{alignSelf:"flex-start",maxWidth:"92%"}}>
                       <div style={{background:"#f1ede3",color:"var(--ink)",borderRadius:"10px",padding:"0.55rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.5,whiteSpace:"pre-line"}}>{displayText}</div>
@@ -2815,7 +2815,6 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
                   </button>
                 )}
               </div>
-            </>)}
           </div>
       </div>
   );
