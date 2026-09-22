@@ -1963,7 +1963,26 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [listening,setListening]=useState(false);
   const recognitionRef=useRef(null);
 
-  const buildAssistantSystemPrompt=()=>{
+  const getCurrentChapterText=()=>{
+    const text=f.text||"";
+    if(!text.trim()) return "";
+    const cursorPos = taRef.current ? taRef.current.selectionStart : text.length;
+    const chapterWord = t.ed_chapter_word.toUpperCase();
+    const re = new RegExp("^"+chapterWord+"\\s+[IVXLCDM]+.*$","gm");
+    const markers=[];
+    let m;
+    while((m=re.exec(text))){ markers.push(m.index); }
+    if(markers.length===0) return text.trim();
+    let idx=-1;
+    for(let i=0;i<markers.length;i++){
+      if(markers[i]<=cursorPos) idx=i; else break;
+    }
+    const start = idx===-1 ? 0 : markers[idx];
+    const end = idx===-1 ? markers[0] : (idx+1<markers.length ? markers[idx+1] : text.length);
+    return text.slice(start,end).trim();
+  };
+
+  const buildAssistantSystemPrompt=(capituloActual)=>{
     const nombre=f.assistantName||f.name||"";
     const tratamiento=f.assistantTuUsted==="usted"?"usted":"tú";
     return `Eres el Agente Editorial de Locus Mundi. Tu función es la de un editor al
@@ -2039,6 +2058,23 @@ RESPETO A LA MEMORIA: un recuerdo no se cuestiona. Si detectas una
 contradicción interna o una inconsistencia con hechos históricos de
 dominio público, señálalo como una duda abierta y con delicadeza —nunca
 como una corrección—, y respeta siempre la decisión final del Autor.
+
+DOS FUENTES DISTINTAS, NO LAS CONFUNDAS: recibes información del Autor
+por dos vías separadas, y no debes tratarlas igual.
+- Lo que el Autor te escribe aquí, en la ventana de diálogo, son sus
+  preguntas, respuestas o peticiones directas a ti — puedes darlas por
+  dichas por él, con su intención.
+- Si al final de este mensaje aparece un bloque de "CONTEXTO ACTUAL DEL
+  MANUSCRITO", es un extracto de lo que el Autor ha escrito en su propia
+  pantalla de texto — no te lo ha contado a ti, y no debes responder como
+  si lo hubiera hecho. Úsalo únicamente como referencia de lectura para
+  aplicar el Ritmo de Intervención por Escena o para comentar algo
+  concreto de ese tramo, dejando claro que hablas de lo que has leído
+  ahí (por ejemplo, "en lo que llevas escrito de este capítulo..."), no
+  de algo que haya surgido en la conversación.
+Cuando ese bloque no aparezca, es que el Autor no tiene nada escrito
+todavía en ese punto, o que el cursor está antes de cualquier capítulo;
+no lo interpretes como que no existe el resto del libro.
 
 ÉL Y SUS CIRCUNSTANCIAS: no se trata solo de narrar la propia vida, sino
 de situarla en el mundo que le tocó vivir —el marco social, histórico y
@@ -2131,7 +2167,16 @@ respuesta entera es la redacción, sin nada alrededor. Si además quieres
 comentar algo al respecto, hazlo en un turno de conversación aparte, en
 texto normal y sin HTML. En cualquier otro momento —conversando,
 preguntando, señalando, apreciando— responde siempre en texto normal,
-sin ninguna de estas etiquetas.`;
+sin ninguna de estas etiquetas.`
+    + (capituloActual ? `
+
+CONTEXTO ACTUAL DEL MANUSCRITO (capítulo o tramo en el que trabaja el
+Autor ahora mismo, tal como está en este momento en su pantalla de
+texto — no es la obra completa; puede haber más capítulos antes o
+después que no ves aquí):
+"""
+${capituloActual}
+"""` : "");
   };
 
   const htmlToPlain=(text)=>text.replace(/<[^>]+>/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
@@ -2148,7 +2193,7 @@ sin ninguna de estas etiquetas.`;
       const res=await fetch("/api/asistente",{
         method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
-          system: buildAssistantSystemPrompt(),
+          system: buildAssistantSystemPrompt(getCurrentChapterText()),
           history: chatMsgs,
           userMsg: text
         })
