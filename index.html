@@ -2281,7 +2281,20 @@ ${capituloActual}
 
   const addChatToStory=(text)=>{
     const clean=htmlToPlain(text);
-    up("text", f.text?f.text+"\n\n"+clean:clean);
+    const ta=taRef.current;
+    const pos = ta ? ta.selectionStart : f.text.length;
+    pushHistory();
+    const needsLeadingBreak = pos>0 && f.text[pos-1]!=="\n";
+    const nv = f.text.slice(0,pos) + (needsLeadingBreak?"\n\n":"") + clean + "\n\n" + f.text.slice(pos);
+    up("text", nv);
+    const newPos = pos + (needsLeadingBreak?2:0) + clean.length + 2;
+    requestAnimationFrame(()=>{
+      const el=taRef.current;
+      if(el){
+        el.selectionStart=el.selectionEnd=newPos;
+        el.blur(); el.focus();
+      }
+    });
     setChatInput("");
     setChatInputFromAssistant(false);
   };
@@ -2401,7 +2414,13 @@ ${capituloActual}
     pushHistory();
     const nv=f.text.slice(0,s)+"\n\n"+f.text.slice(eIdx);
     up("text",nv);
-    requestAnimationFrame(()=>{ if(taRef.current){ taRef.current.selectionStart=taRef.current.selectionEnd=s+2; } });
+    requestAnimationFrame(()=>{
+      const el=taRef.current;
+      if(el){
+        el.selectionStart=el.selectionEnd=s+2;
+        el.blur(); el.focus(); // fuerza que el navegador recalcule y muestre el cursor, aunque quede cerca del borde inferior visible
+      }
+    });
 
     if(f.assistantActive){
       const before=f.text.slice(0,s);
@@ -2770,7 +2789,7 @@ ${capituloActual}
                   sendChatMessage={sendChatMessage} listening={listening} startListening={startListening}
                   stopListening={stopListening} addChatToStory={addChatToStory}/>
               : <button style={{width:"100%",marginTop:"1.58rem",padding:"0.55rem 0.75rem",
-                    fontFamily:"var(--body)",fontSize:"0.96rem",letterSpacing:"0.06em",
+                    fontFamily:"var(--body)",fontSize:"0.96rem",lineHeight:"1.2",boxSizing:"border-box",
                     background:"#2a6a2a",border:"1px solid #2a6a2a",borderRadius:"2px",
                     color:"#fff",cursor:"pointer"}} onClick={()=>setShowAiPanel(true)}>
                   ✦ {t.ai_open_panel}
