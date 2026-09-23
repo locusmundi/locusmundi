@@ -1778,8 +1778,15 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
 
 function splitAssistantReply(text){
   const m = /<[a-z][\s\S]*>/i.exec(text);
-  if(!m) return {preamble:"", html:""};
-  return {preamble:text.slice(0,m.index).trim(), html:text.slice(m.index)};
+  if(!m) return {preamble:"", html:"", suffix:""};
+  const htmlStart = m.index;
+  const closers = [...text.matchAll(/<\/(h2|p|blockquote)>/gi)];
+  const lastCloseEnd = closers.length ? closers[closers.length-1].index + closers[closers.length-1][0].length : text.length;
+  return {
+    preamble: text.slice(0, htmlStart).trim(),
+    html: text.slice(htmlStart, lastCloseEnd),
+    suffix: text.slice(lastCloseEnd).trim()
+  };
 }
 
 function Write({setView,onPublish,onUnpublish,t,lang,onLegal,recoveryMode,onRecoveryDone}) {
@@ -1943,6 +1950,12 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     window.speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
     u.lang=lang==="EN"?"en-US":"es-ES";
+    const voices=window.speechSynthesis.getVoices();
+    const langPrefix=lang==="EN"?"en":"es";
+    const best=voices.find(v=>v.lang.startsWith(langPrefix)&&/Google|Natural|Enhanced|Neural/i.test(v.name))
+      || voices.find(v=>v.lang.startsWith(langPrefix));
+    if(best) u.voice=best;
+    u.rate=0.97;
     u.onend=()=>setSpeaking(false);
     u.onerror=()=>setSpeaking(false);
     setSpeaking(true);
@@ -1962,6 +1975,29 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [chatLoading,setChatLoading]=useState(false);
   const [listening,setListening]=useState(false);
   const recognitionRef=useRef(null);
+
+  const paragraphCheckRef = useRef({timer:null, lastChecked:""});
+
+  const checkParagraphInBackground = async (paragraphText) => {
+    const trimmed = (paragraphText||"").trim();
+    if(!trimmed || trimmed===paragraphCheckRef.current.lastChecked) return;
+    paragraphCheckRef.current.lastChecked = trimmed;
+    try{
+      const res = await fetch("/api/asistente", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          system: buildAssistantSystemPrompt(getCurrentChapterText()),
+          history: [],
+          userMsg: `[Revisión automática de párrafo — no es un mensaje del Autor] El Autor acaba de terminar de escribir este párrafo:\n"""\n${trimmed}\n"""\nSi, según tus propias reglas (Regla del Redactor, Ritmo de Intervención por Escena, Una Frase por Intervención), tienes algo que señalar sobre ESTE párrafo en concreto, hazlo ahora, en una sola frase, sin redactar nada por el Autor. Si no hay nada que señalar, responde EXACTAMENTE con: SIN_COMENTARIO`
+        })
+      });
+      const d = await res.json();
+      if(d.error) return;
+      if(d.text && d.text.trim()!=="SIN_COMENTARIO"){
+        setChatMsgs(h=>[...h,{role:"model",text:d.text}]);
+      }
+    }catch(e){ /* revisión de fondo: un fallo de red aquí no debe interrumpir al Autor */ }
+  };
 
   const getCurrentChapterText=()=>{
     const text=f.text||"";
@@ -2074,7 +2110,10 @@ por dos vías separadas, y no debes tratarlas igual.
   de algo que haya surgido en la conversación.
 Cuando ese bloque no aparezca, es que el Autor no tiene nada escrito
 todavía en ese punto, o que el cursor está antes de cualquier capítulo;
-no lo interpretes como que no existe el resto del libro.
+no lo interpretes como que no existe el resto del libro. Si el Autor te
+pregunta por un pasaje que no ves en este bloque, dilo con naturalidad e
+invítale, en la misma frase, a situar el cursor en ese punto de su texto
+para que puedas leerlo la próxima vez.
 
 ÉL Y SUS CIRCUNSTANCIAS: no se trata solo de narrar la propia vida, sino
 de situarla en el mundo que le tocó vivir —el marco social, histórico y
@@ -2162,10 +2201,12 @@ sección, <p> para cada párrafo (uno por etiqueta, sin fusionarlos),
 destacar. No uses bloques de código, ni Markdown (asteriscos,
 almohadillas), ni <hr>. Nunca antepongas ni añadas, dentro de esa misma
 respuesta, ninguna frase de presentación o cierre en texto normal (del
-tipo "aquí tienes una propuesta...") fuera de esas etiquetas — la
-respuesta entera es la redacción, sin nada alrededor. Si además quieres
-comentar algo al respecto, hazlo en un turno de conversación aparte, en
-texto normal y sin HTML. En cualquier otro momento —conversando,
+tipo "aquí tienes una propuesta..." o "pulsa el botón si te convence")
+ni antes ni después del HTML — la respuesta entera es la redacción, sin
+nada alrededor, ni al principio ni al final. Si además quieres comentar
+algo al respecto (incluido invitar al Autor a usar el botón que traslada
+esto a su historia), hazlo en un turno de conversación aparte, en texto
+normal y sin HTML. En cualquier otro momento —conversando,
 preguntando, señalando, apreciando— responde siempre en texto normal,
 sin ninguna de estas etiquetas.`
     + (capituloActual ? `
@@ -2226,7 +2267,7 @@ ${capituloActual}
         if(e.results[i].isFinal) finalText+=e.results[i][0].transcript+" ";
       }
       if(finalText.trim()){
-        setChatInputFromAssistant(false);
+        setChatInputFromAssistant(true);
         setChatInput(prev=>(prev?prev+" ":"")+finalText.trim());
       }
     };
@@ -2361,6 +2402,14 @@ ${capituloActual}
     const nv=f.text.slice(0,s)+"\n\n"+f.text.slice(eIdx);
     up("text",nv);
     requestAnimationFrame(()=>{ if(taRef.current){ taRef.current.selectionStart=taRef.current.selectionEnd=s+2; } });
+
+    if(f.assistantActive){
+      const before=f.text.slice(0,s);
+      const paraStart=before.lastIndexOf("\n\n");
+      const justWritten=before.slice(paraStart===-1?0:paraStart+2);
+      if(paragraphCheckRef.current.timer) clearTimeout(paragraphCheckRef.current.timer);
+      paragraphCheckRef.current.timer=setTimeout(()=>checkParagraphInBackground(justWritten),1500);
+    }
   };
   const applyItalic=()=>{
     const ta=taRef.current; if(!ta) return;
@@ -2720,8 +2769,11 @@ ${capituloActual}
                   chatInput={chatInput} setChatInput={setChatInput} chatInputFromAssistant={chatInputFromAssistant} setChatInputFromAssistant={setChatInputFromAssistant} chatLoading={chatLoading}
                   sendChatMessage={sendChatMessage} listening={listening} startListening={startListening}
                   stopListening={stopListening} addChatToStory={addChatToStory}/>
-              : <button className="btn-out" style={{width:"100%"}} onClick={()=>setShowAiPanel(true)}>
-                  <span style={{color:"var(--gold)"}}>✦</span> {t.ai_open_panel}
+              : <button style={{width:"100%",marginTop:"1.58rem",padding:"0.55rem 0.75rem",
+                    fontFamily:"var(--body)",fontSize:"0.96rem",letterSpacing:"0.06em",
+                    background:"#2a6a2a",border:"1px solid #2a6a2a",borderRadius:"2px",
+                    color:"#fff",cursor:"pointer"}} onClick={()=>setShowAiPanel(true)}>
+                  ✦ {t.ai_open_panel}
                 </button>}
           </div>
         )}
@@ -2787,14 +2839,14 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
     if(voiceMode && chatMsgs.length>prevMsgCount.current){
       const last=chatMsgs[chatMsgs.length-1];
       if(last && last.role==="model"){
-        const {preamble,html}=splitAssistantReply(last.text);
-        speak(html?(preamble||assistantAnnouncement):last.text);
+        const {preamble,suffix,html}=splitAssistantReply(last.text);
+        speak(html?(preamble||suffix||assistantAnnouncement):last.text);
       }
     }
     prevMsgCount.current=chatMsgs.length;
   },[chatMsgs,voiceMode]);
-  const toggleVoiceMode=()=>{
-    if(voiceMode){ stopListening(); if("speechSynthesis" in window) window.speechSynthesis.cancel(); setVoiceMode(false); }
+  const toggleListening=()=>{
+    if(listening){ stopListening(); }
     else { setVoiceMode(true); startListening(); }
   };
   const nombre=f.assistantName||f.name||"";
@@ -2831,8 +2883,8 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
               <div style={{fontFamily:"var(--body)",fontSize:"0.7rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"0.3rem"}}>{t.ai_h}</div>
               <div ref={chatBoxRef} style={{height:"190px",overflowY:"auto",display:"flex",flexDirection:"column",gap:"0.6rem",paddingRight:"0.3rem",border:"1px solid #B9D3E8",borderRadius:"8px",padding:"0.6rem"}}>
                 {chatMsgs.filter(m=>m.role==="model").map((m,i)=>{
-                  const {preamble,html} = splitAssistantReply(m.text);
-                  const displayText = html ? (preamble || assistantAnnouncement) : m.text;
+                  const {preamble,suffix,html} = splitAssistantReply(m.text);
+                  const displayText = html ? (preamble || suffix || assistantAnnouncement) : m.text;
                   return (
                     <div key={i} style={{alignSelf:"flex-start",maxWidth:"92%"}}>
                       <div style={{background:"#f1ede3",color:"var(--ink)",borderRadius:"10px",padding:"0.55rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.5,whiteSpace:"pre-line"}}>{displayText}</div>
@@ -2846,17 +2898,16 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
               <textarea className="inp" style={{height:"190px",resize:"none",fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.5}} value={chatInput}
                 placeholder={lang==="EN"?"Write here...":"Escribe aquí..."}
                 onChange={e=>{setChatInput(e.target.value);setChatInputFromAssistant(false);}}/>
-              <div style={{display:"flex",gap:"0.4rem",marginTop:"0.5rem"}}>
-                <button className={voiceMode?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleVoiceMode} title={lang==="EN"?"Listen and speak":"Escucha y habla"}>
-                  {voiceMode?`⏹ ${t.ai_stop_listen}`:`🎙 ${t.ai_listen}`}
+              <div style={{display:"flex",gap:"0.4rem",marginTop:"0.5rem",flexWrap:"wrap"}}>
+                <button className={listening?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleListening} title={lang==="EN"?"Listen and speak":"Escucha y habla"}>
+                  {listening?`⏹ ${t.ai_stop_listen}`:`🎙 ${t.ai_listen}`}
                 </button>
-                {chatInputFromAssistant ? (
-                  <button className="btn-pub" style={{padding:"0.45rem 0.9rem",flex:1}} onClick={()=>addChatToStory(chatInput)}>
+                <button className="btn-pub" style={{padding:"0.45rem 0.9rem",flex:1}} disabled={chatLoading||!chatInput.trim()} onClick={()=>sendChatMessage(chatInput)}>
+                  {lang==="EN"?"Send to Assistant":"Enviar al Asistente"}
+                </button>
+                {chatInputFromAssistant && (
+                  <button className="btn-out" style={{padding:"0.45rem 0.9rem",flex:1}} onClick={()=>addChatToStory(chatInput)}>
                     {lang==="EN"?"Send to text window":"Mandar a ventana de texto"}
-                  </button>
-                ) : (
-                  <button className="btn-pub" style={{padding:"0.45rem 0.9rem",flex:1}} disabled={chatLoading||!chatInput.trim()} onClick={()=>sendChatMessage(chatInput)}>
-                    {lang==="EN"?"Send to Assistant":"Enviar al Asistente"}
                   </button>
                 )}
               </div>
