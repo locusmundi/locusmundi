@@ -1398,6 +1398,54 @@ function FaqModal({onClose,t,lang}) {
   );
 }
 
+function AssistantFaqModal({onClose,lang}) {
+  // Contenido en borrador (versión 0.1) — solo las respuestas ya contrastadas con
+  // pruebas reales del Agente Editorial v3.0. Pendiente: mecánica de pantalla
+  // (capítulos/apartados, cómo silenciar la voz), fotos, idiomas, privacidad, precio.
+  const items = lang==="EN" ? ASSISTANT_FAQ_EN : ASSISTANT_FAQ_ES;
+  return (
+    <div className="ov" onClick={onClose}>
+      <div className="modal" style={{maxWidth:"680px",maxHeight:"82vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        <button className="modal-x" onClick={onClose}>✕</button>
+        <div className="modal-h">{lang==="EN"?"What can the Assistant help with?":"¿En qué puede ayudarte el Asistente?"}</div>
+        {items.map((it,i)=>(
+          <div key={i} style={{marginBottom:"1.1rem",paddingBottom:"1.1rem",borderBottom:i<items.length-1?"1px solid var(--border)":"none"}}>
+            <div style={{fontFamily:"var(--serif)",fontSize:"1rem",color:"var(--navy)",fontWeight:600,marginBottom:"0.4rem"}}>{it.q}</div>
+            <p style={{fontFamily:"var(--body)",fontSize:"0.88rem",color:"var(--ink)",lineHeight:1.6,margin:0}}>{it.a}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+const ASSISTANT_FAQ_ES = [
+  {q:"¿El Asistente me escribe mi historia?",
+   a:"No. El Asistente es un editor a tu servicio, no un escritor: nunca inventa datos, nombres, fechas o escenas que tú no le hayas contado. Su trabajo es ayudarte a ordenar, señalar y organizar lo que tú mismo cuentas — la voz del libro es siempre la tuya."},
+  {q:"Entonces, ¿qué hace exactamente mientras escribo?",
+   a:"Va leyendo tus párrafos y, cuando lo cree útil, hace un único comentario breve por escena: señala una fecha que no cuadra, una posible incoherencia con algo dicho antes, o te sugiere ampliar una escena si le faltan datos básicos (dónde, cuándo, cómo lo viviste). No interrumpe si no hace falta, y no insiste dos veces sobre lo mismo."},
+  {q:"Si me quedo bloqueado y no sé cómo contar algo, ¿me ayuda?",
+   a:"Sí, ese es el único caso en que puede proponerte una redacción. Cuéntale que no sabes cómo seguir una escena concreta; si ya tienes algo escrito sobre ella, puede limpiártelo y ordenártelo (puntuación, muletillas), sin añadir nada que tú no hayas dicho. Si no tienes nada escrito, te invita a contárselo de viva voz y trabaja a partir de esa narración."},
+  {q:"¿Puedo dictar en vez de escribir?",
+   a:"Sí. Pulsando «Escucha y habla» puedes narrar de viva voz; la transcripción aparece tal cual en la pantalla, sin tocar nada. Si luego quieres, el Asistente te la presenta ordenada en una propuesta — nunca se mete sola en tu libro, la aceptas tú."},
+  {q:"¿Puede corregir la ortografía o el estilo de lo que ya he escrito?",
+   a:"Señala errores e incoherencias y puede apuntar si conviene desarrollar, reformular o simplificar algo — pero no te entrega la corrección hecha ni reescribe tu texto por su cuenta; la decisión y la redacción final son siempre tuyas."},
+  {q:"¿Cuestiona lo que recuerdo o me acusa de estar equivocado?",
+   a:"No. Un recuerdo tuyo nunca se pone en duda como tal. Si algo choca con un hecho histórico de dominio público, te lo plantea como una pregunta abierta, nunca como una corrección — la última palabra es siempre tuya."}
+];
+const ASSISTANT_FAQ_EN = [
+  {q:"Does the Assistant write my story for me?",
+   a:"No. The Assistant is an editor at your service, not a writer: it never invents facts, names, dates or scenes you haven't told it. Its job is to help you order and organise what you yourself recount — the voice of the book is always yours."},
+  {q:"So what does it actually do while I write?",
+   a:"It reads your paragraphs and, when it thinks it's useful, makes a single brief comment per scene: it points out a date that doesn't add up, a possible inconsistency with something said earlier, or suggests expanding a scene if basic details are missing (where, when, how you experienced it). It doesn't interrupt when it doesn't need to, and won't repeat itself."},
+  {q:"If I get stuck and don't know how to tell something, does it help?",
+   a:"Yes, that's the one case where it can offer you a draft. Tell it you don't know how to continue a particular scene; if you already have something written about it, it can tidy it up (punctuation, filler words) without adding anything you haven't said. If you have nothing written, it invites you to tell it out loud and works from that."},
+  {q:"Can I dictate instead of typing?",
+   a:"Yes. Pressing \u201cListen and speak\u201d lets you narrate out loud; the transcript appears exactly as spoken, untouched. If you want, the Assistant then offers it back to you tidied up as a proposal — it never goes into your book on its own, you decide."},
+  {q:"Can it correct spelling or style in what I've already written?",
+   a:"It points out errors and inconsistencies and can flag whether a scene would benefit from more detail, rephrasing or simplifying — but it won't hand you the fix or rewrite your text itself; the decision and the final wording are always yours."},
+  {q:"Does it question my memories or tell me I'm wrong?",
+   a:"No. A memory of yours is never questioned as such. If something clashes with a well-known historical fact, it raises it as an open question, never as a correction — you always have the final word."}
+];
 function LegalModal({docKey,onClose,t,lang}) {
   const source = lang==="EN" ? LEGAL_EN : LEGAL_ES;
   const doc=source[docKey];
@@ -1962,6 +2010,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     window.speechSynthesis.speak(u);
   };
   const [showPhotosM,setShowPhotosM]=useState(false);const [showPdfM,setShowPdfM]=useState(false);
+  const [showAssistantFaq,setShowAssistantFaq]=useState(false);
   const [photosBought,setPhotosBought]=useState(0);const [pdfBought,setPdfBought]=useState(null);
   const [showAiOverlay,setShowAiOverlay]=useState(false);
   const [aiTuUsted,setAiTuUsted]=useState(null);const [aiNameDraft,setAiNameDraft]=useState(f.name||"");
@@ -2224,6 +2273,7 @@ ${capituloActual}
 
   const sendChatMessage=async(text)=>{
     if(!text.trim()||chatLoading) return;
+    if(listening){ stopListening(); }
     const userTurn={role:"user",text};
     const newHist=[...chatMsgs,userTurn];
     setChatMsgs(newHist);
@@ -2256,6 +2306,10 @@ ${capituloActual}
   const startListening=()=>{
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SR){ alert(lang==="EN"?"Voice dictation is not available in this browser.":"El dictado por voz no está disponible en este navegador."); return; }
+    if(recognitionRef.current){
+      try{ recognitionRef.current.onresult=null; recognitionRef.current.onend=null; recognitionRef.current.onerror=null; recognitionRef.current.abort(); }catch(e){}
+      recognitionRef.current=null;
+    }
     const rec=new SR();
     rec.lang=lang==="EN"?"en-US":"es-ES";
     rec.continuous=true;
@@ -2277,7 +2331,12 @@ ${capituloActual}
     setListening(true);
     rec.start();
   };
-  const stopListening=()=>{ recognitionRef.current?.stop(); setListening(false); };
+  const stopListening=()=>{
+    if(recognitionRef.current){
+      try{ recognitionRef.current.onresult=null; recognitionRef.current.abort(); }catch(e){}
+    }
+    setListening(false);
+  };
 
   const addChatToStory=(text)=>{
     const clean=htmlToPlain(text);
@@ -2623,6 +2682,7 @@ ${capituloActual}
     <div className="wr-wrap">
       {showPhotosM&&<PhotosModal onClose={()=>setShowPhotosM(false)} onPaid={(n)=>{setPhotosBought(p=>p+n);setShowPhotosM(false);}} t={t}/>}
       {showPdfM&&<PdfModal onClose={()=>setShowPdfM(false)} onPaid={(fmt)=>{setPdfBought(fmt);setShowPdfM(false);}} t={t}/>}
+      {showAssistantFaq&&<AssistantFaqModal onClose={()=>setShowAssistantFaq(false)} lang={lang}/>}
       {showAiOverlay&&(
         <div className="ov">
           <div className="modal" style={{maxWidth:"380px"}}>
@@ -2783,12 +2843,12 @@ ${capituloActual}
             {showAiPanel
               ? <AssistantPanel open={showAiPanel} onClose={()=>{if("speechSynthesis" in window)window.speechSynthesis.cancel();setSpeaking(false);setShowAiPanel(false);}} t={t}
                   al={al} ao={ao} am={am} run={run} apply={apply} tl={tl} setTl={setTl}
-                  speak={speak} speaking={speaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}
+                  speak={speak} speaking={speaking} setSpeaking={setSpeaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}
                   lang={lang} f={f} chatMsgs={chatMsgs} setChatMsgs={setChatMsgs}
                   chatInput={chatInput} setChatInput={setChatInput} chatInputFromAssistant={chatInputFromAssistant} setChatInputFromAssistant={setChatInputFromAssistant} chatLoading={chatLoading}
                   sendChatMessage={sendChatMessage} listening={listening} startListening={startListening}
                   stopListening={stopListening} addChatToStory={addChatToStory}/>
-              : <button style={{width:"100%",marginTop:"1.58rem",padding:"0.55rem 0.75rem",
+              : <button style={{width:"100%",marginTop:"8.7rem" /* estimado para alinear con la caja "Orden del libro"; ajustar a ojo si no cuadra exacto */,padding:"0.55rem 0.75rem",
                     fontFamily:"var(--body)",fontSize:"0.96rem",lineHeight:"1.2",boxSizing:"border-box",
                     background:"#2a6a2a",border:"1px solid #2a6a2a",borderRadius:"2px",
                     color:"#fff",cursor:"pointer"}} onClick={()=>setShowAiPanel(true)}>
@@ -2816,6 +2876,11 @@ ${capituloActual}
             {!f.assistantActive
               ? <button className="pm-unlock" style={{borderColor:"var(--navy)",color:"var(--navy)"}} onClick={()=>{setAiTuUsted(null);setAiNameDraft(f.name||"");setShowAiOverlay(true);}}>{t.ai_activate_btn}</button>
               : <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#2a6a2a"}}>{t.ai_active_msg} <b>{f.assistantName}</b></div>}
+            <div style={{marginTop:"0.4rem"}}>
+              <span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setShowAssistantFaq(true)}>
+                {lang==="EN"?"What can the Assistant help with? (FAQ)":"¿En qué puede ayudarte el Asistente? (FAQ)"}
+              </span>
+            </div>
           </div>
           <div id="lm-offer-photos" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
             <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_photos_h}</div>
@@ -2843,12 +2908,12 @@ const optCardSubStyle={color:"var(--muted)",fontSize:"0.82rem"};
 const editIconStyle={background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:"0.78rem",padding:"0 3px"};
 const arrowStyle={background:"none",border:"none",color:"var(--navy)",cursor:"pointer",fontSize:"0.68rem",lineHeight:1,padding:"1px 4px"};
 
-function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaking,aiUsage,rechargeMsg,setRechargeMsg,
+function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaking,setSpeaking,aiUsage,rechargeMsg,setRechargeMsg,
   lang,f,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,startListening,stopListening,addChatToStory}) {
   if(!open) return null;
   const usageLabel=aiUsage<=0?t.ai_usage_none:aiUsage<20?t.ai_usage_low:aiUsage<50?t.ai_usage_mid:t.ai_usage_ok;
   const usageColor=aiUsage<=0?"#b23b3b":aiUsage<20?"#C4932A":aiUsage<50?"#C4932A":"#3f7a4e";
-  const [voiceMode,setVoiceMode]=useState(false);
+  const [voiceMode,setVoiceMode]=useState(true);
   const prevMsgCount=useRef(chatMsgs.length);
   const assistantAnnouncement = lang==="EN"
     ? "I've written this in your window below. If it works for you, press \u201cSend to text window.\u201d"
@@ -2867,6 +2932,10 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
   const toggleListening=()=>{
     if(listening){ stopListening(); }
     else { setVoiceMode(true); startListening(); }
+  };
+  const toggleVoiceMode=()=>{
+    if(voiceMode){ if("speechSynthesis" in window) window.speechSynthesis.cancel(); setSpeaking(false); }
+    setVoiceMode(v=>!v);
   };
   const nombre=f.assistantName||f.name||"";
   const tratamiento=f.assistantTuUsted==="usted"?"usted":"tú";
@@ -2920,6 +2989,9 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
               <div style={{display:"flex",gap:"0.4rem",marginTop:"0.5rem",flexWrap:"wrap"}}>
                 <button className={listening?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleListening} title={lang==="EN"?"Listen and speak":"Escucha y habla"}>
                   {listening?`⏹ ${t.ai_stop_listen}`:`🎙 ${t.ai_listen}`}
+                </button>
+                <button className="btn-out" style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleVoiceMode} title={voiceMode?(lang==="EN"?"Mute assistant voice":"Silenciar voz del Asistente"):(lang==="EN"?"Unmute assistant voice":"Reactivar voz del Asistente")}>
+                  {voiceMode?"🔊":"🔇"}
                 </button>
                 <button className="btn-pub" style={{padding:"0.45rem 0.9rem",flex:1}} disabled={chatLoading||!chatInput.trim()} onClick={()=>sendChatMessage(chatInput)}>
                   {lang==="EN"?"Send to Assistant":"Enviar al Asistente"}
