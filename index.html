@@ -2844,7 +2844,7 @@ ${capituloActual}
               ? <AssistantPanel open={showAiPanel} onClose={()=>{if("speechSynthesis" in window)window.speechSynthesis.cancel();setSpeaking(false);setShowAiPanel(false);}} t={t}
                   al={al} ao={ao} am={am} run={run} apply={apply} tl={tl} setTl={setTl}
                   speak={speak} speaking={speaking} setSpeaking={setSpeaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}
-                  lang={lang} f={f} chatMsgs={chatMsgs} setChatMsgs={setChatMsgs}
+                  lang={lang} f={f} up={up} chatMsgs={chatMsgs} setChatMsgs={setChatMsgs}
                   chatInput={chatInput} setChatInput={setChatInput} chatInputFromAssistant={chatInputFromAssistant} setChatInputFromAssistant={setChatInputFromAssistant} chatLoading={chatLoading}
                   sendChatMessage={sendChatMessage} listening={listening} startListening={startListening}
                   stopListening={stopListening} addChatToStory={addChatToStory}/>
@@ -2909,7 +2909,7 @@ const editIconStyle={background:"none",border:"none",color:"var(--muted)",cursor
 const arrowStyle={background:"none",border:"none",color:"var(--navy)",cursor:"pointer",fontSize:"0.68rem",lineHeight:1,padding:"1px 4px"};
 
 function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaking,setSpeaking,aiUsage,rechargeMsg,setRechargeMsg,
-  lang,f,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,startListening,stopListening,addChatToStory}) {
+  lang,f,up,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,startListening,stopListening,addChatToStory}) {
   if(!open) return null;
   const usageLabel=aiUsage<=0?t.ai_usage_none:aiUsage<20?t.ai_usage_low:aiUsage<50?t.ai_usage_mid:t.ai_usage_ok;
   const usageColor=aiUsage<=0?"#b23b3b":aiUsage<20?"#C4932A":aiUsage<50?"#C4932A":"#3f7a4e";
@@ -2946,10 +2946,18 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
   const greeting = lang==="EN"
     ? `Hello${nombre?", "+nombre:""}. Welcome to Write your story on Locus Mundi. My role here is that of an editor at your service: to help you order, shape and put into words your memories, always keeping your own voice.\n\nYou can start wherever you'd rather: the story of your family and ancestors, your own life since childhood, or a particular scene or memory you have very vivid in mind.`
     : `Hola${nombre?", "+nombre:""}. Te doy la bienvenida a Escribe tu historia en Locus Mundi. Mi función aquí es la de un editor a ${posesivo} servicio: ayudar${tratamiento==="usted"?"le":"te"} a ordenar, dar forma y plasmar ${posesivo}s recuerdos, manteniendo siempre ${posesivo} propia voz.\n\nPuedes empezar por donde ${tratamiento==="usted"?"prefiera":"prefieras"}: la historia de ${posesivo} familia y ${tratamiento==="usted"?"sus":"tus"} antepasados, ${posesivo} propia vida desde la infancia, o alguna escena o recuerdo que ${tratamiento==="usted"?"tenga":"tengas"} muy vivo en la memoria.`;
+  const greetingAgain = lang==="EN"
+    ? `Hello again${nombre?", "+nombre:""}. I'm here.`
+    : `Hola de nuevo${nombre?", "+nombre:""}. Aquí estoy.`;
 
   useEffect(()=>{
     if(open && chatMsgs.length===0){
-      setChatMsgs([{role:"model",text:greeting}]);
+      if(f.assistantWelcomed){
+        setChatMsgs([{role:"model",text:greetingAgain}]);
+      } else {
+        setChatMsgs([{role:"model",text:greeting}]);
+        up("assistantWelcomed", true);
+      }
     }
   },[open]);
 
