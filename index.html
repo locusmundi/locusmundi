@@ -912,6 +912,14 @@ async function callAI(system, userMsg) {
   if (d.error) throw new Error(d.error);
   return d.text;
 }
+function isMobileUA(){
+  return /Android|iPhone|iPad|iPod|Mobile|webOS/i.test(navigator.userAgent);
+}
+function stripLangTag(text){
+  const m = (text||"").match(/\s*\[\[LANG:([a-z]{2}(?:-[A-Z]{2})?)\]\]\s*$/i);
+  if(!m) return {text: text||"", langCode: null};
+  return {text: text.slice(0, m.index).trimEnd(), langCode: m[1].toLowerCase()};
+}
 
 function FaqItem({q,a}) {
   const [open,setOpen]=useState(false);
@@ -1992,16 +2000,18 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [aiUsage,setAiUsage]=useState(100);
   const [rechargeMsg,setRechargeMsg]=useState(false);
   const [speaking,setSpeaking]=useState(false);
-  const speak=(text)=>{
+  const speak=(text,langCode)=>{
     if(!("speechSynthesis" in window)) return;
     if(speaking){ window.speechSynthesis.cancel(); setSpeaking(false); return; }
     window.speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
-    u.lang=lang==="EN"?"en-US":"es-ES";
+    const langPrefix=langCode||(lang==="EN"?"en":"es");
+    const bcp47={es:"es-ES",en:"en-US",ca:"ca-ES",fr:"fr-FR",it:"it-IT",pt:"pt-PT",de:"de-DE",gl:"gl-ES",eu:"eu-ES"}[langPrefix]||(lang==="EN"?"en-US":"es-ES");
+    u.lang=bcp47;
     const voices=window.speechSynthesis.getVoices();
-    const langPrefix=lang==="EN"?"en":"es";
     const best=voices.find(v=>v.lang.startsWith(langPrefix)&&/Google|Natural|Enhanced|Neural/i.test(v.name))
-      || voices.find(v=>v.lang.startsWith(langPrefix));
+      || voices.find(v=>v.lang.startsWith(langPrefix))
+      || voices.find(v=>v.lang.startsWith(lang==="EN"?"en":"es")); // si el idioma detectado no tiene voz instalada, cae en la del selector ES/EN
     if(best) u.voice=best;
     u.rate=0.97;
     u.onend=()=>setSpeaking(false);
@@ -2024,6 +2034,8 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [chatLoading,setChatLoading]=useState(false);
   const [listening,setListening]=useState(false);
   const recognitionRef=useRef(null);
+  const dictationBufferRef=useRef("");
+  const dictationPrecedingRef=useRef("");
 
   const paragraphCheckRef = useRef({timer:null, lastChecked:""});
 
@@ -2043,7 +2055,8 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       const d = await res.json();
       if(d.error) return;
       if(d.text && d.text.trim()!=="SIN_COMENTARIO"){
-        setChatMsgs(h=>[...h,{role:"model",text:d.text}]);
+        const {text:cleanText,langCode}=stripLangTag(d.text);
+        setChatMsgs(h=>[...h,{role:"model",text:cleanText,langCode}]);
       }
     }catch(e){ /* revisión de fondo: un fallo de red aquí no debe interrumpir al Autor */ }
   };
@@ -2176,6 +2189,15 @@ respóndele siempre en ese mismo idioma —incluidas tus señalizaciones de
 error, sugerencias, o cualquier propuesta bajo la excepción anterior—,
 aunque cambie de un idioma a otro durante la conversación.
 
+ETIQUETA DE IDIOMA (uso interno, nunca visible para el Autor): al final
+de cada respuesta, en una línea aparte después de todo lo demás
+(incluido el bloque HTML de una redacción, si lo hay), añade el código
+de idioma ISO 639-1 de tu respuesta entre doble corchete, así:
+[[LANG:fr]] para francés, [[LANG:ca]] para catalán, [[LANG:es]] para
+español, etc. El sistema retira esta etiqueta antes de mostrar tu
+mensaje; solo la usa para elegir la voz correcta al leerlo en alto. No
+la menciones ni la expliques nunca al Autor.
+
 VARIANTES REGIONALES: respeta el habla regional y los modismos propios
 del Autor (por ejemplo, el voseo argentino "vos tenés/decís" frente al
 "tú tienes/dices" peninsular, otros modismos hispanoamericanos, el
@@ -2291,8 +2313,9 @@ ${capituloActual}
       });
       const d=await res.json();
       if(d.error) throw new Error(d.error);
-      setChatMsgs(h=>[...h,{role:"model",text:d.text}]);
-      const {html}=splitAssistantReply(d.text);
+      const {text:cleanText,langCode}=stripLangTag(d.text);
+      setChatMsgs(h=>[...h,{role:"model",text:cleanText,langCode}]);
+      const {html}=splitAssistantReply(cleanText);
       if(html){
         setChatInput(htmlToPlain(html));
         setChatInputFromAssistant(true);
@@ -2315,12 +2338,15 @@ ${capituloActual}
     rec.continuous=true;
     rec.interimResults=false;
     rec.maxAlternatives=1;
+    dictationBufferRef.current="";
+    dictationPrecedingRef.current=chatInput;
     rec.onresult=(e)=>{
       let finalText="";
       for(let i=e.resultIndex;i<e.results.length;i++){
         if(e.results[i].isFinal) finalText+=e.results[i][0].transcript+" ";
       }
       if(finalText.trim()){
+        dictationBufferRef.current=(dictationBufferRef.current?dictationBufferRef.current+" ":"")+finalText.trim();
         setChatInputFromAssistant(true);
         setChatInput(prev=>(prev?prev+" ":"")+finalText.trim());
       }
@@ -2336,6 +2362,18 @@ ${capituloActual}
       try{ recognitionRef.current.onresult=null; recognitionRef.current.abort(); }catch(e){}
     }
     setListening(false);
+    const raw=dictationBufferRef.current;
+    if(raw.trim()){
+      const preceding=dictationPrecedingRef.current;
+      dictationBufferRef.current="";
+      const sysCorr=lang==="EN"
+        ? "Fix ONLY capitalization and punctuation in the following literal speech transcript. Do not change, add, remove, reorder or rephrase a single word. Return only the corrected text, nothing else."
+        : "Corrige ÚNICAMENTE las mayúsculas y los signos de puntuación del siguiente texto, transcrito literalmente de un dictado por voz. No cambies, añadas, quites, reordenes ni reformules ni una sola palabra. Devuelve solo el texto corregido, sin nada más.";
+      callAI(sysCorr, raw).then(corrected=>{
+        const clean=(corrected||raw).trim();
+        setChatInput(preceding?preceding+" "+clean:clean);
+      }).catch(()=>{ /* si falla la corrección, se deja el texto bruto tal cual */ });
+    }
   };
 
   const addChatToStory=(text)=>{
@@ -2848,7 +2886,7 @@ ${capituloActual}
                   chatInput={chatInput} setChatInput={setChatInput} chatInputFromAssistant={chatInputFromAssistant} setChatInputFromAssistant={setChatInputFromAssistant} chatLoading={chatLoading}
                   sendChatMessage={sendChatMessage} listening={listening} startListening={startListening}
                   stopListening={stopListening} addChatToStory={addChatToStory}/>
-              : <button style={{width:"100%",marginTop:"8.7rem" /* estimado para alinear con la caja "Orden del libro"; ajustar a ojo si no cuadra exacto */,padding:"0.55rem 0.75rem",
+              : <button style={{width:"100%",marginTop:"5.1rem" /* estimado: punto medio entre título/subtítulo y "Orden del libro"; ajustar a ojo si no cuadra exacto */,padding:"0.55rem 0.75rem",
                     fontFamily:"var(--body)",fontSize:"0.96rem",lineHeight:"1.2",boxSizing:"border-box",
                     background:"#2a6a2a",border:"1px solid #2a6a2a",borderRadius:"2px",
                     color:"#fff",cursor:"pointer"}} onClick={()=>setShowAiPanel(true)}>
@@ -2924,7 +2962,7 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
       const last=chatMsgs[chatMsgs.length-1];
       if(last && last.role==="model"){
         const {preamble,suffix,html}=splitAssistantReply(last.text);
-        speak(html?(preamble||suffix||assistantAnnouncement):last.text);
+        speak(html?(preamble||suffix||assistantAnnouncement):last.text, last.langCode);
       }
     }
     prevMsgCount.current=chatMsgs.length;
@@ -2995,9 +3033,11 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
                 placeholder={lang==="EN"?"Write here...":"Escribe aquí..."}
                 onChange={e=>{setChatInput(e.target.value);setChatInputFromAssistant(false);}}/>
               <div style={{display:"flex",gap:"0.4rem",marginTop:"0.5rem",flexWrap:"wrap"}}>
-                <button className={listening?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleListening} title={lang==="EN"?"Listen and speak":"Escucha y habla"}>
-                  {listening?`⏹ ${t.ai_stop_listen}`:`🎙 ${t.ai_listen}`}
-                </button>
+                {!isMobileUA() && (
+                  <button className={listening?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleListening} title={lang==="EN"?"Listen and speak":"Escucha y habla"}>
+                    {listening?`⏹ ${t.ai_stop_listen}`:`🎙 ${t.ai_listen}`}
+                  </button>
+                )}
                 <button className="btn-out" style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleVoiceMode} title={voiceMode?(lang==="EN"?"Mute assistant voice":"Silenciar voz del Asistente"):(lang==="EN"?"Unmute assistant voice":"Reactivar voz del Asistente")}>
                   {voiceMode?"🔊":"🔇"}
                 </button>
