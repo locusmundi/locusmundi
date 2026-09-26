@@ -56,6 +56,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   .btn-pri{padding:0.4rem 0.85rem;font-size:0.78rem}
   .lang-btn{padding:0.24rem 0.45rem;font-size:0.72rem}
   .notice{font-size:0.72rem;letter-spacing:0.12em;padding:0.5rem 0.8rem}
+  .ai-open-btn{margin-top:1.4rem !important}
 }
 .hero{min-height:78vh;display:flex;flex-direction:column;align-items:center;
   justify-content:center;text-align:center;padding:4rem 2rem 3.5rem}
@@ -1878,7 +1879,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [f,setF]=useState({
     name:"",born:"",country:"",lang:"ES",title:"",subtitle:"",text:"",coverImg:null,
     authorNumber:null,founder:false,blocks:[{type:"chapter",title:"",num:1}],
-    assistantActive:false,assistantTuUsted:null,assistantName:"",
+    assistantActive:false,assistantTuUsted:null,assistantName:"",dictationLang:"",
     photosSlots:[],wizardDone:false,published:false,publishedId:null,
     pubCity:"",pubProfession:"",pubConcept:""
   });
@@ -2334,7 +2335,7 @@ ${capituloActual}
       recognitionRef.current=null;
     }
     const rec=new SR();
-    rec.lang=lang==="EN"?"en-US":"es-ES";
+    rec.lang=f.dictationLang||(lang==="EN"?"en-US":"es-ES");
     rec.continuous=true;
     rec.interimResults=false;
     rec.maxAlternatives=1;
@@ -2886,7 +2887,7 @@ ${capituloActual}
                   chatInput={chatInput} setChatInput={setChatInput} chatInputFromAssistant={chatInputFromAssistant} setChatInputFromAssistant={setChatInputFromAssistant} chatLoading={chatLoading}
                   sendChatMessage={sendChatMessage} listening={listening} startListening={startListening}
                   stopListening={stopListening} addChatToStory={addChatToStory}/>
-              : <button style={{width:"100%",marginTop:"5.1rem" /* estimado: punto medio entre título/subtítulo y "Orden del libro"; ajustar a ojo si no cuadra exacto */,padding:"0.55rem 0.75rem",
+              : <button className="ai-open-btn" style={{width:"100%",marginTop:"5.1rem" /* estimado: punto medio entre título/subtítulo y "Orden del libro"; ajustar a ojo si no cuadra exacto */,padding:"0.55rem 0.75rem",
                     fontFamily:"var(--body)",fontSize:"0.96rem",lineHeight:"1.2",boxSizing:"border-box",
                     background:"#2a6a2a",border:"1px solid #2a6a2a",borderRadius:"2px",
                     color:"#fff",cursor:"pointer"}} onClick={()=>setShowAiPanel(true)}>
@@ -2985,8 +2986,8 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
     ? `Hello${nombre?", "+nombre:""}. Welcome to Write your story on Locus Mundi. My role here is that of an editor at your service: to help you order, shape and put into words your memories, always keeping your own voice.\n\nYou can start wherever you'd rather: the story of your family and ancestors, your own life since childhood, or a particular scene or memory you have very vivid in mind.`
     : `Hola${nombre?", "+nombre:""}. Te doy la bienvenida a Escribe tu historia en Locus Mundi. Mi función aquí es la de un editor a ${posesivo} servicio: ayudar${tratamiento==="usted"?"le":"te"} a ordenar, dar forma y plasmar ${posesivo}s recuerdos, manteniendo siempre ${posesivo} propia voz.\n\nPuedes empezar por donde ${tratamiento==="usted"?"prefiera":"prefieras"}: la historia de ${posesivo} familia y ${tratamiento==="usted"?"sus":"tus"} antepasados, ${posesivo} propia vida desde la infancia, o alguna escena o recuerdo que ${tratamiento==="usted"?"tenga":"tengas"} muy vivo en la memoria.`;
   const greetingAgain = lang==="EN"
-    ? `Hello again${nombre?", "+nombre:""}. I'm here.`
-    : `Hola de nuevo${nombre?", "+nombre:""}. Aquí estoy.`;
+    ? `Hello again${nombre?", "+nombre:""}. Shall we continue?`
+    : `Hola de nuevo${nombre?", "+nombre:""}. ¿Seguimos?`;
 
   useEffect(()=>{
     if(open && chatMsgs.length===0){
@@ -3045,9 +3046,19 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
                 </div>
                 <div style={{display:"flex",gap:"0.4rem",flexWrap:"wrap"}}>
                   {!isMobileUA() && (
-                    <button className={listening?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleListening} title={lang==="EN"?"Listen and speak":"Escucha y habla"}>
-                      {listening?`⏹ ${t.ai_stop_listen}`:`🎙 ${t.ai_listen}`}
-                    </button>
+                    <>
+                      <button className={listening?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleListening} title={lang==="EN"?"Listen and speak":"Escucha y habla"}>
+                        {listening?`⏹ ${t.ai_stop_listen}`:`🎙 ${t.ai_listen}`}
+                      </button>
+                      <select className="inp" style={{padding:"0.3rem 0.4rem",fontFamily:"var(--body)",fontSize:"0.8rem",maxWidth:"9.5rem",flex:"0 0 auto"}}
+                        value={f.dictationLang||""} onChange={e=>up("dictationLang",e.target.value)}
+                        title={lang==="EN"?"Dictation language (if not Spanish/English)":"Idioma de dictado (si no es castellano/inglés)"}>
+                        <option value="">🌐 {lang==="EN"?"Dictation":"Dictado"}</option>
+                        <option value="ca-ES">Català</option>
+                        <option value="eu-ES">Euskara</option>
+                        <option value="gl-ES">Galego</option>
+                      </select>
+                    </>
                   )}
                   <button className="btn-out" style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleVoiceMode} title={voiceMode?(lang==="EN"?"Mute assistant voice":"Silenciar voz del Asistente"):(lang==="EN"?"Unmute assistant voice":"Reactivar voz del Asistente")}>
                     {voiceMode?"🔊":"🔇"}
