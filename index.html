@@ -3032,23 +3032,27 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
               <textarea className="inp" style={{height:"190px",resize:"none",fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.5}} value={chatInput}
                 placeholder={lang==="EN"?"Write here...":"Escribe aquí..."}
                 onChange={e=>{setChatInput(e.target.value);setChatInputFromAssistant(false);}}/>
-              <div style={{display:"flex",gap:"0.4rem",marginTop:"0.5rem",flexWrap:"wrap"}}>
-                {!isMobileUA() && (
-                  <button className={listening?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleListening} title={lang==="EN"?"Listen and speak":"Escucha y habla"}>
-                    {listening?`⏹ ${t.ai_stop_listen}`:`🎙 ${t.ai_listen}`}
+              <div style={{display:"flex",flexDirection:"column",gap:"0.4rem",marginTop:"0.5rem"}}>
+                <div style={{display:"flex",gap:"0.4rem",flexWrap:"wrap"}}>
+                  <button className="btn-pub" style={{padding:"0.45rem 0.9rem",flex:1}} disabled={chatLoading||!chatInput.trim()} onClick={()=>sendChatMessage(chatInput)}>
+                    {lang==="EN"?"Send to Assistant":"Enviar al Asistente"}
                   </button>
-                )}
-                <button className="btn-out" style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleVoiceMode} title={voiceMode?(lang==="EN"?"Mute assistant voice":"Silenciar voz del Asistente"):(lang==="EN"?"Unmute assistant voice":"Reactivar voz del Asistente")}>
-                  {voiceMode?"🔊":"🔇"}
-                </button>
-                <button className="btn-pub" style={{padding:"0.45rem 0.9rem",flex:1}} disabled={chatLoading||!chatInput.trim()} onClick={()=>sendChatMessage(chatInput)}>
-                  {lang==="EN"?"Send to Assistant":"Enviar al Asistente"}
-                </button>
-                {chatInputFromAssistant && (
-                  <button className="btn-out" style={{padding:"0.45rem 0.9rem",flex:1}} onClick={()=>addChatToStory(chatInput)}>
-                    {lang==="EN"?"Send to text window":"Mandar a ventana de texto"}
+                  {chatInputFromAssistant && (
+                    <button className="btn-out" style={{padding:"0.45rem 0.9rem",flex:1}} onClick={()=>addChatToStory(chatInput)}>
+                      {lang==="EN"?"Send to text window":"Mandar a ventana de texto"}
+                    </button>
+                  )}
+                </div>
+                <div style={{display:"flex",gap:"0.4rem",flexWrap:"wrap"}}>
+                  {!isMobileUA() && (
+                    <button className={listening?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleListening} title={lang==="EN"?"Listen and speak":"Escucha y habla"}>
+                      {listening?`⏹ ${t.ai_stop_listen}`:`🎙 ${t.ai_listen}`}
+                    </button>
+                  )}
+                  <button className="btn-out" style={{padding:"0.45rem 0.7rem",whiteSpace:"nowrap"}} onClick={toggleVoiceMode} title={voiceMode?(lang==="EN"?"Mute assistant voice":"Silenciar voz del Asistente"):(lang==="EN"?"Unmute assistant voice":"Reactivar voz del Asistente")}>
+                    {voiceMode?"🔊":"🔇"}
                   </button>
-                )}
+                </div>
               </div>
           </div>
       </div>
