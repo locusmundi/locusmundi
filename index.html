@@ -437,7 +437,7 @@ const LANGS_UI = [
   {code:"RU",label:"Русский"},{code:"HI",label:"हिन्दी"},{code:"GL",label:"Galego"},{code:"CA",label:"Català"},
 ];
 
-// ---- Fotos: coverImg/photosSlots viven en Supabase Storage (bucket "fotos") --
+// ---- Fotos: portada en Supabase Storage + historias.portada_url; fotos interiores en la tabla `fotos` --
 // (antes en localStorage por email — bug de caché entre altas con el mismo
 // email/navegador; eliminado del todo junto con la migración a Storage)
 async function dataUrlToBlob(dataUrl) {
@@ -1870,8 +1870,8 @@ function Write({setView,onPublish,onUnpublish,t,lang,onLegal,recoveryMode,onReco
 function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLogout}) {
   // Un único libro por Autor: se carga (si existe) o se crea vacío, siempre bajo la misma
   // cuenta — nunca hay un botón para "crear otro libro".
-  // El texto (título, capítulos, etc.) y las fotos (`coverImg`, `photosSlots`: URLs de
-  // Supabase Storage) viven de verdad en Supabase (`historias` + bucket `fotos`).
+  // El texto (título, capítulos, etc.) vive en Supabase (`historias`); la portada en
+  // `historias.portada_url` (Storage) y las fotos interiores en la tabla `fotos`.
   const historiaIdRef=useRef(null);
   const autorIdRef=useRef(null);
   const creatingHistoriaRef=useRef(null); // promesa compartida: evita crear dos filas en una carrera
@@ -1880,11 +1880,13 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const wasPublishedRef=useRef(false);
   const [f,setF]=useState({
     name:"",born:"",country:"",lang:"ES",title:"",subtitle:"",text:"",coverImg:null,
-    authorNumber:null,founder:false,blocks:[{type:"chapter",title:"",num:1}],
+    authorNumber:null,founder:false,blocks:[{id:crypto.randomUUID(),type:"chapter",title:"",num:1}],
     assistantActive:false,assistantTuUsted:null,assistantName:"",dictationLang:"",
-    photosSlots:[],wizardDone:false,published:false,publishedId:null,
+    wizardDone:false,published:false,publishedId:null,
     pubCity:"",pubProfession:"",pubConcept:""
   });
+  const [fotosDb,setFotosDb]=useState([]); // filas reales de la tabla `fotos` (no viven en contenido/f)
+  const fotoSaveTimers=useRef({}); // debounce del pie de foto, por id
 
   // ---- Carga inicial desde Supabase --------------------------------------
   useEffect(()=>{
@@ -1893,16 +1895,24 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       if(!user){ loadedRef.current=true; return; }
       autorIdRef.current = user.id;
       const { data, error } = await supa.from("historias")
-        .select("id, titulo, contenido")
+        .select("id, titulo, contenido, portada_url")
         .eq("autor_id", user.id).eq("marcado_borrado", false).limit(1).maybeSingle();
       if(!error && data){
         historiaIdRef.current = data.id;
         const c = data.contenido || {};
+        const blocks = (c.blocks&&c.blocks.length?c.blocks:[{type:"chapter",title:"",num:1}])
+          .map(b=>b.id?b:{...b,id:crypto.randomUUID()}); // bloques creados antes de tener id
         setF(p=>({
           ...p, ...c,
+          blocks,
           title: data.titulo || c.title || "",
+          coverImg: data.portada_url || c.coverImg || null,
         }));
         wasPublishedRef.current = !!c.published;
+        const { data: fotos } = await supa.from("fotos")
+          .select("id, bloque_id, url, pie_foto, orden, origen, lote_compra_id, fecha_compra")
+          .eq("historia_id", data.id).order("orden");
+        if(fotos) setFotosDb(fotos);
       }
       loadedRef.current = true;
     })();
@@ -1943,10 +1953,12 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       const justPublished = f.published && !wasPublished;
       const justUnpublished = !f.published && wasPublished;
       wasPublishedRef.current = f.published;
+      const { coverImg, ...contenido } = f;
       const payload = {
         autor_id: autorIdRef.current,
         titulo: f.title || "",
-        contenido: f,
+        contenido,
+        portada_url: coverImg || null,
         estado_publicacion: estado,
         ...(justPublished ? { fecha_publicacion: new Date().toISOString() } : {})
       };
@@ -1973,14 +1985,15 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [showShareAfterSave,setShowShareAfterSave]=useState(false);
   const [saveExitStep,setSaveExitStep]=useState("choose"); // "choose" | "fields"
   const [cropFile,setCropFile]=useState(null);
-  const [cropTarget,setCropTarget]=useState(null); // {type:"cover"} | {type:"slot",index}
-  const [pendingPhoto,setPendingPhoto]=useState(null); // {type,index,previewUrl}: mientras sube a Storage
+  const [cropTarget,setCropTarget]=useState(null); // {type:"cover"} | {type:"slot",fotoId}
+  const [pendingPhoto,setPendingPhoto]=useState(null); // {type,fotoId,previewUrl}: mientras sube a Storage
   const startCrop=(target)=>(e)=>{const file=e.target.files[0];if(!file)return;e.target.value="";setCropTarget(target);setCropFile(file);};
   const cancelCrop=()=>{setCropFile(null);setCropTarget(null);};
 
   // Rutas fijas (upsert:true) para que sustituir una foto sobrescriba el archivo
-  // en vez de acumular basura en el bucket.
-  const fotoStoragePath=(target)=>`${autorIdRef.current}/${historiaIdRef.current}/${target.type==="cover"?"cover":"slot-"+target.index}.jpg`;
+  // en vez de acumular basura en el bucket. La foto de un hueco usa el id real
+  // de su fila en la tabla `fotos` (estable aunque se reordene o cambie de capítulo).
+  const fotoStoragePath=(target)=>`${autorIdRef.current}/${historiaIdRef.current}/${target.type==="cover"?"cover":"foto-"+target.fotoId}.jpg`;
   const uploadFotoToStorage=async(target,dataUrl)=>{
     const historiaId=await getOrCreateHistoriaId();
     if(!historiaId||!autorIdRef.current) throw new Error("sin sesión");
@@ -1998,8 +2011,36 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
 
   const coverPreviewSrc=()=> pendingPhoto?.type==="cover" ? pendingPhoto.previewUrl : f.coverImg;
   const isCoverUploading=()=> pendingPhoto?.type==="cover";
-  const slotPreviewSrc=(i)=> (pendingPhoto?.type==="slot"&&pendingPhoto.index===i) ? pendingPhoto.previewUrl : f.photosSlots[i]?.dataUrl;
-  const isSlotUploading=(i)=> pendingPhoto?.type==="slot"&&pendingPhoto.index===i;
+  const slotPreviewSrc=(fotoId)=> (pendingPhoto?.type==="slot"&&pendingPhoto.fotoId===fotoId) ? pendingPhoto.previewUrl : fotosDb.find(x=>x.id===fotoId)?.url;
+  const isSlotUploading=(fotoId)=> pendingPhoto?.type==="slot"&&pendingPhoto.fotoId===fotoId;
+
+  // Añade huecos vacíos en la tabla `fotos` hasta llegar a photosBought (sin capítulo
+  // asignado todavía; el Autor lo elige luego en su propia tarjeta).
+  const addFotoSlot=async(orden)=>{
+    const historiaId=await getOrCreateHistoriaId();
+    if(!historiaId) return;
+    const{data,error}=await supa.from("fotos").insert({
+      historia_id:historiaId, bloque_id:null, url:null, pie_foto:"",
+      orden, origen:"comprada", lote_compra_id:null, fecha_compra:null
+    }).select().single();
+    if(!error&&data) setFotosDb(p=>[...p,data]);
+  };
+  const setFotoBloque=(fotoId,bloqueId)=>{
+    setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,bloque_id:bloqueId}:x));
+    supa.from("fotos").update({bloque_id:bloqueId||null}).eq("id",fotoId);
+  };
+  const setPhotoCaption=(fotoId,cap)=>{
+    setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,pie_foto:cap}:x));
+    if(fotoSaveTimers.current[fotoId]) clearTimeout(fotoSaveTimers.current[fotoId]);
+    fotoSaveTimers.current[fotoId]=setTimeout(()=>{
+      supa.from("fotos").update({pie_foto:cap}).eq("id",fotoId);
+    },1200);
+  };
+  const removePhoto=(fotoId)=>{
+    deleteFotoFromStorage({type:"slot",fotoId});
+    supa.from("fotos").delete().eq("id",fotoId);
+    setFotosDb(p=>p.filter(x=>x.id!==fotoId));
+  };
 
   const confirmCrop=async(dataUrl)=>{
     const target=cropTarget;
@@ -2007,8 +2048,12 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     setPendingPhoto({...target,previewUrl:dataUrl});
     try{
       const url=await uploadFotoToStorage(target,dataUrl);
-      if(target.type==="cover") up("coverImg",url);
-      else setPhotoSlot(target.index,url);
+      if(target.type==="cover"){
+        up("coverImg",url);
+      }else{
+        setFotosDb(p=>p.map(x=>x.id===target.fotoId?{...x,url}:x));
+        await supa.from("fotos").update({url}).eq("id",target.fotoId);
+      }
     }catch(e){
       console.error(e);
       alert(lang==="EN"?"The photo couldn't be uploaded. Please try again.":"No se ha podido subir la foto. Inténtalo de nuevo.");
@@ -2511,7 +2556,7 @@ ${capituloActual}
     const nt=prompt(t.ed_new_block_prompt+" "+(type==="chapter"?t.ed_chapter_word:t.ed_apartado_word)+":","");
     if(nt===null) return;
     const title=nt.trim();
-    setF(p=>({...p,blocks:renumberBlocks([...p.blocks,{type,title}])}));
+    setF(p=>({...p,blocks:renumberBlocks([...p.blocks,{id:crypto.randomUUID(),type,title}])}));
     // Además de añadirlo al índice, insertamos un marcador en mayúsculas en el propio texto,
     // en el punto donde esté el cursor — la caja de texto no puede mostrar negrita de verdad
     // (es un campo plano), pero al leerse/publicarse este marcador se reconoce y se muestra
@@ -2591,16 +2636,14 @@ ${capituloActual}
   };
 
   // ---- Fotos añadidas: se crean tantos huecos como fotos compradas; cada hueco se puede
-  // subir, cambiar o quitar de forma independiente ----
+  // subir, cambiar o quitar de forma independiente (filas reales en la tabla `fotos`) ----
   useEffect(()=>{
-    if(photosBought>f.photosSlots.length){
-      const extra=Array.from({length:photosBought-f.photosSlots.length},()=>({dataUrl:null,caption:""}));
-      setF(p=>({...p,photosSlots:[...p.photosSlots,...extra]}));
+    if(photosBought>fotosDb.length){
+      const base=fotosDb.length;
+      const faltan=photosBought-base;
+      Promise.all(Array.from({length:faltan},(_,i)=>addFotoSlot(base+i)));
     }
   },[photosBought]);
-  const setPhotoSlot=(i,dataUrl)=> setF(p=>{ const s=[...p.photosSlots]; s[i]={...s[i],dataUrl}; return {...p,photosSlots:s}; });
-  const setPhotoCaption=(i,cap)=> setF(p=>{ const s=[...p.photosSlots]; s[i]={...s[i],caption:cap}; return {...p,photosSlots:s}; });
-  const removePhoto=(i)=>{ deleteFotoFromStorage({type:"slot",index:i}); setF(p=>{ const s=[...p.photosSlots]; s[i]={dataUrl:null,caption:""}; return {...p,photosSlots:s}; }); };
 
   const [unpubStep,setUnpubStep]=useState(null); // null | "confirm" | "sent" | "done"
   const [showUndo,setShowUndo]=useState(false);
@@ -2640,8 +2683,9 @@ ${capituloActual}
       }).eq("id", historiaIdRef.current);
     }
     historiaIdRef.current = null; // se "suelta" la fila marcada; si se vuelve a escribir, se crea una nueva
-    setF(p=>({...p,text:"",title:"",subtitle:"",coverImg:null,blocks:[{type:"chapter",title:"",num:1}],
-      photosSlots:[],wizardDone:false,published:false,publishedId:null,assistantActive:false}));
+    setF(p=>({...p,text:"",title:"",subtitle:"",coverImg:null,blocks:[{id:crypto.randomUUID(),type:"chapter",title:"",num:1}],
+      wizardDone:false,published:false,publishedId:null,assistantActive:false}));
+    setFotosDb([]);
     setDeleteStep("done");
   };
 
@@ -2900,23 +2944,27 @@ ${capituloActual}
           </div>
           <textarea ref={taRef} className="ta" placeholder={t.f_text_ph} value={f.text} onChange={e=>onTextChange(e.target.value)} onKeyDown={onTextKeyDown}/>
 
-          {f.photosSlots.length>0&&(
+          {fotosDb.length>0&&(
             <div id="lm-photos-added" style={{marginTop:"1rem"}}>
               <div className="lbl" style={{marginBottom:"0.5rem"}}>{t.ed_photos_added_h}</div>
               <div style={{display:"flex",gap:"0.8rem",flexWrap:"wrap"}}>
-                {f.photosSlots.map((ph,i)=>(
-                  <div key={i} style={{width:"120px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"2px",padding:"0.5rem"}}>
-                    {slotPreviewSrc(i)?
-                      <img src={slotPreviewSrc(i)} alt="" style={{width:"100%",height:"90px",objectFit:"cover",borderRadius:"2px",marginBottom:"0.4rem",opacity:isSlotUploading(i)?0.5:1}}/>
+                {fotosDb.map((ph)=>(
+                  <div key={ph.id} style={{width:"120px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"2px",padding:"0.5rem"}}>
+                    {slotPreviewSrc(ph.id)?
+                      <img src={slotPreviewSrc(ph.id)} alt="" style={{width:"100%",height:"90px",objectFit:"cover",borderRadius:"2px",marginBottom:"0.4rem",opacity:isSlotUploading(ph.id)?0.5:1}}/>
                       :<div style={{width:"100%",height:"90px",background:"var(--bg2)",borderRadius:"2px",marginBottom:"0.4rem"}}/>}
-                    {isSlotUploading(i)&&<div style={{fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</div>}
-                    <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} placeholder={t.ed_photo_caption_ph} value={ph.caption} onChange={e=>setPhotoCaption(i,e.target.value)}/>
+                    {isSlotUploading(ph.id)&&<div style={{fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</div>}
+                    <select className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} value={ph.bloque_id||""} onChange={e=>setFotoBloque(ph.id,e.target.value||null)}>
+                      <option value="">{lang==="EN"?"No chapter":"Sin capítulo"}</option>
+                      {f.blocks.map(b=><option key={b.id} value={b.id}>{blockLabel(b)}</option>)}
+                    </select>
+                    <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} placeholder={t.ed_photo_caption_ph} value={ph.pie_foto||""} onChange={e=>setPhotoCaption(ph.id,e.target.value)}/>
                     <div style={{display:"flex",gap:"0.4rem",fontSize:"0.7rem"}}>
                       <label style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
-                        {ph.dataUrl?t.ed_photo_replace:t.ed_photo_upload}
-                        <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"slot",index:i})}/>
+                        {ph.url?t.ed_photo_replace:t.ed_photo_upload}
+                        <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"slot",fotoId:ph.id})}/>
                       </label>
-                      {ph.dataUrl&&<span style={{color:"#b23b3b",textDecoration:"underline",cursor:"pointer"}} onClick={()=>removePhoto(i)}>{t.ed_photo_remove}</span>}
+                      <span style={{color:"#b23b3b",textDecoration:"underline",cursor:"pointer"}} onClick={()=>removePhoto(ph.id)}>{t.ed_photo_remove}</span>
                     </div>
                   </div>
                 ))}
