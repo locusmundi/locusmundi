@@ -396,10 +396,21 @@ function toRoman(num) {
 const CHAPTER_MARKER_WORDS = ["CAPÍTULO","CAPITULO","CHAPTER"];
 const isAllCapsLine = (s) => { const letters = s.replace(/[^A-Za-zÀ-ÿ]/g,""); return letters.length>0 && letters===letters.toUpperCase(); };
 const isChapterMarker = (s) => CHAPTER_MARKER_WORDS.some(w=>s.toUpperCase().startsWith(w));
-function renderStoryBody(text) {
+function renderStoryBody(text, fotos=[]) {
   return (text||"").split("\n\n").map((raw,i)=>{
     const p = raw.replace(/—/g,"–");
     const trimmed = p.trim();
+    const fm = trimmed.match(/^(?:FOTO|PHOTO)\s+(\d+)$/i);
+    if(fm){
+      const foto = fotos.find(x=>String(x.orden)===fm[1]);
+      if(!foto || !foto.url) return null; // marcador sin foto real detrás: no se muestra nada al lector
+      return (
+        <figure key={i} style={{margin:"2.2rem 0"}}>
+          <img src={foto.url} alt="" style={{width:"100%",borderRadius:"2px",display:"block"}}/>
+          {foto.pie_foto&&<figcaption style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--muted)",marginTop:"0.5rem",textAlign:"center"}}>{foto.pie_foto}</figcaption>}
+        </figure>
+      );
+    }
     if(trimmed && isAllCapsLine(trimmed)){
       if(isChapterMarker(trimmed)){
         const idx = trimmed.indexOf(":");
@@ -1129,7 +1140,7 @@ function Read({auto,setView,t}) {
       </div>
       <h1 className="r-name">{auto.title||auto.name}</h1>
       <div className="r-meta">{t.by_author} {auto.name}</div>
-      <div className="r-body">{renderStoryBody(tr||auto.text)}</div>
+      <div className="r-body">{renderStoryBody(tr||auto.text, auto.fotos||[])}</div>
       <div style={{marginTop:"1.8rem",display:"flex",alignItems:"center",flexWrap:"wrap",gap:"0.9rem"}}>
         {tagsBlock}
       </div>
@@ -1455,6 +1466,51 @@ const ASSISTANT_FAQ_EN = [
    a:"It points out errors and inconsistencies and can flag whether a scene would benefit from more detail, rephrasing or simplifying — but it won't hand you the fix or rewrite your text itself; the decision and the final wording are always yours."},
   {q:"Does it question my memories or tell me I'm wrong?",
    a:"No. A memory of yours is never questioned as such. If something clashes with a well-known historical fact, it raises it as an open question, never as a correction — you always have the final word."}
+];
+function PhotosFaqModal({onClose,lang}) {
+  const items = lang==="EN" ? PHOTOS_FAQ_EN : PHOTOS_FAQ_ES;
+  return (
+    <div className="ov" onClick={onClose}>
+      <div className="modal" style={{maxWidth:"680px",maxHeight:"82vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        <button className="modal-x" onClick={onClose}>✕</button>
+        <div className="modal-h">{lang==="EN"?"How do photos work?":"¿Cómo funcionan las fotos?"}</div>
+        {items.map((it,i)=>(
+          <div key={i} style={{marginBottom:"1.1rem",paddingBottom:"1.1rem",borderBottom:i<items.length-1?"1px solid var(--border)":"none"}}>
+            <div style={{fontFamily:"var(--serif)",fontSize:"1rem",color:"var(--navy)",fontWeight:600,marginBottom:"0.4rem"}}>{it.q}</div>
+            <p style={{fontFamily:"var(--body)",fontSize:"0.88rem",color:"var(--ink)",lineHeight:1.6,margin:0}}>{it.a}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+const PHOTOS_FAQ_ES = [
+  {q:"¿Cómo subo una foto?",
+   a:"Primero cómprala. Una vez comprada, aparece como un hueco vacío en «Fotos añadidas», con su propio botón de subir. Sube la imagen y ajusta el recorte, igual que con la portada."},
+  {q:"¿Cómo la coloco en mi historia?",
+   a:"Pon el cursor en el texto, en el punto exacto donde quieres que aparezca, y pulsa «+ Fotografía». Elige una de tus fotos ya subidas en el menú que se abre — solo aparecen ahí las que todavía no tengan sitio."},
+  {q:"¿Cómo sé si una foto ya está colocada?",
+   a:"En su miniatura, abajo, verás un clip (📎) en cuanto tenga sitio en el texto. Si no lo tiene, puedes ponerla desde ahí en cualquier momento."},
+  {q:"¿Cómo la muevo a otro sitio?",
+   a:"Borra su marca del texto, como borrarías cualquier palabra (el clip desaparecerá solo), y vuelve a pulsar «+ Fotografía» donde quieras ponerla ahora."},
+  {q:"¿Y si la borro sin querer?",
+   a:"No pasa nada: la foto sigue ahí abajo, sin colocar. Vuelve a pulsar «+ Fotografía» donde quieras y elígela de nuevo."},
+  {q:"¿Se ve así, con esa marca de texto, cuando alguien lee mi libro?",
+   a:"No. Esa marca solo la ves tú mientras escribes; en la Biblioteca, cualquier lector ve la foto de verdad, con su pie de foto."}
+];
+const PHOTOS_FAQ_EN = [
+  {q:"How do I upload a photo?",
+   a:"Buy it first. Once bought, it shows up as an empty slot under \u201cPhotos added\u201d, with its own upload button. Upload the image and adjust the crop, just like the cover."},
+  {q:"How do I place it in my story?",
+   a:"Put the cursor in the text exactly where you want it to appear, and press \u201c+ Photo\u201d. Pick one of your already-uploaded photos from the menu that opens — only the ones without a place yet show up there."},
+  {q:"How do I know if a photo is already placed?",
+   a:"Its thumbnail, below, shows a paperclip (📎) as soon as it has a place in the text. If it doesn't, you can place it from there at any time."},
+  {q:"How do I move it somewhere else?",
+   a:"Delete its mark from the text, just like deleting any word (the paperclip disappears on its own), and press \u201c+ Photo\u201d again wherever you want to put it now."},
+  {q:"What if I delete it by accident?",
+   a:"No harm done: the photo is still there below, just unplaced. Press \u201c+ Photo\u201d again wherever you like and pick it once more."},
+  {q:"Does that text mark show up like that when someone reads my book?",
+   a:"No. That mark is only visible to you while writing; in the Library, any reader sees the real photo, with its caption."}
 ];
 function LegalModal({docKey,onClose,t,lang}) {
   const source = lang==="EN" ? LEGAL_EN : LEGAL_ES;
@@ -2016,18 +2072,15 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
 
   // Añade huecos vacíos en la tabla `fotos` hasta llegar a photosBought (sin capítulo
   // asignado todavía; el Autor lo elige luego en su propia tarjeta).
-  const addFotoSlot=async(orden)=>{
+  const addFotoSlot=async()=>{
     const historiaId=await getOrCreateHistoriaId();
     if(!historiaId) return;
+    const nextNum=fotosDb.length?Math.max(...fotosDb.map(x=>x.orden))+1:1; // no se reutiliza aunque se borren fotos de en medio
     const{data,error}=await supa.from("fotos").insert({
       historia_id:historiaId, bloque_id:null, url:null, pie_foto:"",
-      orden, origen:"comprada", lote_compra_id:null, fecha_compra:null
+      orden:nextNum, origen:"comprada", lote_compra_id:null, fecha_compra:null
     }).select().single();
     if(!error&&data) setFotosDb(p=>[...p,data]);
-  };
-  const setFotoBloque=(fotoId,bloqueId)=>{
-    setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,bloque_id:bloqueId}:x));
-    supa.from("fotos").update({bloque_id:bloqueId||null}).eq("id",fotoId);
   };
   const setPhotoCaption=(fotoId,cap)=>{
     setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,pie_foto:cap}:x));
@@ -2036,7 +2089,53 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       supa.from("fotos").update({pie_foto:cap}).eq("id",fotoId);
     },1200);
   };
+
+  // ---- Marcador "FOTO n" en el propio texto (igual que los de capítulo/apartado) ----
+  const fotoMarker=(ph)=>t.photo_word.toUpperCase()+" "+ph.orden;
+  const isFotoPlaced=(ph)=>f.text.includes(fotoMarker(ph));
+  // Bloque bajo una posición del texto: busca, de entre todos los bloques, cuya marca de
+  // capítulo/apartado aparezca más cerca (y antes) de esa posición — mismo tipo de cálculo
+  // que ya hace el Asistente para saber "en qué capítulo está el cursor", solo que aquí
+  // cubre también apartados. Si un bloque se renombró después de crear su marca, esta
+  // búsqueda puede no encontrarlo — el resultado, en ese caso, es simplemente "sin
+  // capítulo asociado", nunca una asociación equivocada.
+  const currentBlockMarkerText=(b)=>{
+    if(b.type==="chapter"){
+      const chapNum=f.blocks.filter(x=>x.type==="chapter").indexOf(b)+1;
+      return t.ed_chapter_word.toUpperCase()+" "+toRoman(chapNum)+(b.title?": "+b.title.toUpperCase():"");
+    }
+    return b.title?b.title.toUpperCase():t.ed_untitled.toUpperCase();
+  };
+  const blockIdAtPos=(pos)=>{
+    const text=f.text||"";
+    let bestIdx=-1,bestBlockId=null;
+    f.blocks.forEach(b=>{
+      const marker=currentBlockMarkerText(b);
+      if(!marker) return;
+      let searchFrom=0,idx=-1,found=-1;
+      while((idx=text.indexOf(marker,searchFrom))!==-1){
+        if(idx<=pos) found=idx; else break;
+        searchFrom=idx+1;
+      }
+      if(found!==-1 && found>bestIdx){ bestIdx=found; bestBlockId=b.id; }
+    });
+    return bestBlockId;
+  };
+  const insertFotoMarker=(ph,pos)=>{
+    pushHistory();
+    const needsLeadingBreak = pos>0 && f.text[pos-1]!=="\n";
+    const nv = f.text.slice(0,pos) + (needsLeadingBreak?"\n\n":"") + fotoMarker(ph) + "\n\n" + f.text.slice(pos);
+    up("text",nv);
+    const bloqueId=blockIdAtPos(pos);
+    setFotosDb(p=>p.map(x=>x.id===ph.id?{...x,bloque_id:bloqueId}:x));
+    supa.from("fotos").update({bloque_id:bloqueId}).eq("id",ph.id);
+    setShowPhotoMenu(false);
+  };
   const removePhoto=(fotoId)=>{
+    const ph=fotosDb.find(x=>x.id===fotoId);
+    if(ph && f.text.includes(fotoMarker(ph))){
+      up("text", f.text.replace(fotoMarker(ph)+"\n\n","").replace(fotoMarker(ph),""));
+    }
     deleteFotoFromStorage({type:"slot",fotoId});
     supa.from("fotos").delete().eq("id",fotoId);
     setFotosDb(p=>p.filter(x=>x.id!==fotoId));
@@ -2060,6 +2159,13 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     }finally{
       setPendingPhoto(null);
     }
+  };
+  const [showPhotoMenu,setShowPhotoMenu]=useState(false);
+  const photoInsertPosRef=useRef(0);
+  const openPhotoMenu=()=>{
+    if(photosBought===0) return;
+    photoInsertPosRef.current = taRef.current ? taRef.current.selectionStart : f.text.length;
+    setShowPhotoMenu(v=>!v);
   };
   const shareLink=f.publishedId?`https://locusmundi.vercel.app/?id=${f.publishedId}`:"https://locusmundi.vercel.app";
   const shareText2=lang==="EN"
@@ -2113,6 +2219,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   };
   const [showPhotosM,setShowPhotosM]=useState(false);const [showPdfM,setShowPdfM]=useState(false);
   const [showAssistantFaq,setShowAssistantFaq]=useState(false);
+  const [showPhotosFaq,setShowPhotosFaq]=useState(false);
   const [photosBought,setPhotosBought]=useState(0);const [pdfBought,setPdfBought]=useState(null);
   const [showAiOverlay,setShowAiOverlay]=useState(false);
   const [aiTuUsted,setAiTuUsted]=useState(null);const [aiNameDraft,setAiNameDraft]=useState(f.name||"");
@@ -2197,7 +2304,11 @@ sin más. Tus únicas funciones activas sobre el texto son:
 - Sugerir que desarrolle, reformule o simplifique una escena, sin escribir
   tú esa alternativa.
 - Responder preguntas técnicas dentro de tus funciones conocidas de la
-  plataforma (cómo crear un capítulo, cómo subir una foto, etc.).
+  plataforma (cómo crear un capítulo, etc.). EXCEPCIÓN: si el Autor
+  pregunta cómo insertar, mover o colocar una foto, no se lo expliques
+  tú — dile que consulte la FAQ de fotos, junto al botón de comprar
+  fotos, porque ese mecanismo puede cambiar y no debe haber dos sitios
+  con instrucciones distintas.
 - Apreciar brevemente lo ya escrito.
 Todo ello en una sola frase por intervención (ver más abajo). La única
 excepción a esta regla es la descrita a continuación.
@@ -2813,6 +2924,7 @@ ${capituloActual}
       {showPhotosM&&<PhotosModal onClose={()=>setShowPhotosM(false)} onPaid={(n)=>{setPhotosBought(p=>p+n);setShowPhotosM(false);}} t={t}/>}
       {showPdfM&&<PdfModal onClose={()=>setShowPdfM(false)} onPaid={(fmt)=>{setPdfBought(fmt);setShowPdfM(false);}} t={t}/>}
       {showAssistantFaq&&<AssistantFaqModal onClose={()=>setShowAssistantFaq(false)} lang={lang}/>}
+      {showPhotosFaq&&<PhotosFaqModal onClose={()=>setShowPhotosFaq(false)} lang={lang}/>}
       {showAiOverlay&&(
         <div className="ov">
           <div className="modal" style={{maxWidth:"380px"}}>
@@ -2937,8 +3049,22 @@ ${capituloActual}
           <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
             <button type="button" className="toolbar-btn" onClick={()=>addBlock("chapter")}>{t.ed_add_chapter}</button>
             <button type="button" className="toolbar-btn" onClick={()=>addBlock("apartado")}>{t.ed_add_apartado}</button>
-            <button type="button" className="toolbar-btn" style={photosBought>0?{}:{opacity:0.4,cursor:"not-allowed"}}
-              onClick={()=>{ if(photosBought===0){return;} document.getElementById("lm-photos-added")?.scrollIntoView({behavior:"smooth"}); }}>{t.ed_add_photo}</button>
+            <div style={{position:"relative",display:"inline-block"}}>
+              <button type="button" className="toolbar-btn" style={photosBought>0?{}:{opacity:0.4,cursor:"not-allowed"}} onClick={openPhotoMenu}>{t.ed_add_photo}</button>
+              {showPhotoMenu&&(
+                <div style={{position:"absolute",top:"100%",left:0,zIndex:5,marginTop:"0.3rem",background:"var(--bg1)",border:"1px solid var(--border)",borderRadius:"2px",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",minWidth:"160px",padding:"0.3rem 0"}}>
+                  {fotosDb.filter(ph=>ph.url&&!isFotoPlaced(ph)).length===0
+                    ? <div style={{padding:"0.5rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)"}}>{lang==="EN"?"Empty folder":"Carpeta vacía"}</div>
+                    : fotosDb.filter(ph=>ph.url&&!isFotoPlaced(ph)).map(ph=>(
+                        <div key={ph.id} style={{padding:"0.5rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.82rem",cursor:"pointer"}}
+                          onClick={()=>insertFotoMarker(ph,photoInsertPosRef.current)}
+                          onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                          {t.photo_word.charAt(0).toUpperCase()+t.photo_word.slice(1)+" "+ph.orden}
+                        </div>
+                      ))}
+                </div>
+              )}
+            </div>
             <button type="button" className="toolbar-btn" onClick={applyItalic}><i>{t.ed_italic}</i></button>
             <button type="button" className="toolbar-btn" onClick={undo}>{t.ed_undo}</button>
           </div>
@@ -2954,10 +3080,10 @@ ${capituloActual}
                       <img src={slotPreviewSrc(ph.id)} alt="" style={{width:"100%",height:"90px",objectFit:"cover",borderRadius:"2px",marginBottom:"0.4rem",opacity:isSlotUploading(ph.id)?0.5:1}}/>
                       :<div style={{width:"100%",height:"90px",background:"var(--bg2)",borderRadius:"2px",marginBottom:"0.4rem"}}/>}
                     {isSlotUploading(ph.id)&&<div style={{fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</div>}
-                    <select className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} value={ph.bloque_id||""} onChange={e=>setFotoBloque(ph.id,e.target.value||null)}>
-                      <option value="">{lang==="EN"?"No chapter":"Sin capítulo"}</option>
-                      {f.blocks.map(b=><option key={b.id} value={b.id}>{blockLabel(b)}</option>)}
-                    </select>
+                    <div style={{fontFamily:"var(--body)",fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>
+                      {t.photo_word.charAt(0).toUpperCase()+t.photo_word.slice(1)+" "+ph.orden}
+                      {isFotoPlaced(ph)&&<span title={lang==="EN"?"Placed in the text":"Colocada en el texto"}> 📎</span>}
+                    </div>
                     <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} placeholder={t.ed_photo_caption_ph} value={ph.pie_foto||""} onChange={e=>setPhotoCaption(ph.id,e.target.value)}/>
                     <div style={{display:"flex",gap:"0.4rem",fontSize:"0.7rem"}}>
                       <label style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
@@ -3022,6 +3148,11 @@ ${capituloActual}
             <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_photos_h}</div>
             <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_photos_sub}</span><span className={`badge ${photosBought>0?"on":"prem"}`}>{photosBought>0?`${photosBought} ${t.photo_word}s`:`€1/${t.photo_word}`}</span></div>
             <button className="pm-unlock" onClick={()=>setShowPhotosM(true)}>{photosBought>0?t.addon_photos_add_more:t.addon_photos_btn}</button>
+            <div style={{marginTop:"0.4rem"}}>
+              <span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setShowPhotosFaq(true)}>
+                {lang==="EN"?"How do photos work? (FAQ)":"¿Cómo funcionan las fotos? (FAQ)"}
+              </span>
+            </div>
           </div>
           <div id="lm-offer-pdf" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
             <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_pdf_h}</div>
@@ -3248,16 +3379,21 @@ function App() {
   const [autos,setAutos]=useState(SAMPLE);
   // Trae de Supabase las historias publicadas de verdad (además de las 4 de
   // muestra fijas) para que la Biblioteca no dependa solo de la memoria del
-  // navegador. Las fotos aún no viven en Supabase, así que estas entradas
-  // aparecen sin portada por ahora — pendiente de una sesión futura.
+  // navegador. Portada y fotos interiores ya viven en Supabase (27/09/2026).
   useEffect(()=>{
     (async () => {
       const { data, error } = await supa.from("historias")
-        .select("id, titulo, contenido, idioma_original, fecha_publicacion")
+        .select("id, titulo, contenido, idioma_original, fecha_publicacion, portada_url")
         .eq("estado_publicacion","publicado")
         .eq("marcado_borrado", false)
         .order("fecha_publicacion",{ascending:false});
       if(!error && data && data.length){
+        const ids = data.map(r=>r.id);
+        const { data: fotosRows } = await supa.from("fotos")
+          .select("id, historia_id, url, pie_foto, orden")
+          .in("historia_id", ids);
+        const fotosByHistoria = {};
+        (fotosRows||[]).forEach(fo=>{ (fotosByHistoria[fo.historia_id] ||= []).push(fo); });
         const mapped = data.map(row=>{
           const c = row.contenido || {};
           return {
@@ -3269,7 +3405,8 @@ function App() {
             lang: row.idioma_original || c.lang || "ES",
             title: row.titulo || c.title || c.name || "",
             subtitle: c.subtitle || "",
-            cover: null,
+            cover: row.portada_url || null,
+            fotos: fotosByHistoria[row.id] || [],
             preview: (c.text||"").slice(0,88)+"...",
             text: c.text || "",
             tags: ["memoria"],
