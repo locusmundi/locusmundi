@@ -437,12 +437,13 @@ const LANGS_UI = [
   {code:"RU",label:"Русский"},{code:"HI",label:"हिन्दी"},{code:"GL",label:"Galego"},{code:"CA",label:"Català"},
 ];
 
-// ---- Persistencia del libro (todavía en localStorage) ----------------------
-// Pendiente de migrar a Supabase (tabla `historias`) en el siguiente paso de
-// la Fase B. La autenticación (arriba) ya es real; esto todavía no.
-const bookKey = (email) => "lm_book_" + email.toLowerCase().trim();
-const loadBook = (email) => { try { return JSON.parse(localStorage.getItem(bookKey(email))); } catch (e) { return null; } };
-const saveBook = (email, book) => localStorage.setItem(bookKey(email), JSON.stringify(book));
+// ---- Fotos: coverImg/photosSlots viven en Supabase Storage (bucket "fotos") --
+// (antes en localStorage por email — bug de caché entre altas con el mismo
+// email/navegador; eliminado del todo junto con la migración a Storage)
+async function dataUrlToBlob(dataUrl) {
+  const res = await fetch(dataUrl);
+  return await res.blob();
+}
 
 const SECQ = {
   ES: ["¿Nombre de tu primera mascota?","¿Ciudad donde naciste?","¿Nombre de tu mejor amigo/a de la infancia?","¿Cuál fue tu primer trabajo?"],
@@ -1869,10 +1870,11 @@ function Write({setView,onPublish,onUnpublish,t,lang,onLegal,recoveryMode,onReco
 function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLogout}) {
   // Un único libro por Autor: se carga (si existe) o se crea vacío, siempre bajo la misma
   // cuenta — nunca hay un botón para "crear otro libro".
-  // El texto (título, capítulos, etc.) ya vive de verdad en Supabase (`historias`).
-  // Las fotos (`coverImg`, `photosSlots`) siguen por ahora en localStorage: moverlas
-  // requiere Supabase Storage, pendiente para una sesión futura.
+  // El texto (título, capítulos, etc.) y las fotos (`coverImg`, `photosSlots`: URLs de
+  // Supabase Storage) viven de verdad en Supabase (`historias` + bucket `fotos`).
   const historiaIdRef=useRef(null);
+  const autorIdRef=useRef(null);
+  const creatingHistoriaRef=useRef(null); // promesa compartida: evita crear dos filas en una carrera
   const loadedRef=useRef(false);
   const saveTimerRef=useRef(null);
   const wasPublishedRef=useRef(false);
@@ -1887,9 +1889,9 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // ---- Carga inicial desde Supabase --------------------------------------
   useEffect(()=>{
     (async () => {
-      const localExtra = loadBook(email) || {};
       const { data: { user } } = await supa.auth.getUser();
       if(!user){ loadedRef.current=true; return; }
+      autorIdRef.current = user.id;
       const { data, error } = await supa.from("historias")
         .select("id, titulo, contenido")
         .eq("autor_id", user.id).eq("marcado_borrado", false).limit(1).maybeSingle();
@@ -1899,54 +1901,63 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
         setF(p=>({
           ...p, ...c,
           title: data.titulo || c.title || "",
-          coverImg: localExtra.coverImg ?? p.coverImg,
-          photosSlots: localExtra.photosSlots ?? p.photosSlots,
         }));
         wasPublishedRef.current = !!c.published;
-      } else if(localExtra && Object.keys(localExtra).length){
-        // Sin fila todavía en Supabase: recupera lo que hubiera en localStorage
-        // (por ejemplo, de pruebas anteriores a esta migración)
-        setF(p=>({...p,...localExtra}));
-        wasPublishedRef.current = !!localExtra.published;
       }
       loadedRef.current = true;
     })();
   },[email]);
 
+  // ---- Crea (una sola vez, a prueba de carrera) o devuelve el id de la única
+  // historia del Autor. Se llama tanto en cuanto el Autor escribe/sube algo por
+  // primera vez (sin esperar el debounce del autoguardado) como dentro de él;
+  // la promesa compartida en la ref evita que dos llamadas casi simultáneas
+  // (p. ej. autoguardado de texto + subida de foto) creen dos filas.
+  const getOrCreateHistoriaId = () => {
+    if(historiaIdRef.current) return Promise.resolve(historiaIdRef.current);
+    if(creatingHistoriaRef.current) return creatingHistoriaRef.current;
+    creatingHistoriaRef.current = (async () => {
+      const { data: { user } } = await supa.auth.getUser();
+      if(!user) return null;
+      autorIdRef.current = user.id;
+      const { data, error } = await supa.from("historias")
+        .insert({ autor_id: user.id, titulo:"", contenido:{}, estado_publicacion:"borrador" })
+        .select("id").single();
+      if(!error && data) historiaIdRef.current = data.id;
+      creatingHistoriaRef.current = null;
+      return historiaIdRef.current;
+    })();
+    return creatingHistoriaRef.current;
+  };
+
   // ---- Autoguardado en Supabase (con un pequeño retraso para no saturar) --
   useEffect(()=>{
-    saveBook(email,f); // coverImg/photosSlots: de momento, solo aquí
     if(!loadedRef.current) return; // no guardar mientras se carga el estado inicial
+    getOrCreateHistoriaId(); // crea la fila cuanto antes si hace falta, en paralelo, sin esperar el debounce de abajo
     if(saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
-      const { data: { user } } = await supa.auth.getUser();
-      if(!user) return;
-      const { coverImg, photosSlots, ...contenido } = f;
+      const id = await getOrCreateHistoriaId();
+      if(!id) return; // sin sesión
       const estado = f.published ? "publicado" : (f.publishedId ? "despublicado" : "borrador");
       const wasPublished = wasPublishedRef.current;
       const justPublished = f.published && !wasPublished;
       const justUnpublished = !f.published && wasPublished;
       wasPublishedRef.current = f.published;
       const payload = {
-        autor_id: user.id,
+        autor_id: autorIdRef.current,
         titulo: f.title || "",
-        contenido,
+        contenido: f,
         estado_publicacion: estado,
         ...(justPublished ? { fecha_publicacion: new Date().toISOString() } : {})
       };
-      if(historiaIdRef.current){
-        await supa.from("historias").update(payload).eq("id", historiaIdRef.current);
-      } else {
-        const { data, error } = await supa.from("historias").insert(payload).select("id").single();
-        if(!error && data) historiaIdRef.current = data.id;
-      }
+      await supa.from("historias").update(payload).eq("id", id);
       if(justPublished || justUnpublished){
         fetch("/api/registro-lssi", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             accion: justPublished ? "publicacion" : "despublicacion",
-            autor_id: user.id
+            autor_id: autorIdRef.current
           })
         }).catch(()=>{}); // si falla, no debe bloquear el guardado de la historia
       }
@@ -1963,12 +1974,47 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [saveExitStep,setSaveExitStep]=useState("choose"); // "choose" | "fields"
   const [cropFile,setCropFile]=useState(null);
   const [cropTarget,setCropTarget]=useState(null); // {type:"cover"} | {type:"slot",index}
+  const [pendingPhoto,setPendingPhoto]=useState(null); // {type,index,previewUrl}: mientras sube a Storage
   const startCrop=(target)=>(e)=>{const file=e.target.files[0];if(!file)return;e.target.value="";setCropTarget(target);setCropFile(file);};
   const cancelCrop=()=>{setCropFile(null);setCropTarget(null);};
-  const confirmCrop=(dataUrl)=>{
-    if(cropTarget?.type==="cover") up("coverImg",dataUrl);
-    else if(cropTarget?.type==="slot") setPhotoSlot(cropTarget.index,dataUrl);
+
+  // Rutas fijas (upsert:true) para que sustituir una foto sobrescriba el archivo
+  // en vez de acumular basura en el bucket.
+  const fotoStoragePath=(target)=>`${autorIdRef.current}/${historiaIdRef.current}/${target.type==="cover"?"cover":"slot-"+target.index}.jpg`;
+  const uploadFotoToStorage=async(target,dataUrl)=>{
+    const historiaId=await getOrCreateHistoriaId();
+    if(!historiaId||!autorIdRef.current) throw new Error("sin sesión");
+    const blob=await dataUrlToBlob(dataUrl);
+    const path=fotoStoragePath(target);
+    const{error}=await supa.storage.from("fotos").upload(path,blob,{contentType:"image/jpeg",upsert:true});
+    if(error) throw error;
+    const{data}=supa.storage.from("fotos").getPublicUrl(path);
+    return data.publicUrl;
+  };
+  const deleteFotoFromStorage=(target)=>{
+    if(!historiaIdRef.current||!autorIdRef.current) return;
+    supa.storage.from("fotos").remove([fotoStoragePath(target)]).catch(()=>{}); // best-effort
+  };
+
+  const coverPreviewSrc=()=> pendingPhoto?.type==="cover" ? pendingPhoto.previewUrl : f.coverImg;
+  const isCoverUploading=()=> pendingPhoto?.type==="cover";
+  const slotPreviewSrc=(i)=> (pendingPhoto?.type==="slot"&&pendingPhoto.index===i) ? pendingPhoto.previewUrl : f.photosSlots[i]?.dataUrl;
+  const isSlotUploading=(i)=> pendingPhoto?.type==="slot"&&pendingPhoto.index===i;
+
+  const confirmCrop=async(dataUrl)=>{
+    const target=cropTarget;
     setCropFile(null);setCropTarget(null);
+    setPendingPhoto({...target,previewUrl:dataUrl});
+    try{
+      const url=await uploadFotoToStorage(target,dataUrl);
+      if(target.type==="cover") up("coverImg",url);
+      else setPhotoSlot(target.index,url);
+    }catch(e){
+      console.error(e);
+      alert(lang==="EN"?"The photo couldn't be uploaded. Please try again.":"No se ha podido subir la foto. Inténtalo de nuevo.");
+    }finally{
+      setPendingPhoto(null);
+    }
   };
   const shareLink=f.publishedId?`https://locusmundi.vercel.app/?id=${f.publishedId}`:"https://locusmundi.vercel.app";
   const shareText2=lang==="EN"
@@ -2554,7 +2600,7 @@ ${capituloActual}
   },[photosBought]);
   const setPhotoSlot=(i,dataUrl)=> setF(p=>{ const s=[...p.photosSlots]; s[i]={...s[i],dataUrl}; return {...p,photosSlots:s}; });
   const setPhotoCaption=(i,cap)=> setF(p=>{ const s=[...p.photosSlots]; s[i]={...s[i],caption:cap}; return {...p,photosSlots:s}; });
-  const removePhoto=(i)=> setF(p=>{ const s=[...p.photosSlots]; s[i]={dataUrl:null,caption:""}; return {...p,photosSlots:s}; });
+  const removePhoto=(i)=>{ deleteFotoFromStorage({type:"slot",index:i}); setF(p=>{ const s=[...p.photosSlots]; s[i]={dataUrl:null,caption:""}; return {...p,photosSlots:s}; }); };
 
   const [unpubStep,setUnpubStep]=useState(null); // null | "confirm" | "sent" | "done"
   const [showUndo,setShowUndo]=useState(false);
@@ -2637,7 +2683,8 @@ ${capituloActual}
               {t.f_cover_btn}
               <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"cover"})}/>
             </label>
-            {f.coverImg&&<img src={f.coverImg} alt="portada" style={{height:"60px",width:"auto",borderRadius:"2px",border:"1px solid var(--border)"}}/>}
+            {coverPreviewSrc()&&<img src={coverPreviewSrc()} alt="portada" style={{height:"60px",width:"auto",borderRadius:"2px",border:"1px solid var(--border)",opacity:isCoverUploading()?0.5:1}}/>}
+            {isCoverUploading()&&<span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</span>}
             <span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{t.f_cover_note}</span>
           </div>
         </div>
@@ -2814,7 +2861,8 @@ ${capituloActual}
           <div className="fld">
             <label className="lbl">{t.f_cover}</label>
             <div style={{display:"flex",alignItems:"center",gap:"0.8rem",flexWrap:"wrap"}}>
-              {f.coverImg&&<img src={f.coverImg} alt="portada" style={{height:"52px",width:"38px",objectFit:"cover",borderRadius:"2px",border:"1px solid var(--border)"}}/>}
+              {coverPreviewSrc()&&<img src={coverPreviewSrc()} alt="portada" style={{height:"52px",width:"38px",objectFit:"cover",borderRadius:"2px",border:"1px solid var(--border)",opacity:isCoverUploading()?0.5:1}}/>}
+              {isCoverUploading()&&<span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</span>}
               <label style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
                 {t.ed_change_cover}
                 <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"cover"})}/>
@@ -2858,9 +2906,10 @@ ${capituloActual}
               <div style={{display:"flex",gap:"0.8rem",flexWrap:"wrap"}}>
                 {f.photosSlots.map((ph,i)=>(
                   <div key={i} style={{width:"120px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"2px",padding:"0.5rem"}}>
-                    {ph.dataUrl?
-                      <img src={ph.dataUrl} alt="" style={{width:"100%",height:"90px",objectFit:"cover",borderRadius:"2px",marginBottom:"0.4rem"}}/>
+                    {slotPreviewSrc(i)?
+                      <img src={slotPreviewSrc(i)} alt="" style={{width:"100%",height:"90px",objectFit:"cover",borderRadius:"2px",marginBottom:"0.4rem",opacity:isSlotUploading(i)?0.5:1}}/>
                       :<div style={{width:"100%",height:"90px",background:"var(--bg2)",borderRadius:"2px",marginBottom:"0.4rem"}}/>}
+                    {isSlotUploading(i)&&<div style={{fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</div>}
                     <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} placeholder={t.ed_photo_caption_ph} value={ph.caption} onChange={e=>setPhotoCaption(i,e.target.value)}/>
                     <div style={{display:"flex",gap:"0.4rem",fontSize:"0.7rem"}}>
                       <label style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
