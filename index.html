@@ -2074,17 +2074,23 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const slotPreviewSrc=(fotoId)=> (pendingPhoto?.type==="slot"&&pendingPhoto.fotoId===fotoId) ? pendingPhoto.previewUrl : fotosDb.find(x=>x.id===fotoId)?.url;
   const isSlotUploading=(fotoId)=> pendingPhoto?.type==="slot"&&pendingPhoto.fotoId===fotoId;
 
-  // Añade huecos vacíos en la tabla `fotos` hasta llegar a photosBought (sin capítulo
-  // asignado todavía; el Autor lo elige luego en su propia tarjeta).
-  const addFotoSlot=async()=>{
+  // Crea n huecos vacíos en la tabla `fotos` tras una compra (sin capítulo asignado
+  // todavía). Uno detrás de otro, llevando la cuenta del número en local: antes se
+  // lanzaban en paralelo y todos leían el mismo `fotosDb`, así que podían salir varios
+  // huecos con el mismo número (y el mismo marcador FOTO n en el texto).
+  const addFotoSlots=async(n)=>{
     const historiaId=await getOrCreateHistoriaId();
     if(!historiaId) return;
-    const nextNum=fotosDb.length?Math.max(...fotosDb.map(x=>x.orden))+1:1; // no se reutiliza aunque se borren fotos de en medio
-    const{data,error}=await supa.from("fotos").insert({
-      historia_id:historiaId, bloque_id:null, url:null, pie_foto:"",
-      orden:nextNum, origen:"comprada", lote_compra_id:null, fecha_compra:null
-    }).select().single();
-    if(!error&&data) setFotosDb(p=>[...p,data]);
+    let nextNum=fotosDb.length?Math.max(...fotosDb.map(x=>x.orden))+1:1; // no se reutiliza aunque se borren fotos de en medio
+    for(let i=0;i<n;i++){
+      const{data,error}=await supa.from("fotos").insert({
+        historia_id:historiaId, bloque_id:null, url:null, pie_foto:"",
+        orden:nextNum, origen:"comprada", lote_compra_id:null, fecha_compra:null
+      }).select().single();
+      if(error||!data) break;
+      setFotosDb(p=>[...p,data]);
+      nextNum++;
+    }
   };
   const setPhotoCaption=(fotoId,cap)=>{
     setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,pie_foto:cap}:x));
@@ -2224,7 +2230,9 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [showPhotosM,setShowPhotosM]=useState(false);const [showPdfM,setShowPdfM]=useState(false);
   const [showAssistantFaq,setShowAssistantFaq]=useState(false);
   const [showPhotosFaq,setShowPhotosFaq]=useState(false);
-  const [photosBought,setPhotosBought]=useState(0);const [pdfBought,setPdfBought]=useState(null);
+  // Las fotos compradas son los huecos que existen en la tabla `fotos` (lo único que
+  // sobrevive a recargar la página); antes era un contador en memoria que volvía a 0.
+  const photosBought=fotosDb.length;const [pdfBought,setPdfBought]=useState(null);
   const [showAiOverlay,setShowAiOverlay]=useState(false);
   const [aiTuUsted,setAiTuUsted]=useState(null);const [aiNameDraft,setAiNameDraft]=useState(f.name||"");
   const [showSaveExit,setShowSaveExit]=useState(false);
@@ -2752,13 +2760,6 @@ ${capituloActual}
 
   // ---- Fotos añadidas: se crean tantos huecos como fotos compradas; cada hueco se puede
   // subir, cambiar o quitar de forma independiente (filas reales en la tabla `fotos`) ----
-  useEffect(()=>{
-    if(photosBought>fotosDb.length){
-      const base=fotosDb.length;
-      const faltan=photosBought-base;
-      Promise.all(Array.from({length:faltan},(_,i)=>addFotoSlot(base+i)));
-    }
-  },[photosBought]);
 
   const [unpubStep,setUnpubStep]=useState(null); // null | "confirm" | "sent" | "done"
   const [showUndo,setShowUndo]=useState(false);
@@ -2925,7 +2926,7 @@ ${capituloActual}
   // ================= Editor =================
   return (
     <div className="wr-wrap">
-      {showPhotosM&&<PhotosModal onClose={()=>setShowPhotosM(false)} onPaid={(n)=>{setPhotosBought(p=>p+n);setShowPhotosM(false);}} t={t}/>}
+      {showPhotosM&&<PhotosModal onClose={()=>setShowPhotosM(false)} onPaid={(n)=>{addFotoSlots(n);setShowPhotosM(false);}} t={t}/>}
       {showPdfM&&<PdfModal onClose={()=>setShowPdfM(false)} onPaid={(fmt)=>{setPdfBought(fmt);setShowPdfM(false);}} t={t}/>}
       {showAssistantFaq&&<AssistantFaqModal onClose={()=>setShowAssistantFaq(false)} lang={lang}/>}
       {showPhotosFaq&&<PhotosFaqModal onClose={()=>setShowPhotosFaq(false)} lang={lang}/>}
