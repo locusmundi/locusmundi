@@ -400,10 +400,14 @@ function renderStoryBody(text, fotos=[]) {
   return (text||"").split("\n\n").map((raw,i)=>{
     const p = raw.replace(/—/g,"–");
     const trimmed = p.trim();
-    const fm = trimmed.match(/^(?:FOTO|PHOTO)\s+(\d+)$/i);
-    if(fm){
-      const foto = fotos.find(x=>String(x.orden)===fm[1]);
-      if(!foto || !foto.url) return null; // marcador sin foto real detrás: no se muestra nada al lector
+    // Marcador [FOTO n]. Tolerante a propósito: si la traducción por IA cambiara la palabra
+    // (p. ej. [PHOTO 2], [FOTOGRAFÍA 2]), basta con corchetes + palabra + número final.
+    // Exige una palabra delante del número, para no confundir una línea como "[1990]".
+    const fm = trimmed.match(/^\[\s*([^\]\d\s][^\]\d]*?)\s*(\d+)\s*\]$/);
+    const fmFoto = fm && fotos.find(x=>String(x.orden)===fm[2]);
+    if(fm && !(fmFoto && fmFoto.url) && /^(foto|photo)/i.test(fm[1])) return null; // [FOTO n] sin foto real detrás: no se muestra nada al lector
+    if(fmFoto && fmFoto.url){
+      const foto = fmFoto;
       return (
         <figure key={i} style={{margin:"2.2rem 0"}}>
           <img src={foto.url} alt="" style={{width:"100%",borderRadius:"2px",display:"block"}}/>
@@ -1088,7 +1092,7 @@ function Read({auto,setView,t}) {
     setDoing(true);setErrMsg("");
     const ln=LANGS_UI.find(l=>l.code===tl)?.label||tl;
     try{
-      const out=await callAI(`Eres un traductor literario. Traduce este texto autobiográfico al ${ln} preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia del ${ln} —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Solo la traducción.`,auto.text);
+      const out=await callAI(`Eres un traductor literario. Traduce este texto autobiográfico al ${ln} preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia del ${ln} —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Las líneas entre corchetes, como [FOTO 2], son marcas técnicas: cópialas exactamente igual, sin traducirlas ni cambiarlas. Solo la traducción.`,auto.text);
       setTr(out);setReadLangCode(tl);setEntered(true);
     }catch(e){setErrMsg(t.read_lang_error);}
     setDoing(false);
@@ -1490,7 +1494,7 @@ const PHOTOS_FAQ_ES = [
   {q:"¿Cómo la coloco en mi historia?",
    a:"Pon el cursor en el texto, en el punto exacto donde quieres que aparezca, y pulsa «+ Fotografía». Elige una de tus fotos ya subidas en el menú que se abre — solo aparecen ahí las que todavía no tengan sitio."},
   {q:"¿Cómo sé si una foto ya está colocada?",
-   a:"En su miniatura, abajo, verás un clip (📎) en cuanto tenga sitio en el texto. Si no lo tiene, puedes ponerla desde ahí en cualquier momento."},
+   a:"En su miniatura, abajo, verás un clip (📎) y el aviso «en el texto» en cuanto tenga sitio en el texto. Si no lo tiene, puedes ponerla desde ahí en cualquier momento."},
   {q:"¿Cómo la muevo a otro sitio?",
    a:"Borra su marca del texto, como borrarías cualquier palabra (el clip desaparecerá solo), y vuelve a pulsar «+ Fotografía» donde quieras ponerla ahora."},
   {q:"¿Y si la borro sin querer?",
@@ -1504,7 +1508,7 @@ const PHOTOS_FAQ_EN = [
   {q:"How do I place it in my story?",
    a:"Put the cursor in the text exactly where you want it to appear, and press \u201c+ Photo\u201d. Pick one of your already-uploaded photos from the menu that opens — only the ones without a place yet show up there."},
   {q:"How do I know if a photo is already placed?",
-   a:"Its thumbnail, below, shows a paperclip (📎) as soon as it has a place in the text. If it doesn't, you can place it from there at any time."},
+   a:"Its thumbnail, below, shows a paperclip (📎) and the note \u201cin the text\u201d as soon as it has a place in the text. If it doesn't, you can place it from there at any time."},
   {q:"How do I move it somewhere else?",
    a:"Delete its mark from the text, just like deleting any word (the paperclip disappears on its own), and press \u201c+ Photo\u201d again wherever you want to put it now."},
   {q:"What if I delete it by accident?",
@@ -2103,7 +2107,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   };
 
   // ---- Marcador "FOTO n" en el propio texto (igual que los de capítulo/apartado) ----
-  const fotoMarker=(ph)=>t.photo_word.toUpperCase()+" "+ph.orden;
+  const fotoMarker=(ph)=>"["+t.photo_word.toUpperCase()+" "+ph.orden+"]"; // [FOTO n]: se lee como marca técnica, no como texto del Autor
   const isFotoPlaced=(ph)=>f.text.includes(fotoMarker(ph));
   // Bloque bajo una posición del texto: busca, de entre todos los bloques, cuya marca de
   // capítulo/apartado aparezca más cerca (y antes) de esa posición — mismo tipo de cálculo
@@ -3089,7 +3093,7 @@ ${capituloActual}
                     {isSlotUploading(ph.id)&&<div style={{fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</div>}
                     <div style={{fontFamily:"var(--body)",fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>
                       {t.photo_word.charAt(0).toUpperCase()+t.photo_word.slice(1)+" "+ph.orden}
-                      {isFotoPlaced(ph)&&<span title={lang==="EN"?"Placed in the text":"Colocada en el texto"}> 📎</span>}
+                      {isFotoPlaced(ph)&&<span title={lang==="EN"?"Placed in the text":"Colocada en el texto"} style={{color:"var(--navy)",fontWeight:600,marginLeft:"0.3rem"}}><span style={{fontSize:"1.05rem",verticalAlign:"middle"}}>📎</span> {lang==="EN"?"in the text":"en el texto"}</span>}
                     </div>
                     <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} placeholder={t.ed_photo_caption_ph} value={ph.pie_foto||""} onChange={e=>setPhotoCaption(ph.id,e.target.value)}/>
                     <div style={{display:"flex",gap:"0.4rem",fontSize:"0.7rem"}}>
