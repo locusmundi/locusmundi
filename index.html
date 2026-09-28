@@ -2058,7 +2058,11 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     const{error}=await supa.storage.from("fotos").upload(path,blob,{contentType:"image/jpeg",upsert:true});
     if(error) throw error;
     const{data}=supa.storage.from("fotos").getPublicUrl(path);
-    return data.publicUrl;
+    // La ruta es fija (upsert), así que la URL sería idéntica a la de la foto anterior
+    // y el navegador/CDN seguiría mostrando la copia vieja. El ?v= cambia en cada subida
+    // y obliga a pedir la imagen nueva. Ojo al purgar: el archivo se localiza por la
+    // ruta (fotoStoragePath), nunca por esta URL.
+    return data.publicUrl+"?v="+Date.now();
   };
   const deleteFotoFromStorage=(target)=>{
     if(!historiaIdRef.current||!autorIdRef.current) return;
