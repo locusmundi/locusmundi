@@ -2156,9 +2156,11 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     if(ph && f.text.includes(fotoMarker(ph))){
       up("text", f.text.replace(fotoMarker(ph)+"\n\n","").replace(fotoMarker(ph),""));
     }
+    // "Quitar" VACÍA el hueco (imagen, pie y marcador), pero no lo borra: el hueco es una
+    // foto pagada y sigue disponible para subir otra imagen (decisión de Javier, 28/09/2026).
     deleteFotoFromStorage({type:"slot",fotoId});
-    supa.from("fotos").delete().eq("id",fotoId).then(({error})=>{if(error)console.error(error);});
-    setFotosDb(p=>p.filter(x=>x.id!==fotoId));
+    supa.from("fotos").update({url:null,pie_foto:"",bloque_id:null}).eq("id",fotoId).then(({error})=>{if(error)console.error(error);});
+    setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,url:null,pie_foto:"",bloque_id:null}:x));
   };
 
   const confirmCrop=async(dataUrl)=>{
@@ -3105,7 +3107,7 @@ ${capituloActual}
                         {ph.url?t.ed_photo_replace:t.ed_photo_upload}
                         <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"slot",fotoId:ph.id})}/>
                       </label>
-                      <span style={{color:"#b23b3b",textDecoration:"underline",cursor:"pointer"}} onClick={()=>removePhoto(ph.id)}>{t.ed_photo_remove}</span>
+                      {ph.url&&<span style={{color:"#b23b3b",textDecoration:"underline",cursor:"pointer"}} onClick={()=>removePhoto(ph.id)}>{t.ed_photo_remove}</span>}
                     </div>
                   </div>
                 ))}
