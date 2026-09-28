@@ -2092,11 +2092,13 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       nextNum++;
     }
   };
+  // OJO (supabase-js v2): una consulta sin await ni .then() NO se envía nunca.
+  // Las escrituras "de fondo" de esta sección llevan .then() por eso.
   const setPhotoCaption=(fotoId,cap)=>{
     setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,pie_foto:cap}:x));
     if(fotoSaveTimers.current[fotoId]) clearTimeout(fotoSaveTimers.current[fotoId]);
     fotoSaveTimers.current[fotoId]=setTimeout(()=>{
-      supa.from("fotos").update({pie_foto:cap}).eq("id",fotoId);
+      supa.from("fotos").update({pie_foto:cap}).eq("id",fotoId).then(({error})=>{if(error)console.error(error);});
     },1200);
   };
 
@@ -2138,7 +2140,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     up("text",nv);
     const bloqueId=blockIdAtPos(pos);
     setFotosDb(p=>p.map(x=>x.id===ph.id?{...x,bloque_id:bloqueId}:x));
-    supa.from("fotos").update({bloque_id:bloqueId}).eq("id",ph.id);
+    supa.from("fotos").update({bloque_id:bloqueId}).eq("id",ph.id).then(({error})=>{if(error)console.error(error);});
     setShowPhotoMenu(false);
   };
   const removePhoto=(fotoId)=>{
@@ -2147,7 +2149,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       up("text", f.text.replace(fotoMarker(ph)+"\n\n","").replace(fotoMarker(ph),""));
     }
     deleteFotoFromStorage({type:"slot",fotoId});
-    supa.from("fotos").delete().eq("id",fotoId);
+    supa.from("fotos").delete().eq("id",fotoId).then(({error})=>{if(error)console.error(error);});
     setFotosDb(p=>p.filter(x=>x.id!==fotoId));
   };
 
