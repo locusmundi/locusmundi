@@ -1494,9 +1494,9 @@ const PHOTOS_FAQ_ES = [
   {q:"¿Cómo la coloco en mi historia?",
    a:"Pon el cursor en el texto, en el punto exacto donde quieres que aparezca, y pulsa «+ Fotografía». Elige una de tus fotos ya subidas en el menú que se abre — solo aparecen ahí las que todavía no tengan sitio."},
   {q:"¿Cómo sé si una foto ya está colocada?",
-   a:"En su miniatura, abajo, verás un clip (📎) y el aviso «en el texto» en cuanto tenga sitio en el texto. Si no lo tiene, puedes ponerla desde ahí en cualquier momento."},
+   a:"En su miniatura, abajo, junto a su número, verás el aviso «en el texto» en cuanto tenga sitio en tu historia. Si no lo tiene, puedes ponerla desde ahí en cualquier momento."},
   {q:"¿Cómo la muevo a otro sitio?",
-   a:"Borra su marca del texto, como borrarías cualquier palabra (el clip desaparecerá solo), y vuelve a pulsar «+ Fotografía» donde quieras ponerla ahora."},
+   a:"Borra su marca del texto, como borrarías cualquier palabra (el aviso «en el texto» desaparecerá solo), y vuelve a pulsar «+ Fotografía» donde quieras ponerla ahora."},
   {q:"¿Y si la borro sin querer?",
    a:"No pasa nada: la foto sigue ahí abajo, sin colocar. Vuelve a pulsar «+ Fotografía» donde quieras y elígela de nuevo."},
   {q:"¿Se ve así, con esa marca de texto, cuando alguien lee mi libro?",
@@ -1508,9 +1508,9 @@ const PHOTOS_FAQ_EN = [
   {q:"How do I place it in my story?",
    a:"Put the cursor in the text exactly where you want it to appear, and press \u201c+ Photo\u201d. Pick one of your already-uploaded photos from the menu that opens — only the ones without a place yet show up there."},
   {q:"How do I know if a photo is already placed?",
-   a:"Its thumbnail, below, shows a paperclip (📎) and the note \u201cin the text\u201d as soon as it has a place in the text. If it doesn't, you can place it from there at any time."},
+   a:"Its thumbnail, below, shows the note \u201cin the text\u201d next to its number as soon as it has a place in your story. If it doesn't, you can place it from there at any time."},
   {q:"How do I move it somewhere else?",
-   a:"Delete its mark from the text, just like deleting any word (the paperclip disappears on its own), and press \u201c+ Photo\u201d again wherever you want to put it now."},
+   a:"Delete its mark from the text, just like deleting any word (the \u201cin the text\u201d note disappears on its own), and press \u201c+ Photo\u201d again wherever you want to put it now."},
   {q:"What if I delete it by accident?",
    a:"No harm done: the photo is still there below, just unplaced. Press \u201c+ Photo\u201d again wherever you like and pick it once more."},
   {q:"Does that text mark show up like that when someone reads my book?",
@@ -2139,8 +2139,12 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   };
   const insertFotoMarker=(ph,pos)=>{
     pushHistory();
-    const needsLeadingBreak = pos>0 && f.text[pos-1]!=="\n";
-    const nv = f.text.slice(0,pos) + (needsLeadingBreak?"\n\n":"") + fotoMarker(ph) + "\n\n" + f.text.slice(pos);
+    // Se quitan los saltos de línea que ya hubiera justo antes y después del cursor y se deja
+    // exactamente una línea en blanco a cada lado (la separación normal entre párrafos).
+    // Antes se sumaban a los que ya existían y quedaban líneas en blanco de más.
+    const before = f.text.slice(0,pos).replace(/\n+$/,"");
+    const after = f.text.slice(pos).replace(/^\n+/,"");
+    const nv = before + (before?"\n\n":"") + fotoMarker(ph) + (after?"\n\n":"") + after;
     up("text",nv);
     const bloqueId=blockIdAtPos(pos);
     setFotosDb(p=>p.map(x=>x.id===ph.id?{...x,bloque_id:bloqueId}:x));
@@ -3093,7 +3097,7 @@ ${capituloActual}
                     {isSlotUploading(ph.id)&&<div style={{fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</div>}
                     <div style={{fontFamily:"var(--body)",fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>
                       {t.photo_word.charAt(0).toUpperCase()+t.photo_word.slice(1)+" "+ph.orden}
-                      {isFotoPlaced(ph)&&<span title={lang==="EN"?"Placed in the text":"Colocada en el texto"} style={{color:"var(--navy)",fontWeight:600,marginLeft:"0.3rem"}}><span style={{fontSize:"1.05rem",verticalAlign:"middle"}}>📎</span> {lang==="EN"?"in the text":"en el texto"}</span>}
+                      {isFotoPlaced(ph)&&<span style={{color:"var(--navy)",fontWeight:600}}> · {lang==="EN"?"in the text":"en el texto"}</span>}
                     </div>
                     <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} placeholder={t.ed_photo_caption_ph} value={ph.pie_foto||""} onChange={e=>setPhotoCaption(ph.id,e.target.value)}/>
                     <div style={{display:"flex",gap:"0.4rem",fontSize:"0.7rem"}}>
