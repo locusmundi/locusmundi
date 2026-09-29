@@ -2451,8 +2451,8 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
           userMsg: `[Revisión automática de párrafo — no es un mensaje del Autor] El Autor acaba de terminar de escribir este párrafo:\n"""\n${trimmed}\n"""\nSi, según tus propias reglas (Regla del Redactor, Ritmo de Intervención por Escena, Una Frase por Intervención), tienes algo que señalar sobre ESTE párrafo en concreto, hazlo ahora, en una sola frase, sin redactar nada por el Autor. Si no hay nada que señalar, responde EXACTAMENTE con: SIN_COMENTARIO`
       });
       applyTinta(d);
-      if(d.text && d.text.trim()!=="SIN_COMENTARIO"){
-        const {text:cleanText,langCode}=stripLangTag(d.text);
+      const {text:cleanText,langCode}=stripLangTag(d.text||"");
+      if(cleanText.trim() && cleanText.trim()!=="SIN_COMENTARIO"){
         setChatMsgs(h=>[...h,{role:"model",text:cleanText,langCode}]);
       }
     }catch(e){
