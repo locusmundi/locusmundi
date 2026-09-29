@@ -1607,9 +1607,9 @@ const PHOTOS_FAQ_ES = [
   {q:"¿Cómo sé si una foto ya está colocada?",
    a:"Su miniatura, en «Fotos añadidas», indicará «Foto 3 · en el texto», y en tu texto estará su marca [FOTO 3]. Si la miniatura no lo indica, la foto está sin colocar: ponla con «+ Fotografía»."},
   {q:"¿Cómo la muevo a otro sitio?",
-   a:"Borra la línea con su marca, por ejemplo [FOTO 3], como borrarías cualquier palabra, y vuelve a pulsar «+ Fotografía» donde quieras ponerla."},
+   a:"Borra la línea con su marca, por ejemplo [FOTO 3], como borrarías cualquier palabra, y vuelve a pulsar «+ Fotografía» donde quieras ponerla. Puedes mover las fotos de sitio las veces que quieras."},
   {q:"¿Puedo cambiar la imagen de una foto?",
-   a:"Sí, una vez. Cada foto comprada es un espacio en tu libro: subes una imagen y, si te equivocas o cambias de idea, puedes sustituirla por otra una sola vez. Mover la foto de sitio en el texto no cuenta nunca. La portada va aparte: puedes cambiarla siempre que quieras."},
+   a:"Sí, una vez. Cada foto comprada es un espacio en tu libro: subes una imagen y, si te equivocas o cambias de idea, puedes sustituirla por otra una sola vez. La portada va aparte: puedes cambiarla siempre que quieras."},
   {q:"¿Y si borro su marca sin querer?",
    a:"No pasa nada: la foto sigue ahí abajo, sin colocar. Vuelve a pulsar «+ Fotografía» donde quieras y elígela de nuevo."},
   {q:"¿Se ve así, con esa marca de texto, cuando alguien lee mi libro?",
@@ -1623,9 +1623,9 @@ const PHOTOS_FAQ_EN = [
   {q:"How do I know if a photo is already placed?",
    a:"Its thumbnail, under \u201cPhotos added\u201d, will read \u201cPhoto 3 · in the text\u201d, and its mark [PHOTO 3] will be in your text. If the thumbnail doesn't say so, the photo isn't placed yet: place it with \u201c+ Photo\u201d."},
   {q:"How do I move it somewhere else?",
-   a:"Delete the line with its mark, for example [PHOTO 3], just like deleting any word, and press \u201c+ Photo\u201d again wherever you want to put it."},
+   a:"Delete the line with its mark, for example [PHOTO 3], just like deleting any word, and press \u201c+ Photo\u201d again wherever you want to put it. You can move photos around as many times as you like."},
   {q:"Can I change a photo's image?",
-   a:"Yes, once. Each photo you buy is a space in your book: you upload an image and, if you make a mistake or change your mind, you can replace it with another just once. Moving the photo to another place in the text never counts. The cover is separate: you can change it whenever you like."},
+   a:"Yes, once. Each photo you buy is a space in your book: you upload an image and, if you make a mistake or change your mind, you can replace it with another just once. The cover is separate: you can change it whenever you like."},
   {q:"What if I delete its mark by accident?",
    a:"No harm done: the photo is still there below, just unplaced. Press \u201c+ Photo\u201d again wherever you like and pick it once more."},
   {q:"Does that text mark show up like that when someone reads my book?",
@@ -2177,12 +2177,29 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,imagenes_cargadas:data.imagenes_cargadas}:x));
     return data.imagenes_cargadas||0;
   };
+  // El aviso sale al pulsar "Cambiar"/"Subir foto", ANTES de abrir la ventana de
+  // archivos (con el contador ya cargado); si el Autor cancela, no se abre. Después,
+  // al elegir el archivo, se vuelve a leer el contador fresco de Supabase.
+  const fotoAvisoAceptado=useRef({});
+  const avisoAntesDeElegir=(ph)=>(e)=>{
+    // El clic en la etiqueta genera un segundo clic en el <input> interior, que
+    // vuelve a subir hasta aquí: ese segundo se ignora para no avisar dos veces.
+    if(e.target && e.target.tagName==="INPUT") return;
+    const n=ph.imagenes_cargadas||0;
+    if(n>=2){ e.preventDefault(); alert(t.photo_limit_reached); return; }
+    if(n===1){
+      if(!window.confirm(t.photo_confirm_last)){ e.preventDefault(); return; }
+      fotoAvisoAceptado.current[ph.id]=true;
+    }
+  };
   const startCrop=(target)=>async(e)=>{
     const file=e.target.files[0];if(!file)return;e.target.value="";
     if(target.type==="slot"){
+      const yaAceptado=!!fotoAvisoAceptado.current[target.fotoId];
+      fotoAvisoAceptado.current[target.fotoId]=false;
       const n=await imagenesCargadas(target.fotoId);
       if(n>=2){ alert(t.photo_limit_reached); return; }
-      if(n===1 && !window.confirm(t.photo_confirm_last)) return;
+      if(n===1 && !yaAceptado && !window.confirm(t.photo_confirm_last)) return;
     }
     setCropTarget(target);setCropFile(file);
   };
@@ -3259,7 +3276,7 @@ ${capituloActual}
                       return txt?<div style={{fontFamily:"var(--body)",fontSize:"0.66rem",color:"var(--muted)",fontStyle:"italic",marginBottom:"0.35rem"}}>{txt}</div>:null;})()}
                     <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} placeholder={t.ed_photo_caption_ph} value={ph.pie_foto||""} onChange={e=>setPhotoCaption(ph.id,e.target.value)}/>
                     <div style={{display:"flex",gap:"0.4rem",fontSize:"0.7rem"}}>
-                      <label style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
+                      <label style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={avisoAntesDeElegir(ph)}>
                         {ph.url?t.ed_photo_replace:t.ed_photo_upload}
                         <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"slot",fotoId:ph.id})}/>
                       </label>
