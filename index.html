@@ -551,7 +551,7 @@ const T = {
     translate_and_read:"Traducir y leer",change_lang:"cambiar idioma",
     read_lang_error:"No se ha podido traducir el texto. Inténtalo de nuevo o léelo en el idioma original.",
     translate:"Traducir",
-    report_link:"🚩 Denunciar contenido inapropiado",
+    report_link:"Denunciar contenido inapropiado",
     report_h:"Denunciar contenido inapropiado",
     report_sub:"Describe el problema y enviaremos tu denuncia a Locus Mundi, con la referencia de esta obra incluida.",
     report_field_label:"Describe el problema",
@@ -628,7 +628,7 @@ const T = {
     privacy_delete_sent_sub:"Te enviamos un enlace a tu correo. Ábrelo para confirmar el borrado definitivo (simulación: pulsa el botón como si lo hubieras abierto).",
     privacy_delete_done_h:"Tu historia se ha eliminado por completo.",
     privacy_back_btn:"← Volver a mi libro",
-    ai_h:"Asistente IA",ai_sub:"La IA se adapta a tu voz y tu idioma.",
+    ai_h:"Asistente IA",ai_sub:"La IA se adapta a tu voz y tu idioma. Escribe abajo tus dudas o consultas.",
     ai_open_panel:"Abrir el Asistente",ai_listen:"Escucha y habla",ai_stop_listen:"Detener",
     ai_usage_h:"Uso de IA",ai_usage_ok:"Con margen de sobra",ai_usage_mid:"Se está acabando",
     ai_usage_low:"Casi agotado",ai_usage_none:"Se ha agotado",
@@ -765,7 +765,7 @@ const T = {
     by_author:"By",read_in_original:"Read in",or_translate:"or translate and read in another language",
     translate_and_read:"Translate and read",change_lang:"change language",
     read_lang_error:"Couldn't translate the text. Try again, or read it in the original language.",
-    report_link:"🚩 Report inappropriate content",
+    report_link:"Report inappropriate content",
     report_h:"Report inappropriate content",
     report_sub:"Describe the issue and we'll send your report to Locus Mundi, with this work's reference included.",
     report_field_label:"Describe the issue",
@@ -843,7 +843,7 @@ const T = {
     privacy_delete_sent_sub:"We've sent a link to your email. Open it to confirm the permanent deletion (simulation: click the button as if you had opened it).",
     privacy_delete_done_h:"Your story has been completely deleted.",
     privacy_back_btn:"← Back to my book",
-    ai_h:"AI Assistant",ai_sub:"The AI adapts to your voice and language.",
+    ai_h:"AI Assistant",ai_sub:"The AI adapts to your voice and your language. Type your questions or queries below.",
     ai_open_panel:"Open the Assistant",ai_listen:"Listen and speak",ai_stop_listen:"Stop",
     ai_usage_h:"AI usage",ai_usage_ok:"Plenty left",ai_usage_mid:"Running low",
     ai_usage_low:"Almost out",ai_usage_none:"Used up",
@@ -1149,26 +1149,25 @@ function Read({auto,setView,t}) {
   );
 
   const shownLang=LANGS_UI.find(l=>l.code===readLangCode);
-  return (
+  return (<>
     <div className="read-wrap fu">
       <button className="back" onClick={()=>setView("library")}>{t.back}</button>
       {coverAndTitle(shownLang?.label||readLangCode, tr&&<> · <span onClick={backToLangChoice} style={{cursor:"pointer",textDecoration:"underline"}}>{t.change_lang}</span></>)}
       <div className="r-body">{renderStoryBody(tr||auto.text, auto.fotos||[])}</div>
-      <div style={{marginTop:"1.8rem",display:"flex",alignItems:"center",flexWrap:"wrap",gap:"0.9rem"}}>
-        {tagsBlock}
-      </div>
+      {/* Etiquetas retiradas de la lectura (29/09): siguen guardadas y sirven para buscar en la Biblioteca. */}
       {!tr&&auto.fullUrl&&(
         <div style={{margin:"1.8rem 0",padding:"1.2rem 1.5rem",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"1rem"}}>
           <span style={{fontFamily:"var(--body)",fontSize:"1rem",color:"var(--ink)"}}>Esta historia incluye fotos e índice de capítulos.</span>
           <a href={auto.fullUrl} target="_blank" className="read-full" style={{textDecoration:"none"}}>📖 Leer historia completa</a>
         </div>
       )}
-      <div style={{marginTop:"2.2rem",paddingTop:"1.2rem",borderTop:"1px solid var(--border)",textAlign:"center"}}>
-        <span onClick={()=>setShowReport(true)} style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}}>{t.report_link}</span>
-      </div>
-      {showReport&&<ReportModal auto={auto} t={t} onClose={()=>setShowReport(false)}/>}
     </div>
-  );
+    {/* Denuncia fuera de la hoja (29/09): discreta pero siempre visible y fácil de pulsar. */}
+    <div style={{maxWidth:"720px",margin:"-1.6rem auto 2.5rem",textAlign:"center"}}>
+      <button type="button" onClick={()=>setShowReport(true)} style={{background:"none",border:"none",padding:"0.6rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}}>{t.report_link}</button>
+    </div>
+    {showReport&&<ReportModal auto={auto} t={t} onClose={()=>setShowReport(false)}/>}
+  </>);
 }
 
 function ReportModal({auto,t,onClose}) {
@@ -1486,7 +1485,7 @@ function PhotosFaqModal({onClose,lang}) {
     <div className="ov" onClick={onClose}>
       <div className="modal" style={{maxWidth:"680px",maxHeight:"82vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
         <button className="modal-x" onClick={onClose}>✕</button>
-        <div className="modal-h">{lang==="EN"?"How do photos work?":"¿Cómo funcionan las fotos?"}</div>
+        <div className="modal-h">{lang==="EN"?"How do I add my photos?":"¿Cómo añadir tus fotografías?"}</div>
         {items.map((it,i)=>(
           <div key={i} style={{marginBottom:"1.1rem",paddingBottom:"1.1rem",borderBottom:i<items.length-1?"1px solid var(--border)":"none"}}>
             <div style={{fontFamily:"var(--serif)",fontSize:"1rem",color:"var(--navy)",fontWeight:600,marginBottom:"0.4rem"}}>{it.q}</div>
@@ -1501,12 +1500,12 @@ const PHOTOS_FAQ_ES = [
   {q:"¿Cómo subo una foto?",
    a:"Primero cómprala. Una vez comprada, aparece como un hueco vacío en «Fotos añadidas», con su propio botón de subir. Sube la imagen y ajusta el recorte, igual que con la portada."},
   {q:"¿Cómo la coloco en mi historia?",
-   a:"Pon el cursor en el texto, en el punto exacto donde quieres que aparezca, y pulsa «+ Fotografía». Elige una de tus fotos ya subidas en el menú que se abre — solo aparecen ahí las que todavía no tengan sitio."},
+   a:"Pon el cursor en el punto exacto del texto donde quieres que aparezca y pulsa «+ Fotografía». Elige una de tus fotos ya subidas: solo aparecen las que aún no tienen sitio. En el punto elegido del texto verás, en una línea aparte, una marca con la palabra FOTO y su número entre corchetes, por ejemplo [FOTO 3]. Señala dónde irá la imagen."},
   {q:"¿Cómo sé si una foto ya está colocada?",
-   a:"En su miniatura, abajo, junto a su número, verás el aviso «en el texto» en cuanto tenga sitio en tu historia. Si no lo tiene, puedes ponerla desde ahí en cualquier momento."},
+   a:"Su miniatura, en «Fotos añadidas», indicará «Foto 3 · en el texto», y en tu texto estará su marca [FOTO 3]. Si la miniatura no lo indica, la foto está sin colocar: ponla con «+ Fotografía»."},
   {q:"¿Cómo la muevo a otro sitio?",
-   a:"Borra su marca del texto, como borrarías cualquier palabra (el aviso «en el texto» desaparecerá solo), y vuelve a pulsar «+ Fotografía» donde quieras ponerla ahora."},
-  {q:"¿Y si la borro sin querer?",
+   a:"Borra la línea con su marca, por ejemplo [FOTO 3], como borrarías cualquier palabra, y vuelve a pulsar «+ Fotografía» donde quieras ponerla."},
+  {q:"¿Y si borro su marca sin querer?",
    a:"No pasa nada: la foto sigue ahí abajo, sin colocar. Vuelve a pulsar «+ Fotografía» donde quieras y elígela de nuevo."},
   {q:"¿Se ve así, con esa marca de texto, cuando alguien lee mi libro?",
    a:"No. Esa marca solo la ves tú mientras escribes; en la Biblioteca, cualquier lector ve la foto de verdad, con su pie de foto."}
@@ -1515,12 +1514,12 @@ const PHOTOS_FAQ_EN = [
   {q:"How do I upload a photo?",
    a:"Buy it first. Once bought, it shows up as an empty slot under \u201cPhotos added\u201d, with its own upload button. Upload the image and adjust the crop, just like the cover."},
   {q:"How do I place it in my story?",
-   a:"Put the cursor in the text exactly where you want it to appear, and press \u201c+ Photo\u201d. Pick one of your already-uploaded photos from the menu that opens — only the ones without a place yet show up there."},
+   a:"Put the cursor exactly where you want it to appear in the text and press \u201c+ Photo\u201d. Pick one of your already-uploaded photos: only the ones without a place yet show up. At the chosen point in the text you will see, on a line of its own, a mark with the word PHOTO and its number in square brackets, for example [PHOTO 3]. It shows where the image will go."},
   {q:"How do I know if a photo is already placed?",
-   a:"Its thumbnail, below, shows the note \u201cin the text\u201d next to its number as soon as it has a place in your story. If it doesn't, you can place it from there at any time."},
+   a:"Its thumbnail, under \u201cPhotos added\u201d, will read \u201cPhoto 3 · in the text\u201d, and its mark [PHOTO 3] will be in your text. If the thumbnail doesn't say so, the photo isn't placed yet: place it with \u201c+ Photo\u201d."},
   {q:"How do I move it somewhere else?",
-   a:"Delete its mark from the text, just like deleting any word (the \u201cin the text\u201d note disappears on its own), and press \u201c+ Photo\u201d again wherever you want to put it now."},
-  {q:"What if I delete it by accident?",
+   a:"Delete the line with its mark, for example [PHOTO 3], just like deleting any word, and press \u201c+ Photo\u201d again wherever you want to put it."},
+  {q:"What if I delete its mark by accident?",
    a:"No harm done: the photo is still there below, just unplaced. Press \u201c+ Photo\u201d again wherever you like and pick it once more."},
   {q:"Does that text mark show up like that when someone reads my book?",
    a:"No. That mark is only visible to you while writing; in the Library, any reader sees the real photo, with its caption."}
@@ -2339,8 +2338,8 @@ sin más. Tus únicas funciones activas sobre el texto son:
 - Responder preguntas técnicas dentro de tus funciones conocidas de la
   plataforma (cómo crear un capítulo, etc.). EXCEPCIÓN: si el Autor
   pregunta cómo insertar, mover o colocar una foto, no se lo expliques
-  tú — dile que consulte la FAQ de fotos, junto al botón de comprar
-  fotos, porque ese mecanismo puede cambiar y no debe haber dos sitios
+  tú — dile que consulte «¿Cómo añadir tus fotografías?», el enlace
+  que hay junto al botón de comprar fotos, porque ese mecanismo puede cambiar y no debe haber dos sitios
   con instrucciones distintas.
 - Apreciar brevemente lo ya escrito.
 Todo ello en una sola frase por intervención (ver más abajo). La única
@@ -3176,7 +3175,7 @@ ${capituloActual}
             <button className="pm-unlock" onClick={()=>setShowPhotosM(true)}>{photosBought>0?t.addon_photos_add_more:t.addon_photos_btn}</button>
             <div style={{marginTop:"0.4rem"}}>
               <span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setShowPhotosFaq(true)}>
-                {lang==="EN"?"How do photos work? (FAQ)":"¿Cómo funcionan las fotos? (FAQ)"}
+                {lang==="EN"?"How do I add my photos?":"¿Cómo añadir tus fotografías?"}
               </span>
             </div>
           </div>
