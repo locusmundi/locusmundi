@@ -606,7 +606,7 @@ const T = {
     ai_ask_tuusted_h:"¿Prefieres que te hable de tú o de usted?",
     ai_tu:"De tú",ai_usted:"De usted",ai_start_using:"Empezar a usar el Asistente",
     ai_activate_btn:"Activar Asistente",ai_active_msg:"✓ Asistente activo — te llamará",
-    ai_hours_note:"Ayuda a escribir, mejorar y traducir — ≈30 horas al mes",
+    ai_hours_note:"Ayuda a escribir, corregir y ordenar tu historia. Pagas solo lo que usas, en cargas de 5, 10 o 25 €, sin cuotas.",
     unpub_link:"Despublicar mi historia",
     unpub_confirm_h:"¿Despublicar tu historia?",
     unpub_confirm_sub:"Tu historia dejará de poder leerse por cualquier visitante. Tu archivo no se borra: seguirá aquí, solo para ti, y podrás volver a publicarlo cuando quieras.",
@@ -632,15 +632,15 @@ const T = {
     ai_open_panel:"Abrir el Asistente",ai_listen:"Escucha y habla",ai_stop_listen:"Detener",
     ai_usage_h:"Uso de IA",ai_usage_ok:"Con margen de sobra",ai_usage_mid:"Se está acabando",
     ai_usage_low:"Casi agotado",ai_usage_none:"Se ha agotado",
-    ai_recharge_btn:"Recargar 5€",
+    ai_recharge_btn:"Recargar el Asistente",
     ai_recharge_notice:"Esta función estará activa en cuanto abramos los pagos en la plataforma. De momento no se te ha cobrado nada.",
     gift_link:"🎁",gift_h:"Regala el Plan Familiar",
     gift_sub:"Regala a alguien especial la oportunidad de escribir y conservar su historia, con toda la ayuda incluida.",
-    gift_item1:"Asistente de IA para escribir (equivalente a unas 30 horas de uso)",
+    gift_item1:"Una carga del Asistente de IA para escribir (5 €)",
     gift_item2:"10 fotografías incluidas",
     gift_item3:"Archivo PDF imprimible, de regalo",
     gift_price:"15€",
-    gift_note:"Si más adelante quiere seguir usando el Asistente, podrá contratarlo él mismo, como cualquier otro Autor.",
+    gift_note:"Si más adelante quiere seguir usando el Asistente, podrá recargarlo él mismo, como cualquier otro Autor.",
     gift_your_name:"Tu nombre",gift_message:"Mensaje personal (opcional)",gift_recipient_email:"Email de la persona a quien se lo regalas",
     gift_reserve_btn:"Reservar este regalo",
     gift_notice:"Esta función estará activa en cuanto abramos los pagos en la plataforma. De momento no se te ha cobrado nada.",
@@ -653,9 +653,28 @@ const T = {
     free:"Incluido",premium:"De pago",active:"Activo",
     unlimited_text:"Texto ilimitado",one_img:"1 foto de portada",
     permanent_archive:"Archivo permanente",
-    ai_sub_label:"Asistente editorial — €5/mes",
+    ai_sub_label:"Asistente editorial — desde 5 €",
     mob_strip_ai:"Asistente",mob_strip_photos:"Fotos",mob_strip_pdf:"PDF",
-    ai_sub_note:"Activable y desactivable en cualquier momento",
+    ai_sub_note:"Sin cuotas ni renovaciones automáticas",
+    ai_pick_amount:"Elige tu carga",ai_activate_with:"Activar con",ai_recharge_with:"Recargar con",
+    terms_h_photos:"Condiciones de las fotografías",terms_h_ai:"Condiciones del Asistente editorial",
+    terms_consent:"Acepto las condiciones y solicito usar el servicio desde ahora mismo, sabiendo que al usarlo pierdo el derecho de desistimiento de 14 días.",
+    photo_terms:[
+      "Cada fotografía comprada es un espacio para una imagen en tu historia. Puedes cambiarla de sitio en el texto tantas veces como quieras.",
+      "Cada fotografía admite como máximo dos imágenes: la primera y un único cambio, por si te equivocas o cambias de idea.",
+      "Incluye una edición básica gratuita: blanco y negro, sepia o color, y restauración de fotos antiguas o dañadas (arreglo de rayas, manchas y luz).",
+      "La restauración y el coloreado se hacen con inteligencia artificial y admiten hasta 4 propuestas por fotografía. Verás siempre el resultado antes de aceptarlo; si no te convence, conservas tu imagen original.",
+      "La IA tiene instrucciones de respetar íntegramente los rostros y la identidad de las personas fotografiadas, pero revisa siempre la propuesta antes de aceptarla.",
+      "Precio: 1 € por fotografía, compra mínima de 3."
+    ],
+    ai_terms:[
+      "Qué es. Un editor a tu servicio, no un escritor. Nunca inventa datos, nombres, fechas ni escenas: te ayuda a ordenar, revisar y mejorar lo que tú cuentas. La voz y la última palabra son siempre tuyas.",
+      "Qué hace. Comenta tus párrafos, señala fechas o incoherencias, te ayuda si te quedas bloqueado, transcribe lo que le dictas y te ofrece propuestas que solo entran en tu libro si tú las aceptas. Para hacerlo, lee el capítulo o apartado en el que estás trabajando, nunca la historia entera de una vez.",
+      "Cómo funciona el pago. Compras una carga de 5, 10 o 25 € y la ves en la barra de uso de IA, bajo el título del Asistente. Cada intervención gasta una parte: señalar una errata o una fecha gasta muy poco; dictar, o pedirle que ordene un texto largo, gasta más. La carga no caduca. Cuando la barra se vacía, puedes recargarla. No hay cuotas ni renovaciones automáticas.",
+      "Dictado por voz. Funciona mejor en el navegador Chrome de ordenador.",
+      "Puede equivocarse. Es una inteligencia artificial: revisa siempre sus comentarios y propuestas. Lo que publicas es responsabilidad tuya.",
+      "Tu texto. Para responderte, lo que escribes se envía a un proveedor de inteligencia artificial (Google), en la modalidad de pago, que no lo usa para mejorar sus productos. Más detalles en la Política de Privacidad."
+    ],
     free_plan:"Base · Gratuita",forever:"siempre",
     addons_title:"Extras",addons_from:"desde €1",addons_sub:"solo pagas por lo que uses",
     addon_photos_h:"Fotos adicionales",addon_photos_sub:"€1 por foto, mínimo 3",
@@ -821,7 +840,7 @@ const T = {
     ai_ask_tuusted_h:"Not applicable in English — name only.",
     ai_tu:"Informal",ai_usted:"Formal",ai_start_using:"Start using the Assistant",
     ai_activate_btn:"Activate Assistant",ai_active_msg:"✓ Assistant active — will call you",
-    ai_hours_note:"Helps you write, improve and translate — ≈30 hours a month",
+    ai_hours_note:"Helps you write, correct and organise your story. You only pay for what you use, in top-ups of €5, €10 or €25, with no subscription.",
     unpub_link:"Unpublish my story",
     unpub_confirm_h:"Unpublish your story?",
     unpub_confirm_sub:"Your story will stop being readable by visitors. Your file isn't deleted: it stays here, just for you, and you can publish it again whenever you want.",
@@ -847,15 +866,15 @@ const T = {
     ai_open_panel:"Open the Assistant",ai_listen:"Listen and speak",ai_stop_listen:"Stop",
     ai_usage_h:"AI usage",ai_usage_ok:"Plenty left",ai_usage_mid:"Running low",
     ai_usage_low:"Almost out",ai_usage_none:"Used up",
-    ai_recharge_btn:"Top up €5",
+    ai_recharge_btn:"Top up the Assistant",
     ai_recharge_notice:"This feature will be active once we turn on payments on the platform. Nothing has been charged yet.",
     gift_link:"🎁",gift_h:"Gift the Family Plan",
     gift_sub:"Give someone special the chance to write and preserve their story, with all the help included.",
-    gift_item1:"AI writing assistant (equivalent to about 30 hours of use)",
+    gift_item1:"One AI writing Assistant top-up (€5)",
     gift_item2:"10 photos included",
     gift_item3:"Printable PDF file, on us",
     gift_price:"€15",
-    gift_note:"If they'd like to keep using the Assistant later on, they can subscribe themselves, like any other Author.",
+    gift_note:"If they'd like to keep using the Assistant later on, they can top it up themselves, like any other Author.",
     gift_your_name:"Your name",gift_message:"Personal message (optional)",gift_recipient_email:"Email of the person you're gifting this to",
     gift_reserve_btn:"Reserve this gift",
     gift_notice:"This feature will be active once we turn on payments on the platform. Nothing has been charged yet.",
@@ -868,9 +887,28 @@ const T = {
     free:"Included",premium:"Paid",active:"Active",
     unlimited_text:"Unlimited text",one_img:"1 cover photo",
     permanent_archive:"Permanent archive",
-    ai_sub_label:"Editorial assistant — €5/month",
+    ai_sub_label:"Editorial assistant — from €5",
     mob_strip_ai:"Assistant",mob_strip_photos:"Photos",mob_strip_pdf:"PDF",
-    ai_sub_note:"Activate and deactivate anytime",
+    ai_sub_note:"No subscriptions, no automatic renewals",
+    ai_pick_amount:"Choose your top-up",ai_activate_with:"Activate with",ai_recharge_with:"Top up with",
+    terms_h_photos:"Photo terms",terms_h_ai:"Editorial Assistant terms",
+    terms_consent:"I accept the terms and ask to use the service right away, understanding that once I use it I lose the 14-day right of withdrawal.",
+    photo_terms:[
+      "Each photo you buy is a space for one image in your story. You can move it to a different place in the text as many times as you like.",
+      "Each photo allows at most two images: the first one and a single change, in case you make a mistake or change your mind.",
+      "Basic editing is included free of charge: black and white, sepia or colour, and restoration of old or damaged photos (fixing scratches, stains and lighting).",
+      "Restoration and colourisation are done with artificial intelligence and allow up to 4 proposals per photo. You will always see the result before accepting it; if you don't like it, you keep your original image.",
+      "The AI is instructed to fully respect the faces and identity of the people in the photo, but always check the proposal before accepting it.",
+      "Price: €1 per photo, minimum purchase of 3."
+    ],
+    ai_terms:[
+      "What it is. An editor at your service, not a writer. It never invents facts, names, dates or scenes: it helps you order, review and improve what you tell. The voice and the final word are always yours.",
+      "What it does. It comments on your paragraphs, points out dates or inconsistencies, helps you if you get stuck, transcribes what you dictate and offers proposals that only go into your book if you accept them. To do so, it reads the chapter or section you are working on, never the whole story at once.",
+      "How payment works. You buy a top-up of €5, €10 or €25 and see it in the AI usage bar, under the Assistant's title. Each intervention uses up part of it: pointing out a typo or a date uses very little; dictating, or asking it to tidy up a long text, uses more. Top-ups never expire. When the bar runs out, you can top it up again. No subscriptions, no automatic renewals.",
+      "Voice dictation. Works best in the Chrome browser on a computer.",
+      "It can make mistakes. It is an artificial intelligence: always check its comments and proposals. What you publish is your responsibility.",
+      "Your text. To answer you, what you write is sent to an artificial intelligence provider (Google), on its paid plan, which does not use it to improve its products. More details in the Privacy Policy."
+    ],
     free_plan:"Base · Free",forever:"always",
     addons_title:"Add-ons",addons_from:"from €1",addons_sub:"pay only for what you use",
     addon_photos_h:"Additional photos",addon_photos_sub:"€1 per photo, minimum 3",
@@ -1334,16 +1372,45 @@ function CropRotateModal({file,t,onCancel,onConfirm}) {
   );
 }
 
+// Condiciones mostradas al comprar (29/09): una sola casilla que acepta todo e incluye,
+// en su propio texto, la renuncia expresa al desistimiento (contenido digital de uso inmediato).
+function TermsBox({title,items,consent,checked,onToggle}) {
+  return (
+    <div style={{margin:"0.9rem 0",padding:"0.8rem 0.9rem",border:"1px solid var(--border)",background:"var(--bg3)",borderRadius:"2px"}}>
+      <div style={{fontFamily:"var(--serif)",fontSize:"0.95rem",color:"var(--navy)",fontWeight:600,marginBottom:"0.5rem"}}>{title}</div>
+      <ul style={{maxHeight:"190px",overflowY:"auto",margin:"0 0 0.7rem",paddingLeft:"1.1rem",fontFamily:"var(--body)",fontSize:"0.8rem",lineHeight:1.5,color:"var(--ink)"}}>
+        {items.map((it,i)=><li key={i} style={{marginBottom:"0.35rem"}}>{it}</li>)}
+      </ul>
+      <label style={{display:"flex",gap:"0.5rem",alignItems:"flex-start",fontFamily:"var(--body)",fontSize:"0.8rem",lineHeight:1.45,color:"var(--ink)",cursor:"pointer"}}>
+        <input type="checkbox" checked={checked} onChange={e=>onToggle(e.target.checked)} style={{marginTop:"0.2rem",flex:"0 0 auto"}}/>
+        <span>{consent}</span>
+      </label>
+    </div>
+  );
+}
+function AmountPicker({amounts,value,onChange}) {
+  return (
+    <div style={{display:"flex",gap:"0.5rem",flexWrap:"wrap",margin:"0.6rem 0"}}>
+      {amounts.map(v=>(
+        <button key={v} type="button" onClick={()=>onChange(v)}
+          style={{fontFamily:"var(--body)",fontSize:"0.9rem",padding:"0.5rem 1rem",borderRadius:"2px",cursor:"pointer",
+            border:value===v?"1px solid var(--navy)":"1px solid var(--border)",
+            background:value===v?"var(--navy)":"transparent",color:value===v?"var(--cr)":"var(--ink)"}}>{v} €</button>
+      ))}
+    </div>
+  );
+}
 function PhotosModal({onClose,onPaid,t}) {
   const [qty,setQty]=useState(3);
   const [custom,setCustom]=useState("");
   const [paying,setPaying]=useState(false);const [done,setDone]=useState(false);
   const tiers=[3,6,10];
   const amount=qty==="other"?Math.max(3,parseInt(custom)||0):qty;
+  const [termsOk,setTermsOk]=useState(false);
   const pay=()=>{setPaying(true);setTimeout(()=>{setDone(true);setPaying(false);onPaid(amount);},1400);};
   return (
     <div className="ov" onClick={onClose}>
-      <div className="modal" onClick={e=>e.stopPropagation()}>
+      <div className="modal" style={{maxHeight:"88vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
         <button className="modal-x" onClick={onClose}>✕</button>
         {done?(<div style={{textAlign:"center",padding:"1.8rem 0"}}><div style={{fontSize:"2.2rem",color:"var(--gold)",marginBottom:"0.9rem"}}>✦</div><div className="modal-h" style={{textAlign:"center"}}>{t.photos_activated}</div><p style={{fontFamily:"var(--body)",color:"var(--muted)",marginTop:"0.75rem"}}>{amount} {t.photo_word}{amount===1?"":"s"}</p></div>):(
           <>
@@ -1364,11 +1431,12 @@ function PhotosModal({onClose,onPaid,t}) {
                   color:qty==="other"?"var(--cr)":"var(--ink)"}}>{t.other_amount}</button>
             </div>
             {qty==="other"&&<input type="number" min="3" className="s-inp" style={{marginBottom:"0.9rem"}} placeholder={t.photo_min_note} value={custom} onChange={e=>setCustom(e.target.value)}/>}
+            <TermsBox title={t.terms_h_photos} items={t.photo_terms} consent={t.terms_consent} checked={termsOk} onToggle={setTermsOk}/>
             <div className="stripe-sec">
               <div className="stripe-lbl">Stripe · €{amount}</div>
               <div className="s-row"><input className="s-inp" placeholder="•••• •••• •••• ••••"/></div>
               <div className="s-row"><input className="s-inp" placeholder="MM/AA"/><input className="s-inp s-cvc" placeholder="CVC"/></div>
-              <button className="s-pay" onClick={pay} disabled={paying||amount<3}>{paying?<span style={{display:"flex",alignItems:"center",gap:"0.5rem",justifyContent:"center"}}><span className="sp"/>{t.processing}</span>:`${t.pay_generic} €${amount}`}</button>
+              <button className="s-pay" onClick={pay} disabled={paying||amount<3||!termsOk}>{paying?<span style={{display:"flex",alignItems:"center",gap:"0.5rem",justifyContent:"center"}}><span className="sp"/>{t.processing}</span>:`${t.pay_generic} €${amount}`}</button>
               <p className="s-note">{t.photo_min_note}</p>
             </div>
           </>
@@ -2254,6 +2322,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // sobrevive a recargar la página); antes era un contador en memoria que volvía a 0.
   const photosBought=fotosDb.length;const [pdfBought,setPdfBought]=useState(null);
   const [showAiOverlay,setShowAiOverlay]=useState(false);
+  const [aiCharge,setAiCharge]=useState(5);const [aiTermsOk,setAiTermsOk]=useState(false);
   const [aiTuUsted,setAiTuUsted]=useState(null);const [aiNameDraft,setAiNameDraft]=useState(f.name||"");
   const [showSaveExit,setShowSaveExit]=useState(false);
   const historyRef=useRef([]);
@@ -2952,7 +3021,7 @@ ${capituloActual}
       {showPhotosFaq&&<PhotosFaqModal onClose={()=>setShowPhotosFaq(false)} lang={lang}/>}
       {showAiOverlay&&(
         <div className="ov">
-          <div className="modal" style={{maxWidth:"380px"}}>
+          <div className="modal" style={{maxWidth:"440px",maxHeight:"88vh",overflowY:"auto"}}>
             <button className="modal-x" onClick={()=>setShowAiOverlay(false)}>×</button>
             {asksTuUsted?
               <>
@@ -2964,10 +3033,14 @@ ${capituloActual}
               </>
             :null}
             <div className="fld"><label className="lbl">{t.ai_ask_name_h}</label><input className="inp" value={aiNameDraft} onChange={e=>setAiNameDraft(e.target.value)}/></div>
-            <button className="btn-pub" style={{width:"100%"}} onClick={()=>{
+            <div className="lbl" style={{marginTop:"0.4rem"}}>{t.ai_pick_amount}</div>
+            <AmountPicker amounts={[5,10,25]} value={aiCharge} onChange={setAiCharge}/>
+            <TermsBox title={t.terms_h_ai} items={t.ai_terms} consent={t.terms_consent} checked={aiTermsOk} onToggle={setAiTermsOk}/>
+            <p className="s-note" style={{marginTop:0}}>{t.ai_recharge_notice}</p>
+            <button className="btn-pub" style={{width:"100%"}} disabled={!aiTermsOk} onClick={()=>{
               setF(p=>({...p,assistantActive:true,assistantTuUsted:asksTuUsted?aiTuUsted:null,assistantName:aiNameDraft||f.name}));
               setShowAiOverlay(false);
-            }}>{t.ai_start_using}</button>
+            }}>{t.ai_activate_with} {aiCharge} €</button>
           </div>
         </div>
       )}
@@ -3161,7 +3234,7 @@ ${capituloActual}
             <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--navy)",fontWeight:"600",marginBottom:"0.2rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.ai_sub_label}</div>
             <div style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginBottom:"0.4rem"}}>{t.ai_hours_note}</div>
             {!f.assistantActive
-              ? <button className="pm-unlock" style={{borderColor:"var(--navy)",color:"var(--navy)"}} onClick={()=>{setAiTuUsted(null);setAiNameDraft(f.name||"");setShowAiOverlay(true);}}>{t.ai_activate_btn}</button>
+              ? <button className="pm-unlock" style={{borderColor:"var(--navy)",color:"var(--navy)"}} onClick={()=>{setAiTuUsted(null);setAiNameDraft(f.name||"");setAiCharge(5);setAiTermsOk(false);setShowAiOverlay(true);}}>{t.ai_activate_btn}</button>
               : <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#2a6a2a"}}>{t.ai_active_msg} <b>{f.assistantName}</b></div>}
             <div style={{marginTop:"0.4rem"}}>
               <span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setShowAssistantFaq(true)}>
@@ -3203,6 +3276,7 @@ const arrowStyle={background:"none",border:"none",color:"var(--navy)",cursor:"po
 function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaking,setSpeaking,aiUsage,rechargeMsg,setRechargeMsg,
   lang,f,up,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,startListening,stopListening,addChatToStory}) {
   if(!open) return null;
+  const [rechargeOpen,setRechargeOpen]=useState(false);const [rechargeAmt,setRechargeAmt]=useState(5);const [rechargeOk,setRechargeOk]=useState(false);
   const usageLabel=aiUsage<=0?t.ai_usage_none:aiUsage<20?t.ai_usage_low:aiUsage<50?t.ai_usage_mid:t.ai_usage_ok;
   const usageColor=aiUsage<=0?"#b23b3b":aiUsage<20?"#C4932A":aiUsage<50?"#C4932A":"#3f7a4e";
   const [voiceMode,setVoiceMode]=useState(true);
@@ -3262,8 +3336,16 @@ function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaki
         <div className="ai-usage-lbl">{t.ai_usage_h}</div>
         <div className="ai-usage-track"><div className="ai-usage-fill" style={{width:aiUsage+"%",background:usageColor}}/></div>
         <p className="ai-usage-txt" style={{color:usageColor}}>{usageLabel}</p>
-        {aiUsage<=0&&(
-          <button className="btn-out" style={{width:"100%",marginBottom:"1rem"}} onClick={()=>setRechargeMsg(true)}>{t.ai_recharge_btn}</button>
+        {aiUsage<=0&&!rechargeOpen&&!rechargeMsg&&(
+          <button className="btn-out" style={{width:"100%",marginBottom:"1rem"}} onClick={()=>{setRechargeAmt(5);setRechargeOk(false);setRechargeOpen(true);}}>{t.ai_recharge_btn}</button>
+        )}
+        {rechargeOpen&&!rechargeMsg&&(
+          <div style={{marginBottom:"1rem"}}>
+            <div className="lbl">{t.ai_pick_amount}</div>
+            <AmountPicker amounts={[5,10,25]} value={rechargeAmt} onChange={setRechargeAmt}/>
+            <TermsBox title={t.terms_h_ai} items={t.ai_terms} consent={t.terms_consent} checked={rechargeOk} onToggle={setRechargeOk}/>
+            <button className="btn-pub" style={{width:"100%"}} disabled={!rechargeOk} onClick={()=>{setRechargeOpen(false);setRechargeMsg(true);}}>{t.ai_recharge_with} {rechargeAmt} €</button>
+          </div>
         )}
         {rechargeMsg&&<p className="ai-usage-notice">{t.ai_recharge_notice}</p>}
 
