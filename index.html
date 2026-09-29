@@ -76,6 +76,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   border:1.5px solid var(--border);cursor:pointer;border-radius:2px;
   transition:border-color .2s,color .2s,transform .15s}
 .btn-out:hover{border-color:var(--gold);color:var(--gold);transform:translateY(-1px)}
+.btn-out:disabled{border-color:var(--border);color:var(--muted);cursor:not-allowed;transform:none}
 .btn-navy-fill{font-family:var(--body);font-size:1rem;letter-spacing:0.06em;
   padding:0.75rem 2rem;background:var(--navy);color:#fff;
   border:none;cursor:pointer;border-radius:2px;transition:background .2s,transform .15s}
@@ -2426,6 +2427,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [chatMsgs,setChatMsgs]=useState([]); // {role:"user"|"model", text}
   const [chatInput,setChatInput]=useState("");
   const [chatInputFromAssistant,setChatInputFromAssistant]=useState(false);
+  const [justDictated,setJustDictated]=useState(false);
   const [chatLoading,setChatLoading]=useState(false);
   const [listening,setListening]=useState(false);
   const [dictProcessing,setDictProcessing]=useState(false);
@@ -2704,6 +2706,7 @@ ${capituloActual}
     setChatMsgs(newHist);
     setChatInput("");
     setChatInputFromAssistant(false);
+    setJustDictated(false);
     setChatLoading(true);
     try{
       const d=await callAI({
@@ -2719,6 +2722,7 @@ ${capituloActual}
       if(html){
         setChatInput(htmlToPlain(html));
         setChatInputFromAssistant(true);
+        setJustDictated(false);
       }
     }catch(e){
       if(e.code==="SIN_TINTA"){
@@ -2755,6 +2759,7 @@ ${capituloActual}
       if(finalText.trim()){
         dictationBufferRef.current=(dictationBufferRef.current?dictationBufferRef.current+" ":"")+finalText.trim();
         setChatInputFromAssistant(true);
+        setJustDictated(true);
         setChatInput(prev=>(prev?prev+" ":"")+finalText.trim());
       }
     };
@@ -2807,6 +2812,7 @@ ${capituloActual}
     });
     setChatInput("");
     setChatInputFromAssistant(false);
+    setJustDictated(false);
   };
 
   const binaryLangs=["ES","CA","GL","FR","IT","PT","DE"];
@@ -3303,7 +3309,7 @@ ${capituloActual}
                   speak={speak} speaking={speaking} setSpeaking={setSpeaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}
                   lang={lang} f={f} up={up} chatMsgs={chatMsgs} setChatMsgs={setChatMsgs}
                   chatInput={chatInput} setChatInput={setChatInput} chatInputFromAssistant={chatInputFromAssistant} setChatInputFromAssistant={setChatInputFromAssistant} chatLoading={chatLoading}
-                  sendChatMessage={sendChatMessage} listening={listening} dictProcessing={dictProcessing} startListening={startListening}
+                  sendChatMessage={sendChatMessage} listening={listening} dictProcessing={dictProcessing} justDictated={justDictated} startListening={startListening}
                   stopListening={stopListening} addChatToStory={addChatToStory}/>
               : <button className="ai-open-btn" style={{width:"100%",marginTop:"5.1rem" /* estimado: punto medio entre título/subtítulo y "Orden del libro"; ajustar a ojo si no cuadra exacto */,padding:"0.55rem 0.75rem",
                     fontFamily:"var(--body)",fontSize:"0.96rem",lineHeight:"1.2",boxSizing:"border-box",
@@ -3371,7 +3377,7 @@ const editIconStyle={background:"none",border:"none",color:"var(--muted)",cursor
 const arrowStyle={background:"none",border:"none",color:"var(--navy)",cursor:"pointer",fontSize:"0.68rem",lineHeight:1,padding:"1px 4px"};
 
 function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,rechargeMsg,setRechargeMsg,
-  lang,f,up,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,dictProcessing,startListening,stopListening,addChatToStory}) {
+  lang,f,up,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,dictProcessing,justDictated,startListening,stopListening,addChatToStory}) {
   if(!open) return null;
   const [rechargeOpen,setRechargeOpen]=useState(false);const [rechargeAmt,setRechargeAmt]=useState(5);const [rechargeOk,setRechargeOk]=useState(false);
   const usageLabel=aiUsage<=0?t.ai_usage_none:aiUsage<20?t.ai_usage_low:aiUsage<50?t.ai_usage_mid:t.ai_usage_ok;
@@ -3464,15 +3470,15 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
               <div style={{fontFamily:"var(--body)",fontSize:"0.7rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.08em",margin:"0.7rem 0 0.3rem"}}>{lang==="EN"?"You":"Tú"}</div>
               <textarea className="inp" style={{height:"190px",resize:"none",fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.5}} value={chatInput}
                 placeholder={lang==="EN"?"Write here...":"Escribe aquí..."}
-                onChange={e=>{setChatInput(e.target.value);setChatInputFromAssistant(false);}}/>
+                onChange={e=>{setChatInput(e.target.value);setChatInputFromAssistant(false);setJustDictated(false);}}/>
               {dictProcessing && <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",fontStyle:"italic",margin:"0.3rem 0 0"}}>{t.ai_dict_processing}</div>}
               <div style={{display:"flex",flexDirection:"column",gap:"0.4rem",marginTop:"0.5rem"}}>
                 <div style={{display:"flex",gap:"0.4rem",flexWrap:"wrap"}}>
-                  <button className="btn-pub" style={{padding:"0.45rem 0.9rem",flex:1}} disabled={chatLoading||!chatInput.trim()||listening||dictProcessing} onClick={()=>sendChatMessage(chatInput)}>
+                  <button className={justDictated?"btn-out":"btn-pub"} style={{padding:"0.45rem 0.9rem",flex:1}} disabled={chatLoading||!chatInput.trim()||listening||dictProcessing} onClick={()=>sendChatMessage(chatInput)}>
                     {lang==="EN"?"Send to Assistant":"Enviar al Asistente"}
                   </button>
                   {chatInputFromAssistant && (
-                    <button className="btn-out" style={{padding:"0.45rem 0.9rem",flex:1}} onClick={()=>addChatToStory(chatInput)}>
+                    <button className={justDictated?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.9rem",flex:1}} onClick={()=>addChatToStory(chatInput)}>
                       {lang==="EN"?"Send to text window":"Mandar a ventana de texto"}
                     </button>
                   )}
