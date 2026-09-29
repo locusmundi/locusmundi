@@ -634,6 +634,9 @@ const T = {
     ai_usage_low:"Casi agotado",ai_usage_none:"Se ha agotado",
     ai_recharge_btn:"Recargar el Asistente",
     ai_recharge_notice:"Esta función estará activa en cuanto abramos los pagos en la plataforma. De momento no se te ha cobrado nada.",
+    ai_no_ink:"Se ha agotado la tinta del Asistente. Puedes recargarlo arriba, en «Uso de IA». Lo que ya has escrito está a salvo.",
+    ai_no_session:"Tu sesión ha caducado. Sal y vuelve a entrar para seguir; lo que has escrito está guardado.",
+    ai_error_retry:"He tenido un problema para responder. ¿Puedes repetir tu último mensaje?",
     gift_link:"🎁",gift_h:"Regala el Plan Familiar",
     gift_sub:"Regala a alguien especial la oportunidad de escribir y conservar su historia, con toda la ayuda incluida.",
     gift_item1:"Una carga del Asistente de IA para escribir (5 €)",
@@ -868,6 +871,9 @@ const T = {
     ai_usage_low:"Almost out",ai_usage_none:"Used up",
     ai_recharge_btn:"Top up the Assistant",
     ai_recharge_notice:"This feature will be active once we turn on payments on the platform. Nothing has been charged yet.",
+    ai_no_ink:"The Assistant has run out of ink. You can top it up above, under “AI usage”. What you have written is safe.",
+    ai_no_session:"Your session has expired. Sign out and back in to continue; your writing is saved.",
+    ai_error_retry:"I had a problem answering. Could you repeat your last message?",
     gift_link:"🎁",gift_h:"Gift the Family Plan",
     gift_sub:"Give someone special the chance to write and preserve their story, with all the help included.",
     gift_item1:"One AI writing Assistant top-up (€5)",
@@ -964,14 +970,32 @@ const T = {
   }
 };
 
-async function callAI(system, userMsg) {
+// Llamada única a api/asistente.js (pieza 3, 29/09/2026). Cada petición
+// indica su operación: "traduccion" (gratis, sin cuenta), "dictado",
+// "revision" y "conversacion" (con tinta: exigen sesión). Devuelve
+// {text, tinta, ultimaCarga}. Los errores llevan su código en e.code
+// (SIN_TINTA, SIN_SESION, TEXTO_DEMASIADO_LARGO...).
+async function callAI({ operacion, system, userMsg, history, idioma }) {
+  const body = { operacion, userMsg };
+  if (system) body.system = system;   // el servidor lo ignora en traducción y dictado
+  if (history) body.history = history;
+  if (idioma) body.idioma = idioma;
+  if (operacion !== "traduccion") {
+    const { data } = await supa.auth.getSession();
+    body.token = data.session ? data.session.access_token : null;
+  }
   const res = await fetch("/api/asistente", {
     method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ system, userMsg })
+    body: JSON.stringify(body)
   });
-  const d = await res.json();
-  if (d.error) throw new Error(d.error);
-  return d.text;
+  const d = await res.json().catch(()=>({}));
+  if (d.error || !res.ok) {
+    const e = new Error(d.error || "ERROR");
+    e.code = d.error || "ERROR";
+    e.tinta = d.tinta; e.ultimaCarga = d.ultimaCarga;
+    throw e;
+  }
+  return d;
 }
 function isMobileUA(){
   return /Android|iPhone|iPad|iPod|Mobile|webOS/i.test(navigator.userAgent);
@@ -1136,8 +1160,9 @@ function Read({auto,setView,t}) {
     setDoing(true);setErrMsg("");
     const ln=LANGS_UI.find(l=>l.code===tl)?.label||tl;
     try{
-      const out=await callAI(`Eres un traductor literario. Traduce este texto autobiográfico al ${ln} preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia del ${ln} —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Las líneas entre corchetes, como [FOTO 2], son marcas técnicas: cópialas exactamente igual, sin traducirlas ni cambiarlas. Solo la traducción.`,auto.text);
-      setTr(out);setReadLangCode(tl);setEntered(true);
+      const d=await callAI({operacion:"traduccion",idioma:ln,userMsg:auto.text,
+        system:`Eres un traductor literario. Traduce este texto autobiográfico al ${ln} preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia del ${ln} —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Las líneas entre corchetes, como [FOTO 2], son marcas técnicas: cópialas exactamente igual, sin traducirlas ni cambiarlas. Solo la traducción.`});
+      setTr(d.text);setReadLangCode(tl);setEntered(true);
     }catch(e){setErrMsg(t.read_lang_error);}
     setDoing(false);
   };
@@ -2030,6 +2055,9 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       const { data: { user } } = await supa.auth.getUser();
       if(!user){ loadedRef.current=true; return; }
       autorIdRef.current = user.id;
+      // Tinta del Asistente (solo lectura: el navegador no puede cambiarla).
+      supa.from("autores").select("tinta_euros, tinta_ultima_carga").eq("id", user.id).maybeSingle()
+        .then(({data:a})=>{ if(a) setTinta({tinta:Number(a.tinta_euros)||0, ultimaCarga:Number(a.tinta_ultima_carga)||0}); });
       const { data, error } = await supa.from("historias")
         .select("id, titulo, contenido, portada_url")
         .eq("autor_id", user.id).eq("marcado_borrado", false).limit(1).maybeSingle();
@@ -2290,10 +2318,16 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
 
   const [wStep,setWStep]=useState(f.wizardDone?"editor":"datos");
 
-  const [ao,setAo]=useState("");const [al,setAl]=useState(false);const [am,setAm]=useState("");
-  const [tl,setTl]=useState("EN");const [pub,setPub]=useState(false);
+  const [pub,setPub]=useState(false);
   const [showAiPanel,setShowAiPanel]=useState(false);
-  const [aiUsage,setAiUsage]=useState(100);
+  // Tinta del Asistente, leída de `autores` y actualizada tras cada respuesta.
+  // null = aún no leída. La barra "Uso de IA" = tinta / última carga.
+  const [tinta,setTinta]=useState(null); // {tinta, ultimaCarga}
+  const aiUsage = !tinta ? 100
+    : tinta.tinta<=0 ? 0
+    : tinta.ultimaCarga>0 ? Math.max(1,Math.min(100,Math.round(tinta.tinta/tinta.ultimaCarga*100)))
+    : 100;
+  const applyTinta=(d)=>{ if(d && typeof d.tinta==="number") setTinta({tinta:d.tinta,ultimaCarga:d.ultimaCarga||0}); };
   const [rechargeMsg,setRechargeMsg]=useState(false);
   const [speaking,setSpeaking]=useState(false);
   const speak=(text,langCode)=>{
@@ -2339,26 +2373,29 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
 
   const paragraphCheckRef = useRef({timer:null, lastChecked:""});
 
-  const checkParagraphInBackground = async (paragraphText) => {
+  const checkParagraphInBackground = async (paragraphText, contexto) => {
     const trimmed = (paragraphText||"").trim();
     if(!trimmed || trimmed===paragraphCheckRef.current.lastChecked) return;
     paragraphCheckRef.current.lastChecked = trimmed;
     try{
-      const res = await fetch("/api/asistente", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({
-          system: buildAssistantSystemPrompt(getCurrentChapterText()),
+      // Contexto reducido (el párrafo y unos anteriores), no el capítulo entero:
+      // la revisión automática se hace con Flash-Lite y gasta tinta.
+      const d = await callAI({
+          operacion: "revision",
+          system: buildAssistantSystemPrompt(contexto||""),
           history: [],
           userMsg: `[Revisión automática de párrafo — no es un mensaje del Autor] El Autor acaba de terminar de escribir este párrafo:\n"""\n${trimmed}\n"""\nSi, según tus propias reglas (Regla del Redactor, Ritmo de Intervención por Escena, Una Frase por Intervención), tienes algo que señalar sobre ESTE párrafo en concreto, hazlo ahora, en una sola frase, sin redactar nada por el Autor. Si no hay nada que señalar, responde EXACTAMENTE con: SIN_COMENTARIO`
-        })
       });
-      const d = await res.json();
-      if(d.error) return;
+      applyTinta(d);
       if(d.text && d.text.trim()!=="SIN_COMENTARIO"){
         const {text:cleanText,langCode}=stripLangTag(d.text);
         setChatMsgs(h=>[...h,{role:"model",text:cleanText,langCode}]);
       }
-    }catch(e){ /* revisión de fondo: un fallo de red aquí no debe interrumpir al Autor */ }
+    }catch(e){
+      // Revisión de fondo: un fallo aquí no debe interrumpir al Autor. Si es
+      // falta de tinta, solo se refleja en la barra (que ofrece recargar).
+      if(e.code==="SIN_TINTA") setTinta(p=>({tinta:0,ultimaCarga:(p&&p.ultimaCarga)||e.ultimaCarga||0}));
+    }
   };
 
   const getCurrentChapterText=()=>{
@@ -2607,16 +2644,13 @@ ${capituloActual}
     setChatInputFromAssistant(false);
     setChatLoading(true);
     try{
-      const res=await fetch("/api/asistente",{
-        method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          system: buildAssistantSystemPrompt(getCurrentChapterText()),
-          history: chatMsgs,
-          userMsg: text
-        })
+      const d=await callAI({
+        operacion: "conversacion",
+        system: buildAssistantSystemPrompt(getCurrentChapterText()),
+        history: chatMsgs,
+        userMsg: text
       });
-      const d=await res.json();
-      if(d.error) throw new Error(d.error);
+      applyTinta(d);
       const {text:cleanText,langCode}=stripLangTag(d.text);
       setChatMsgs(h=>[...h,{role:"model",text:cleanText,langCode}]);
       const {html}=splitAssistantReply(cleanText);
@@ -2625,7 +2659,14 @@ ${capituloActual}
         setChatInputFromAssistant(true);
       }
     }catch(e){
-      setChatMsgs(h=>[...h,{role:"model",text:"He tenido un problema para responder. ¿Puedes repetir tu último mensaje?"}]);
+      if(e.code==="SIN_TINTA"){
+        setTinta(p=>({tinta:0,ultimaCarga:(p&&p.ultimaCarga)||e.ultimaCarga||0}));
+        setChatMsgs(h=>[...h,{role:"model",text:t.ai_no_ink}]);
+      } else if(e.code==="SIN_SESION"){
+        setChatMsgs(h=>[...h,{role:"model",text:t.ai_no_session}]);
+      } else {
+        setChatMsgs(h=>[...h,{role:"model",text:t.ai_error_retry}]);
+      }
     }
     setChatLoading(false);
   };
@@ -2673,8 +2714,9 @@ ${capituloActual}
       const sysCorr=lang==="EN"
         ? "Fix ONLY capitalization and punctuation in the following literal speech transcript. Do not change, add, remove, reorder or rephrase a single word. Return only the corrected text, nothing else."
         : "Corrige ÚNICAMENTE las mayúsculas y los signos de puntuación del siguiente texto, transcrito literalmente de un dictado por voz. No cambies, añadas, quites, reordenes ni reformules ni una sola palabra. Devuelve solo el texto corregido, sin nada más.";
-      callAI(sysCorr, raw).then(corrected=>{
-        const clean=(corrected||raw).trim();
+      callAI({operacion:"dictado",idioma:lang,system:sysCorr,userMsg:raw}).then(d=>{
+        applyTinta(d);
+        const clean=(d.text||raw).trim();
         setChatInput(preceding?preceding+" "+clean:clean);
       }).catch(()=>{ /* si falla la corrección, se deja el texto bruto tal cual */ });
     }
@@ -2703,23 +2745,6 @@ ${capituloActual}
   const binaryLangs=["ES","CA","GL","FR","IT","PT","DE"];
   const asksTuUsted = binaryLangs.includes(f.lang);
 
-  const run=async(mode)=>{
-    if(!f.text.trim()&&mode!=="structure")return;
-    if(aiUsage<=0){setRechargeMsg(true);return;}
-    setAl(true);setAm(mode);setAo("");
-    const ln=LANGS_UI.find(l=>l.code===tl)?.label||tl;
-    try{
-      let sys="",msg="";
-      if(mode==="continue"){sys="Eres un asistente de escritura autobiográfica. Continúa el texto respetando voz, idioma y estilo. Solo la continuación.";msg="Continúa:\n\n"+f.text;}
-      else if(mode==="improve"){sys="Eres un editor literario. Mejora este texto haciéndolo más evocador sin cambiar la voz. Solo el texto mejorado.";msg=f.text;}
-      else if(mode==="translate"){sys="Eres un traductor literario. Traduce al "+ln+" preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia de "+ln+" —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Solo la traducción.";msg=f.text;}
-      else if(mode==="structure"){sys="Eres un editor amable. Sugiere estructura y temas para esta autobiografía. Sé conciso.";msg=f.text||"Nombre: "+f.name+". País: "+f.country+". Año: "+f.born+".";}
-      setAo(await callAI(sys,msg));
-      setAiUsage(p=>Math.max(0,p-14));
-    }catch(e){setAo("Error.");}
-    setAl(false);
-  };
-  const apply=()=>{if(am==="improve"||am==="translate")up("text",ao);else if(am==="continue")up("text",f.text+"\n\n"+ao);setAo("");};
 
   const publish=(alsoUpload)=>{
     if(!f.name||!f.text)return;
@@ -2823,12 +2848,15 @@ ${capituloActual}
       }
     });
 
-    if(f.assistantActive){
+    if(f.assistantActive && !(tinta && tinta.tinta<=0)){
       const before=f.text.slice(0,s);
       const paraStart=before.lastIndexOf("\n\n");
       const justWritten=before.slice(paraStart===-1?0:paraStart+2);
+      // Contexto de la revisión: los 3 párrafos anteriores al recién escrito.
+      const previos=(paraStart===-1?"":before.slice(0,paraStart)).split(/\n\s*\n/).filter(x=>x.trim()).slice(-3).join("\n\n");
+      const contexto=(previos?previos+"\n\n":"")+justWritten;
       if(paragraphCheckRef.current.timer) clearTimeout(paragraphCheckRef.current.timer);
-      paragraphCheckRef.current.timer=setTimeout(()=>checkParagraphInBackground(justWritten),1500);
+      paragraphCheckRef.current.timer=setTimeout(()=>checkParagraphInBackground(justWritten,contexto),1500);
     }
   };
   const applyItalic=()=>{
@@ -3202,7 +3230,6 @@ ${capituloActual}
           <div className="wr-ai-col">
             {showAiPanel
               ? <AssistantPanel open={showAiPanel} onClose={()=>{if("speechSynthesis" in window)window.speechSynthesis.cancel();setSpeaking(false);setShowAiPanel(false);}} t={t}
-                  al={al} ao={ao} am={am} run={run} apply={apply} tl={tl} setTl={setTl}
                   speak={speak} speaking={speaking} setSpeaking={setSpeaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}
                   lang={lang} f={f} up={up} chatMsgs={chatMsgs} setChatMsgs={setChatMsgs}
                   chatInput={chatInput} setChatInput={setChatInput} chatInputFromAssistant={chatInputFromAssistant} setChatInputFromAssistant={setChatInputFromAssistant} chatLoading={chatLoading}
@@ -3273,7 +3300,7 @@ const optCardSubStyle={color:"var(--muted)",fontSize:"0.82rem"};
 const editIconStyle={background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:"0.78rem",padding:"0 3px"};
 const arrowStyle={background:"none",border:"none",color:"var(--navy)",cursor:"pointer",fontSize:"0.68rem",lineHeight:1,padding:"1px 4px"};
 
-function AssistantPanel({open,onClose,t,al,ao,am,run,apply,tl,setTl,speak,speaking,setSpeaking,aiUsage,rechargeMsg,setRechargeMsg,
+function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,rechargeMsg,setRechargeMsg,
   lang,f,up,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,startListening,stopListening,addChatToStory}) {
   if(!open) return null;
   const [rechargeOpen,setRechargeOpen]=useState(false);const [rechargeAmt,setRechargeAmt]=useState(5);const [rechargeOk,setRechargeOk]=useState(false);
