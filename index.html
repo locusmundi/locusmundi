@@ -602,6 +602,11 @@ const T = {
     ed_save_private:"Guardar para mí",ed_save_upload:"Subir a la plataforma",
     ed_photos_added_h:"Fotos añadidas",ed_photo_remove:"Quitar",ed_photo_replace:"Cambiar",
     ed_photo_caption_ph:"Pie de foto (opcional)",ed_photo_upload:"Subir foto",
+    photo_confirm_last:"Solo puedes cambiar la imagen de esta foto una vez. La que subas ahora será definitiva. ¿Continuar?",
+    photo_limit_reached:"Ya cambiaste la imagen de esta foto, así que es definitiva. Puedes moverla de sitio en el texto siempre que quieras.",
+    photo_confirm_remove_one:"Si quitas esta imagen, podrás subir otra en su lugar, pero esa será definitiva. ¿Quitarla?",
+    photo_confirm_remove_final:"Esta imagen ya es definitiva. Si la quitas, esta foto quedará vacía y no podrás subir otra. ¿Quitarla de todos modos?",
+    photo_badge_one:"Se puede cambiar una vez",photo_badge_next_final:"La próxima imagen será definitiva",photo_badge_final:"Imagen definitiva",
     ai_ask_name_h:"¿Con qué nombre quieres que te llame?",
     ai_ask_tuusted_h:"¿Prefieres que te hable de tú o de usted?",
     ai_tu:"De tú",ai_usted:"De usted",ai_start_using:"Empezar a usar el Asistente",
@@ -664,7 +669,7 @@ const T = {
     terms_consent:"Acepto las condiciones y solicito usar el servicio desde ahora mismo, sabiendo que al usarlo pierdo el derecho de desistimiento de 14 días.",
     photo_terms:[
       "Cada fotografía comprada es un espacio para una imagen en tu historia. Puedes cambiarla de sitio en el texto tantas veces como quieras.",
-      "Cada fotografía admite como máximo dos imágenes: la primera y un único cambio, por si te equivocas o cambias de idea.",
+      "Puedes sustituir la imagen de cada fotografía por otra una sola vez, por si te equivocas o cambias de idea; la nueva será definitiva.",
       "Incluye una edición básica gratuita: blanco y negro, sepia o color, y restauración de fotos antiguas o dañadas (arreglo de rayas, manchas y luz).",
       "La restauración y el coloreado se hacen con inteligencia artificial y admiten hasta 4 propuestas por fotografía. Verás siempre el resultado antes de aceptarlo; si no te convence, conservas tu imagen original.",
       "La IA tiene instrucciones de respetar íntegramente los rostros y la identidad de las personas fotografiadas, pero revisa siempre la propuesta antes de aceptarla.",
@@ -839,6 +844,11 @@ const T = {
     ed_save_private:"Save for myself",ed_save_upload:"Upload to the platform",
     ed_photos_added_h:"Added photos",ed_photo_remove:"Remove",ed_photo_replace:"Change",
     ed_photo_caption_ph:"Caption (optional)",ed_photo_upload:"Upload photo",
+    photo_confirm_last:"You can only change this photo's image once. The one you upload now will be final. Continue?",
+    photo_limit_reached:"You've already changed this photo's image, so it's final. You can move it to another place in the text whenever you like.",
+    photo_confirm_remove_one:"If you remove this image, you can upload another in its place, but that one will be final. Remove it?",
+    photo_confirm_remove_final:"This image is already final. If you remove it, this photo will be left empty and you won't be able to upload another. Remove it anyway?",
+    photo_badge_one:"Can be changed once",photo_badge_next_final:"The next image will be final",photo_badge_final:"Final image",
     ai_ask_name_h:"What name should I call you?",
     ai_ask_tuusted_h:"Not applicable in English — name only.",
     ai_tu:"Informal",ai_usted:"Formal",ai_start_using:"Start using the Assistant",
@@ -901,7 +911,7 @@ const T = {
     terms_consent:"I accept the terms and ask to use the service right away, understanding that once I use it I lose the 14-day right of withdrawal.",
     photo_terms:[
       "Each photo you buy is a space for one image in your story. You can move it to a different place in the text as many times as you like.",
-      "Each photo allows at most two images: the first one and a single change, in case you make a mistake or change your mind.",
+      "You can replace each photo's image with another just once, in case you make a mistake or change your mind; the new one will be final.",
       "Basic editing is included free of charge: black and white, sepia or colour, and restoration of old or damaged photos (fixing scratches, stains and lighting).",
       "Restoration and colourisation are done with artificial intelligence and allow up to 4 proposals per photo. You will always see the result before accepting it; if you don't like it, you keep your original image.",
       "The AI is instructed to fully respect the faces and identity of the people in the photo, but always check the proposal before accepting it.",
@@ -1598,6 +1608,8 @@ const PHOTOS_FAQ_ES = [
    a:"Su miniatura, en «Fotos añadidas», indicará «Foto 3 · en el texto», y en tu texto estará su marca [FOTO 3]. Si la miniatura no lo indica, la foto está sin colocar: ponla con «+ Fotografía»."},
   {q:"¿Cómo la muevo a otro sitio?",
    a:"Borra la línea con su marca, por ejemplo [FOTO 3], como borrarías cualquier palabra, y vuelve a pulsar «+ Fotografía» donde quieras ponerla."},
+  {q:"¿Puedo cambiar la imagen de una foto?",
+   a:"Sí, una vez. Cada foto comprada es un espacio en tu libro: subes una imagen y, si te equivocas o cambias de idea, puedes sustituirla por otra una sola vez. Mover la foto de sitio en el texto no cuenta nunca. La portada va aparte: puedes cambiarla siempre que quieras."},
   {q:"¿Y si borro su marca sin querer?",
    a:"No pasa nada: la foto sigue ahí abajo, sin colocar. Vuelve a pulsar «+ Fotografía» donde quieras y elígela de nuevo."},
   {q:"¿Se ve así, con esa marca de texto, cuando alguien lee mi libro?",
@@ -1612,6 +1624,8 @@ const PHOTOS_FAQ_EN = [
    a:"Its thumbnail, under \u201cPhotos added\u201d, will read \u201cPhoto 3 · in the text\u201d, and its mark [PHOTO 3] will be in your text. If the thumbnail doesn't say so, the photo isn't placed yet: place it with \u201c+ Photo\u201d."},
   {q:"How do I move it somewhere else?",
    a:"Delete the line with its mark, for example [PHOTO 3], just like deleting any word, and press \u201c+ Photo\u201d again wherever you want to put it."},
+  {q:"Can I change a photo's image?",
+   a:"Yes, once. Each photo you buy is a space in your book: you upload an image and, if you make a mistake or change your mind, you can replace it with another just once. Moving the photo to another place in the text never counts. The cover is separate: you can change it whenever you like."},
   {q:"What if I delete its mark by accident?",
    a:"No harm done: the photo is still there below, just unplaced. Press \u201c+ Photo\u201d again wherever you like and pick it once more."},
   {q:"Does that text mark show up like that when someone reads my book?",
@@ -2074,7 +2088,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
         }));
         wasPublishedRef.current = !!c.published;
         const { data: fotos } = await supa.from("fotos")
-          .select("id, bloque_id, url, pie_foto, orden, origen, lote_compra_id, fecha_compra")
+          .select("id, bloque_id, url, pie_foto, orden, origen, lote_compra_id, fecha_compra, imagenes_cargadas")
           .eq("historia_id", data.id).order("orden");
         if(fotos) setFotosDb(fotos);
       }
@@ -2151,7 +2165,27 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [cropFile,setCropFile]=useState(null);
   const [cropTarget,setCropTarget]=useState(null); // {type:"cover"} | {type:"slot",fotoId}
   const [pendingPhoto,setPendingPhoto]=useState(null); // {type,fotoId,previewUrl}: mientras sube a Storage
-  const startCrop=(target)=>(e)=>{const file=e.target.files[0];if(!file)return;e.target.value="";setCropTarget(target);setCropFile(file);};
+  // Límite de imágenes por foto (pieza 4, 29/09/2026): cada foto admite la primera
+  // imagen y un único cambio. El contador lo lleva la base de datos (disparador
+  // fotos_contadores, que rechaza con LIMITE_IMAGENES); aquí se lee fresco justo
+  // antes de subir, porque la imagen se sube a Storage ANTES de apuntarla en
+  // `fotos` y, si no se comprobara, sustituiría el archivo aunque la base de datos
+  // la rechazara después. La portada no tiene límite.
+  const imagenesCargadas=async(fotoId)=>{
+    const{data,error}=await supa.from("fotos").select("imagenes_cargadas").eq("id",fotoId).maybeSingle();
+    if(error||!data) return fotosDb.find(x=>x.id===fotoId)?.imagenes_cargadas||0;
+    setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,imagenes_cargadas:data.imagenes_cargadas}:x));
+    return data.imagenes_cargadas||0;
+  };
+  const startCrop=(target)=>async(e)=>{
+    const file=e.target.files[0];if(!file)return;e.target.value="";
+    if(target.type==="slot"){
+      const n=await imagenesCargadas(target.fotoId);
+      if(n>=2){ alert(t.photo_limit_reached); return; }
+      if(n===1 && !window.confirm(t.photo_confirm_last)) return;
+    }
+    setCropTarget(target);setCropFile(file);
+  };
   const cancelCrop=()=>{setCropFile(null);setCropTarget(null);};
 
   // Rutas fijas (upsert:true) para que sustituir una foto sobrescriba el archivo
@@ -2255,7 +2289,10 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     supa.from("fotos").update({bloque_id:bloqueId}).eq("id",ph.id).then(({error})=>{if(error)console.error(error);});
     setShowPhotoMenu(false);
   };
-  const removePhoto=(fotoId)=>{
+  const removePhoto=async(fotoId)=>{
+    const n=await imagenesCargadas(fotoId);
+    if(n===1 && !window.confirm(t.photo_confirm_remove_one)) return;
+    if(n>=2 && !window.confirm(t.photo_confirm_remove_final)) return;
     const ph=fotosDb.find(x=>x.id===fotoId);
     if(ph && f.text.includes(fotoMarker(ph))){
       up("text", f.text.replace(fotoMarker(ph)+"\n\n","").replace(fotoMarker(ph),""));
@@ -2272,12 +2309,19 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     setCropFile(null);setCropTarget(null);
     setPendingPhoto({...target,previewUrl:dataUrl});
     try{
+      if(target.type==="slot" && (await imagenesCargadas(target.fotoId))>=2){
+        alert(t.photo_limit_reached); return;
+      }
       const url=await uploadFotoToStorage(target,dataUrl);
       if(target.type==="cover"){
         up("coverImg",url);
       }else{
-        setFotosDb(p=>p.map(x=>x.id===target.fotoId?{...x,url}:x));
-        await supa.from("fotos").update({url}).eq("id",target.fotoId);
+        const{data:fila,error}=await supa.from("fotos").update({url}).eq("id",target.fotoId).select("imagenes_cargadas").single();
+        if(error){
+          if(String(error.message||"").includes("LIMITE_IMAGENES")){ alert(t.photo_limit_reached); return; }
+          throw error;
+        }
+        setFotosDb(p=>p.map(x=>x.id===target.fotoId?{...x,url,imagenes_cargadas:fila?fila.imagenes_cargadas:(x.imagenes_cargadas||0)+1}:x));
       }
     }catch(e){
       console.error(e);
@@ -3210,6 +3254,9 @@ ${capituloActual}
                       {t.photo_word.charAt(0).toUpperCase()+t.photo_word.slice(1)+" "+ph.orden}
                       {isFotoPlaced(ph)&&<span style={{color:"var(--navy)",fontWeight:600}}> · {lang==="EN"?"in the text":"en el texto"}</span>}
                     </div>
+                    {(()=>{const n=ph.imagenes_cargadas||0;
+                      const txt=n>=2?t.photo_badge_final:(n===1?(ph.url?t.photo_badge_one:t.photo_badge_next_final):null);
+                      return txt?<div style={{fontFamily:"var(--body)",fontSize:"0.66rem",color:"var(--muted)",fontStyle:"italic",marginBottom:"0.35rem"}}>{txt}</div>:null;})()}
                     <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} placeholder={t.ed_photo_caption_ph} value={ph.pie_foto||""} onChange={e=>setPhotoCaption(ph.id,e.target.value)}/>
                     <div style={{display:"flex",gap:"0.4rem",fontSize:"0.7rem"}}>
                       <label style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
