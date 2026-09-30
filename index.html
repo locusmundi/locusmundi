@@ -218,9 +218,13 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
    Javier (30/09); en el móvil, las medidas de siempre. */
 .ai-chat-col{height:460px}
 .ai-chat-hist{height:190px}
+/* En el ordenador la columna ya no fija su alto (antes encogía la zona de mensajes y la caja
+   "Tú" y el ajuste no se notaba): toma el de su contenido, y la zona de mensajes crece con la
+   ventana. Recalculado sobre la captura de Javier del 30/09, 20:51. */
 @media(min-width:900px){
-  .ai-chat-col{height:max(460px,calc(62vh - 48px))}
-  .ai-chat-hist{height:max(190px,calc(62vh - 318px))}
+  .ai-chat-col{height:auto}
+  .ai-chat-col > *{flex-shrink:0}
+  .ai-chat-hist{height:max(190px,calc(62vh - 375px))}
 }
 .ta{width:100%;min-height:280px;resize:vertical;font-family:var(--body);
   font-size:1.05rem;line-height:1.78;padding:0.95rem;background:var(--bg3);
@@ -3911,7 +3915,10 @@ function App() {
   // Trae de Supabase las historias publicadas de verdad (además de las 4 de
   // muestra fijas) para que la Biblioteca no dependa solo de la memoria del
   // navegador. Portada y fotos interiores ya viven en Supabase (27/09/2026).
-  useEffect(()=>{
+  // Se vuelve a leer cada vez que se entra en la Biblioteca (no solo al abrir la web), para que
+  // un cambio de título, nombre de Autor o texto de un libro publicado se vea sin recargar la
+  // página. La lista se sustituye entera (muestras + publicadas), sin duplicados.
+  const loadLibrary=()=>{
     (async () => {
       const { data, error } = await supa.from("historias")
         .select("id, titulo, contenido, idioma_original, fecha_publicacion, portada_url")
@@ -3944,10 +3951,14 @@ function App() {
             city: c.pubCity || "", profession: c.pubProfession || "", concept: c.pubConcept || ""
           };
         });
-        setAutos(p=>[...p,...mapped]);
+        setAutos([...SAMPLE,...mapped]);
+      } else if(!error){
+        setAutos(SAMPLE);
       }
     })();
-  },[]);
+  };
+  useEffect(()=>{ loadLibrary(); },[]);
+  useEffect(()=>{ if(view==="library") loadLibrary(); },[view]);
   const [showContact,setShowContact]=useState(false);
   const [showLegal,setShowLegal]=useState(null);
   const [showCollab,setShowCollab]=useState(false);
