@@ -2931,29 +2931,24 @@ ${capituloActual}
     const lineHeight=parseFloat(getComputedStyle(ta).lineHeight)||20;
     ta.scrollTop=Math.max(0,(lineNum-3)*lineHeight);
   };
+  // "+ Capítulo" / "+ Apartado" (Esquema del libro v5, paso 3): insertan la cabecera en el
+  // texto, donde esté el cursor, con su signo — ¶ capítulo, § apartado —, que la Biblioteca
+  // reconoce y no muestra. El número del capítulo se calcula contando los capítulos (líneas
+  // con ¶) que hay de verdad en el texto antes del cursor, no con la lista antigua (f.blocks),
+  // que ya no se toca: la caja "Orden del libro" desaparece en el paso 6.
   const addBlock=(type)=>{
     const nt=prompt(t.ed_new_block_prompt+" "+(type==="chapter"?t.ed_chapter_word:t.ed_apartado_word)+":","");
     if(nt===null) return;
-    const title=nt.trim();
+    const title=nt.trim().toUpperCase();
     const ta=taRef.current;
     const pos = ta ? ta.selectionStart : f.text.length;
-    // Dónde debe caer en la lista: justo antes del primer bloque cuya posición real en el
-    // texto sea igual o posterior al punto donde se inserta — así, si se cuela un capítulo
-    // a mitad del libro, aparece a mitad de la lista, no siempre al final.
-    let insertIndex=f.blocks.length;
-    for(let k=0;k<f.blocks.length;k++){
-      const bpos=getBlockTextPos(f.text,f.blocks,k);
-      if(bpos!==-1 && bpos>=pos){ insertIndex=k; break; }
+    let marker;
+    if(type==="chapter"){
+      const before=f.text.slice(0,pos).split("\n").filter(l=>l.trim().startsWith(CHAPTER_SIGN)).length;
+      marker=CHAPTER_SIGN+" "+t.ed_chapter_word.toUpperCase()+" "+toRoman(before+1)+(title?": "+title:"");
+    } else {
+      marker=SECTION_SIGN+" "+(title||t.ed_untitled.toUpperCase());
     }
-    const withNew=[...f.blocks.slice(0,insertIndex),{id:crypto.randomUUID(),type,title},...f.blocks.slice(insertIndex)];
-    const renumbered=renumberBlocks(withNew);
-    const marker=blockMarkerText(renumbered[insertIndex]);
-    const finalBlocks=renumbered.map((b,idx)=>idx===insertIndex?{...b,markerText:marker}:b);
-    setF(p=>({...p,blocks:finalBlocks}));
-    // Además de añadirlo al índice, insertamos un marcador en mayúsculas en el propio texto,
-    // en el punto donde esté el cursor — la caja de texto no puede mostrar negrita de verdad
-    // (es un campo plano), pero al leerse/publicarse este marcador se reconoce y se muestra
-    // con el formato del estándar de colección (ver renderStoryBody).
     pushHistory();
     const needsLeadingBreak = pos>0 && f.text[pos-1]!=="\n";
     const nv = f.text.slice(0,pos) + (needsLeadingBreak?"\n\n":"") + marker + "\n\n" + f.text.slice(pos);
