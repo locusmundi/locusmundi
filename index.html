@@ -2564,11 +2564,10 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     const text=f.text||"";
     if(!text.trim()) return "";
     const cursorPos = taRef.current ? taRef.current.selectionStart : text.length;
-    const chapterWord = t.ed_chapter_word.toUpperCase();
-    const re = new RegExp("^"+chapterWord+"\\s+[IVXLCDM]+.*$","gm");
-    const markers=[];
-    let m;
-    while((m=re.exec(text))){ markers.push(m.index); }
+    // Capítulos = líneas con ¶ (Esquema del libro v5), leídos igual que en el Esquema y la
+    // Biblioteca: vale para cualquier idioma. Antes se buscaba la palabra "CAPÍTULO" al inicio
+    // de línea, que dejó de encontrarse al llevar el ¶ delante, y se enviaba el libro entero.
+    const markers=parseOutline(text).filter(x=>x.kind==="chapter").map(x=>x.start);
     if(markers.length===0) return text.trim();
     let idx=-1;
     for(let i=0;i<markers.length;i++){
