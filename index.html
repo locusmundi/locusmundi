@@ -212,6 +212,15 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   color:var(--ink);outline:none;transition:border-color .2s}
 .inp:focus{border-color:var(--gold)}
 @media(min-width:900px){.wr-work .ta{height:62vh}}
+/* Columna del Asistente: en el ordenador crece con el alto de la ventana, igual que la caja de
+   texto (62vh), para que las dos terminen a la misma altura. Ajustado sobre la captura de
+   Javier (30/09); en el móvil, las medidas de siempre. */
+.ai-chat-col{height:460px}
+.ai-chat-hist{height:190px}
+@media(min-width:900px){
+  .ai-chat-col{height:max(460px,calc(62vh - 48px))}
+  .ai-chat-hist{height:max(190px,calc(62vh - 318px))}
+}
 .ta{width:100%;min-height:280px;resize:vertical;font-family:var(--body);
   font-size:1.05rem;line-height:1.78;padding:0.95rem;background:var(--bg3);
   border:1px solid var(--border);border-radius:2px;color:var(--ink);
@@ -3663,9 +3672,9 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
         )}
         {rechargeMsg&&<p className="ai-usage-notice">{t.ai_recharge_notice}</p>}
 
-        <div style={{display:"flex",flexDirection:"column",height:"460px"}}>
+        <div className="ai-chat-col" style={{display:"flex",flexDirection:"column"}}>
               <div style={{fontFamily:"var(--body)",fontSize:"0.7rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"0.3rem"}}>{t.ai_h}</div>
-              <div ref={chatBoxRef} style={{height:"190px",overflowY:"auto",display:"flex",flexDirection:"column",gap:"0.6rem",paddingRight:"0.3rem",border:"1px solid #B9D3E8",borderRadius:"8px",padding:"0.6rem"}}>
+              <div ref={chatBoxRef} className="ai-chat-hist" style={{overflowY:"auto",display:"flex",flexDirection:"column",gap:"0.6rem",paddingRight:"0.3rem",border:"1px solid #B9D3E8",borderRadius:"8px",padding:"0.6rem"}}>
                 {chatMsgs.filter(m=>m.role==="model").map((m,i)=>{
                   const {preamble,suffix,html} = splitAssistantReply(m.text);
                   const displayText = html ? (preamble || suffix || assistantAnnouncement) : m.text;
