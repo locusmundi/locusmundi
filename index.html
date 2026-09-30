@@ -419,6 +419,10 @@ const foldUpper = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpp
 const looksLikeChapter = (line) => {
   const tl=line.trim();
   if(/^第\S{1,6}章/.test(tl)) return true; // chino / japonés: 第三章
+  // Estructura "PALABRA + número [: título]" (CAPÍTUL IV, PARTE 2…): posible capítulo aunque la
+  // palabra esté mal escrita o no esté en la lista.
+  const sm=tl.match(/^(\S+)\s+([IVXLCDM]+|\d+)\s*(?:[:.\-–—]|$)/);
+  if(sm && /^\p{L}+$/u.test(sm[1]) && (/^\d+$/.test(sm[2]) || ROMAN_OK.test(sm[2]))) return true;
   const u=foldUpper(tl);
   return CHAPTER_WORDS_ANY.some(w=>u.startsWith(w) && (u.length===w.length || /[\s\d:.\-–—]/.test(u[w.length])));
 };
@@ -455,6 +459,19 @@ function parseOutline(text){
     }
   });
   return items;
+}
+// "Renumerar capítulos": solo capítulos con ¶ y con número; cambia ese número por el que le toca
+// en orden, conservando si era romano o arábigo. Los capítulos sin número se dejan tal cual.
+function renumberChaptersText(text){
+  const reps=[]; let k=0;
+  parseOutline(text).forEach(x=>{
+    if(x.kind!=="chapter"||!x.num) return;
+    k++; const nt=x.num.arabic?String(k):toRoman(k);
+    if(nt!==x.num.tok) reps.push({at:x.start+x.bodyOffset+x.num.idx, len:x.num.tok.length, nt});
+  });
+  let nv=text;
+  for(let r=reps.length-1;r>=0;r--){ const {at,len,nt}=reps[r]; nv=nv.slice(0,at)+nt+nv.slice(at+len); }
+  return nv;
 }
 function renderStoryBody(text, fotos=[]) {
   return (text||"").split("\n\n").map((raw,i)=>{
@@ -2500,7 +2517,6 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const taRef=useRef(null);
   // ---- Buscador de texto sobre el manuscrito (Esquema del libro v4, paso 1) ----
   const [showOutline,setShowOutline]=useState(false); // ventana "Esquema del libro"
-  const [showBlocks,setShowBlocks]=useState(false); // caja "Orden del libro" plegada por defecto (provisional hasta el paso 6)
   const [searchQ,setSearchQ]=useState("");
   const [searchInfo,setSearchInfo]=useState(null); // null | {cur, total} (cur=0: aún no se ha saltado)
   const searchSelRef=useRef(null);                  // última coincidencia seleccionada {s,e}
@@ -2935,67 +2951,6 @@ ${capituloActual}
     }
   },[wStep]);
 
-  // ---- Bloques (capítulos/apartados) — organizan el índice del libro; el texto sigue siendo
-  // un único campo continuo (dividir el propio contenido por bloque es trabajo de Fase B) ----
-  const renumberBlocks=(blocks)=>{
-    let n=0;
-    return blocks.map(b=>b.type==="chapter"?{...b,num:(n=n+1)}:b);
-  };
-  const blockLabel=(b)=> b.type==="chapter"
-    ? (t.ed_chapter_word.charAt(0).toUpperCase()+t.ed_chapter_word.slice(1))+" "+b.num+(b.title?" — "+b.title:"")
-    : (t.ed_apartado_word.charAt(0).toUpperCase()+t.ed_apartado_word.slice(1))+(b.title?" — "+b.title:" — "+t.ed_untitled);
-  // Texto exacto de la línea-marcador que corresponde a un bloque. Si el bloque ya trae su
-  // propio markerText (guardado al crearlo/renombrarlo/reordenarlo), se usa tal cual; si no
-  // (historias antiguas, de antes de este cambio), se calcula con la misma fórmula de siempre
-  // — coincidirá con el texto real mientras no se haya renombrado o reordenado desde entonces.
-  const blockMarkerText=(b)=>{
-    if(b.markerText) return b.markerText;
-    return b.type==="chapter"
-      ? t.ed_chapter_word.toUpperCase()+" "+toRoman(b.num)+(b.title?": "+b.title.toUpperCase():"")
-      : (b.title?b.title.toUpperCase():t.ed_untitled.toUpperCase());
-  };
-  // Busca la aparición nº `ordinal` (0 = la primera) de una línea EXACTA dentro del texto —
-  // exige que ocupe la línea entera (inicio de texto o tras un salto de línea, y fin de texto
-  // o antes de un salto de línea), para no confundirla con esas mismas palabras sueltas en
-  // mitad de un párrafo. Si no la encuentra con esa certeza, devuelve -1 y no se toca nada.
-  const findNthMarkerPos=(text,markerText,ordinal)=>{
-    if(!markerText) return -1;
-    let from=0, count=-1;
-    while(true){
-      const idx=text.indexOf(markerText,from);
-      if(idx===-1) return -1;
-      const atStart = idx===0 || text[idx-1]==="\n";
-      const afterEnd = idx+markerText.length;
-      const atEnd = afterEnd===text.length || text[afterEnd]==="\n";
-      if(atStart && atEnd){
-        count++;
-        if(count===ordinal) return idx;
-      }
-      from=idx+1;
-    }
-  };
-  // Si varios bloques comparten el mismo texto de marcador (p. ej. dos apartados sin título),
-  // este es el puesto que ocupa uno de ellos entre los que le preceden con el mismo texto —
-  // así se localiza la aparición correcta en el texto, no siempre la primera.
-  const markerOccurrence=(blocks,i)=>{
-    const mt=blockMarkerText(blocks[i]);
-    let ord=0;
-    for(let k=0;k<i;k++){ if(blockMarkerText(blocks[k])===mt) ord++; }
-    return ord;
-  };
-  const getBlockTextPos=(text,blocks,i)=>
-    findNthMarkerPos(text, blockMarkerText(blocks[i]), markerOccurrence(blocks,i));
-  const jumpToBlock=(i)=>{
-    const pos=getBlockTextPos(f.text,f.blocks,i);
-    if(pos===-1) return; // no se localiza con certeza: no se mueve el cursor
-    const ta=taRef.current;
-    if(!ta) return;
-    ta.focus();
-    ta.setSelectionRange(pos,pos);
-    const lineNum=f.text.slice(0,pos).split("\n").length;
-    const lineHeight=parseFloat(getComputedStyle(ta).lineHeight)||20;
-    ta.scrollTop=Math.max(0,(lineNum-3)*lineHeight);
-  };
   // "+ Capítulo" / "+ Apartado" (Esquema del libro v5, paso 3): insertan la cabecera en el
   // texto, donde esté el cursor, con su signo — ¶ capítulo, § apartado —, que la Biblioteca
   // reconoce y no muestra. El número del capítulo se calcula contando los capítulos (líneas
@@ -3009,43 +2964,22 @@ ${capituloActual}
     const pos = ta ? ta.selectionStart : f.text.length;
     let marker;
     if(type==="chapter"){
-      const before=f.text.slice(0,pos).split("\n").filter(l=>l.trim().startsWith(CHAPTER_SIGN)).length;
-      marker=CHAPTER_SIGN+" "+t.ed_chapter_word.toUpperCase()+" "+toRoman(before+1)+(title?": "+title:"");
+      const prev=f.text.slice(0,pos).split("\n").filter(l=>l.trim().startsWith(CHAPTER_SIGN)).length;
+      marker=CHAPTER_SIGN+" "+t.ed_chapter_word.toUpperCase()+" "+toRoman(prev+1)+(title?": "+title:"");
     } else {
       marker=SECTION_SIGN+" "+(title||t.ed_untitled.toUpperCase());
     }
+    // Se quitan los saltos de línea sobrantes a ambos lados del cursor y la cabecera queda
+    // exactamente entre dos líneas en blanco (antes podía sobrar una debajo).
+    const before=f.text.slice(0,pos).replace(/\s+$/,"");
+    const after=f.text.slice(pos).replace(/^\s+/,"");
+    let nv=(before?before+"\n\n":"")+marker+(after?"\n\n"+after:"");
+    // Un capítulo nuevo en mitad del libro renumera los siguientes, en la misma acción del botón
+    // (un solo "↺ Deshacer" lo revierte todo). Si el Autor cambia números a mano, no se toca
+    // nada: para eso está "Renumerar capítulos" en el Esquema.
+    if(type==="chapter") nv=renumberChaptersText(nv);
     pushHistory();
-    const needsLeadingBreak = pos>0 && f.text[pos-1]!=="\n";
-    const nv = f.text.slice(0,pos) + (needsLeadingBreak?"\n\n":"") + marker + "\n\n" + f.text.slice(pos);
     up("text",nv);
-  };
-  const moveBlock=(i,dir)=> setF(p=>{
-    const j=i+dir; if(j<0||j>=p.blocks.length) return p;
-    const bl=[...p.blocks]; [bl[i],bl[j]]=[bl[j],bl[i]];
-    return {...p,blocks:renumberBlocks(bl)};
-  });
-  const renameBlock=(i)=>{
-    const b=f.blocks[i];
-    const nt=prompt(t.ed_rename_prompt+" "+(b.type==="chapter"?t.ed_chapter_word:t.ed_apartado_word)+":", b.title||"");
-    if(nt===null) return;
-    setF(p=>{ const bl=[...p.blocks]; bl[i]={...bl[i],title:nt.trim()}; return {...p,blocks:renumberBlocks(bl)}; });
-  };
-  const deleteBlock=(i)=>{
-    if(f.blocks.length===1){ alert(t.ed_need_one_block); return; }
-    if(!confirm(t.ed_confirm_delete)) return;
-    // Además de quitar la fila de la lista, borramos SOLO esa línea del texto (el contenido
-    // que seguía debajo se queda donde está, fusionado con el bloque anterior) — si no se
-    // localiza con certeza, se deja el texto tal cual, para no arriesgarse a borrar algo mal.
-    const pos=getBlockTextPos(f.text,f.blocks,i);
-    if(pos!==-1){
-      const mt=blockMarkerText(f.blocks[i]);
-      let end=pos+mt.length;
-      if(f.text[end]==="\n") end++;
-      if(f.text[end]==="\n") end++;
-      pushHistory();
-      up("text", f.text.slice(0,pos)+f.text.slice(end));
-    }
-    setF(p=>{ const bl=[...p.blocks]; bl.splice(i,1); return {...p,blocks:renumberBlocks(bl)}; });
   };
 
   // ---- Cursiva simple sobre el texto seleccionado (marcado _así_, compatible con el campo de
@@ -3140,21 +3074,10 @@ ${capituloActual}
     pushHistory();
     up("text", f.text.slice(0,it.start)+sign+" "+f.text.slice(it.start));
   };
-  // "Renumerar capítulos": solo capítulos con ¶ y con número; cambia ese número por el que le
-  // toca en orden, conservando si era romano o arábigo. Los capítulos sin número (p. ej.
-  // "¶ PRÓLOGO") se dejan tal cual y no cuentan.
   const renumberChapters=()=>{
-    const reps=[]; let k=0;
-    outline.forEach(x=>{
-      if(x.kind!=="chapter"||!x.num) return;
-      k++; const nt=x.num.arabic?String(k):toRoman(k);
-      if(nt!==x.num.tok) reps.push({at:x.start+x.bodyOffset+x.num.idx, len:x.num.tok.length, nt});
-    });
-    if(!reps.length) return;
-    pushHistory();
-    let nv=f.text;
-    for(let r=reps.length-1;r>=0;r--){ const {at,len,nt}=reps[r]; nv=nv.slice(0,at)+nt+nv.slice(at+len); }
-    up("text",nv);
+    const nv=renumberChaptersText(f.text);
+    if(nv===f.text) return;
+    pushHistory(); up("text",nv);
   };
 
   const pushHistory=()=>{ historyRef.current=[...historyRef.current.slice(-19), f.text]; };
@@ -3486,25 +3409,6 @@ ${capituloActual}
             </div>
           </div>
 
-          {!showBlocks
-          ? <div style={{margin:"1rem 0"}}>
-              <span onClick={()=>setShowBlocks(true)} style={{fontFamily:"var(--body)",fontSize:"0.72rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--gold)",cursor:"pointer"}}>▸ {t.ed_blocks_short}</span>
-            </div>
-          : <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",padding:"0.9rem",margin:"1rem 0"}}>
-            <div onClick={()=>setShowBlocks(false)} style={{fontFamily:"var(--body)",fontSize:"0.68rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--gold)",marginBottom:"0.7rem",cursor:"pointer"}}>▾ {t.ed_blocks_h}</div>
-            {f.blocks.map((b,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:"0.4rem",padding:"0.4rem 0.5rem",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:"2px",marginBottom:"0.4rem",fontSize:"0.82rem"}}>
-                <span style={{flex:1,color:"var(--ink)",cursor:"pointer"}} title={lang==="EN"?"Go to this point in the text":"Ir a este punto del texto"} onClick={()=>jumpToBlock(i)}>{blockLabel(b)}</span>
-                <button style={editIconStyle} title={t.ed_rename_prompt} onClick={()=>renameBlock(i)}>✎</button>
-                <button style={{...editIconStyle,color:"#b23b3b"}} title="✕" onClick={()=>deleteBlock(i)}>✕</button>
-                <div style={{display:"flex",flexDirection:"column"}}>
-                  <button style={{...arrowStyle,opacity:i===0?0.3:1}} disabled={i===0} onClick={()=>moveBlock(i,-1)}>▲</button>
-                  <button style={{...arrowStyle,opacity:i===f.blocks.length-1?0.3:1}} disabled={i===f.blocks.length-1} onClick={()=>moveBlock(i,1)}>▼</button>
-                </div>
-              </div>
-            ))}
-          </div>}
-
           <div className="mob-offers-strip">
             <span className={`mob-offer-chip ${f.assistantActive?"on navy":""}`} onClick={()=>document.getElementById("lm-offer-ai")?.scrollIntoView({behavior:"smooth"})}>✦ {t.mob_strip_ai}</span>
             <span className={`mob-offer-chip ${photosBought>0?"on gold":""}`} onClick={()=>document.getElementById("lm-offer-photos")?.scrollIntoView({behavior:"smooth"})}>📷 {t.mob_strip_photos}</span>
@@ -3523,7 +3427,8 @@ ${capituloActual}
                 <p className="modal-sub">{t.ol_sub}</p>
                 {!numberingOk && (
                   <div style={{background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"3px",padding:"0.8rem 1rem",marginBottom:"1.2rem",fontFamily:"var(--body)",fontSize:"0.92rem",color:"var(--ink)"}}>
-                    ⚠ {t.ol_num_warn}
+                    <div>⚠ {t.ol_num_warn}</div>
+                    <button type="button" className="toolbar-btn" style={{marginTop:"0.7rem"}} onClick={renumberChapters}>{t.ol_renumber}</button>
                   </div>
                 )}
                 {outline.length===0
@@ -3548,7 +3453,6 @@ ${capituloActual}
                       );
                     })}</div>}
                 <div style={{display:"flex",gap:"0.6rem",justifyContent:"flex-end",marginTop:"1.4rem",flexWrap:"wrap"}}>
-                  {numbered.length>0 && <button type="button" className="toolbar-btn" onClick={renumberChapters} disabled={numberingOk} style={numberingOk?{opacity:0.4,cursor:"not-allowed"}:{}}>{t.ol_renumber}</button>}
                   <button type="button" className="toolbar-btn" onClick={()=>setShowOutline(false)}>{t.ol_close}</button>
                 </div>
               </div>
