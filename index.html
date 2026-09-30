@@ -599,7 +599,7 @@ const T = {
     ed_rename_prompt:"Título de este",ed_new_block_prompt:"Título del nuevo",ed_confirm_delete:"¿Borrar este bloque de la lista?",
     ed_need_one_block:"Tu libro necesita al menos un bloque.",
     ed_italic:"Cursiva",ed_undo:"↺ Deshacer",ed_add_photo:"+ Fotografía",
-    ed_search_ph:"Buscar en el texto (palabra, frase o título)",ed_search_prev:"↑ Anterior",ed_search_next:"↓ Siguiente",ed_search_none:"Sin resultados",ed_search_of:"de",ed_search_one:"coincidencia",ed_search_many:"coincidencias",
+    ed_blocks_short:"Orden del libro",ed_search_ph:"Buscar en el texto (palabra, frase o título)",ed_search_prev:"↑ Anterior",ed_search_next:"↓ Siguiente",ed_search_none:"Sin resultados",ed_search_of:"de",ed_search_one:"coincidencia",ed_search_many:"coincidencias",
     ed_save_exit:"Guardar y salir",ed_save_exit_q:"¿Quieres guardar este trabajo solo para ti, o subirlo ya a la plataforma?",
     ed_save_private:"Guardar para mí",ed_save_upload:"Subir a la plataforma",
     ed_photos_added_h:"Fotos añadidas",ed_photo_remove:"Quitar",ed_photo_replace:"Cambiar",
@@ -842,7 +842,7 @@ const T = {
     ed_rename_prompt:"Title for this",ed_new_block_prompt:"Title for the new",ed_confirm_delete:"Delete this block from the list?",
     ed_need_one_block:"Your book needs at least one block.",
     ed_italic:"Italics",ed_undo:"↺ Undo",ed_add_photo:"+ Photo",
-    ed_search_ph:"Search the text (word, phrase or title)",ed_search_prev:"↑ Previous",ed_search_next:"↓ Next",ed_search_none:"No results",ed_search_of:"of",ed_search_one:"match",ed_search_many:"matches",
+    ed_blocks_short:"Book order",ed_search_ph:"Search the text (word, phrase or title)",ed_search_prev:"↑ Previous",ed_search_next:"↓ Next",ed_search_none:"No results",ed_search_of:"of",ed_search_one:"match",ed_search_many:"matches",
     ed_save_exit:"Save and exit",ed_save_exit_q:"Do you want to save this just for yourself, or upload it to the platform now?",
     ed_save_private:"Save for myself",ed_save_upload:"Upload to the platform",
     ed_photos_added_h:"Added photos",ed_photo_remove:"Remove",ed_photo_replace:"Change",
@@ -2426,6 +2426,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const historyRef=useRef([]);
   const taRef=useRef(null);
   // ---- Buscador de texto sobre el manuscrito (Esquema del libro v4, paso 1) ----
+  const [showBlocks,setShowBlocks]=useState(false); // caja "Orden del libro" plegada por defecto (provisional hasta el paso 6)
   const [searchQ,setSearchQ]=useState("");
   const [searchInfo,setSearchInfo]=useState(null); // null | {cur, total} (cur=0: aún no se ha saltado)
   const searchSelRef=useRef(null);                  // última coincidencia seleccionada {s,e}
@@ -3375,8 +3376,12 @@ ${capituloActual}
             </div>
           </div>
 
-          <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",padding:"0.9rem",margin:"1rem 0"}}>
-            <div style={{fontFamily:"var(--body)",fontSize:"0.68rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--gold)",marginBottom:"0.7rem"}}>{t.ed_blocks_h}</div>
+          {!showBlocks
+          ? <div style={{margin:"1rem 0"}}>
+              <span onClick={()=>setShowBlocks(true)} style={{fontFamily:"var(--body)",fontSize:"0.72rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--gold)",cursor:"pointer"}}>▸ {t.ed_blocks_short}</span>
+            </div>
+          : <div style={{background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",padding:"0.9rem",margin:"1rem 0"}}>
+            <div onClick={()=>setShowBlocks(false)} style={{fontFamily:"var(--body)",fontSize:"0.68rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--gold)",marginBottom:"0.7rem",cursor:"pointer"}}>▾ {t.ed_blocks_h}</div>
             {f.blocks.map((b,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:"0.4rem",padding:"0.4rem 0.5rem",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:"2px",marginBottom:"0.4rem",fontSize:"0.82rem"}}>
                 <span style={{flex:1,color:"var(--ink)",cursor:"pointer"}} title={lang==="EN"?"Go to this point in the text":"Ir a este punto del texto"} onClick={()=>jumpToBlock(i)}>{blockLabel(b)}</span>
@@ -3388,7 +3393,7 @@ ${capituloActual}
                 </div>
               </div>
             ))}
-          </div>
+          </div>}
 
           <div className="mob-offers-strip">
             <span className={`mob-offer-chip ${f.assistantActive?"on navy":""}`} onClick={()=>document.getElementById("lm-offer-ai")?.scrollIntoView({behavior:"smooth"})}>✦ {t.mob_strip_ai}</span>
