@@ -211,6 +211,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   background:var(--bg3);border:1px solid var(--border);border-radius:2px;
   color:var(--ink);outline:none;transition:border-color .2s}
 .inp:focus{border-color:var(--gold)}
+@media(min-width:900px){.wr-work .ta{height:62vh}}
 .ta{width:100%;min-height:280px;resize:vertical;font-family:var(--body);
   font-size:1.05rem;line-height:1.78;padding:0.95rem;background:var(--bg3);
   border:1px solid var(--border);border-radius:2px;color:var(--ink);
@@ -2357,34 +2358,6 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // ---- Marcador "FOTO n" en el propio texto (igual que los de capítulo/apartado) ----
   const fotoMarker=(ph)=>"["+t.photo_word.toUpperCase()+" "+ph.orden+"]"; // [FOTO n]: se lee como marca técnica, no como texto del Autor
   const isFotoPlaced=(ph)=>f.text.includes(fotoMarker(ph));
-  // Bloque bajo una posición del texto: busca, de entre todos los bloques, cuya marca de
-  // capítulo/apartado aparezca más cerca (y antes) de esa posición — mismo tipo de cálculo
-  // que ya hace el Asistente para saber "en qué capítulo está el cursor", solo que aquí
-  // cubre también apartados. Si un bloque se renombró después de crear su marca, esta
-  // búsqueda puede no encontrarlo — el resultado, en ese caso, es simplemente "sin
-  // capítulo asociado", nunca una asociación equivocada.
-  const currentBlockMarkerText=(b)=>{
-    if(b.type==="chapter"){
-      const chapNum=f.blocks.filter(x=>x.type==="chapter").indexOf(b)+1;
-      return t.ed_chapter_word.toUpperCase()+" "+toRoman(chapNum)+(b.title?": "+b.title.toUpperCase():"");
-    }
-    return b.title?b.title.toUpperCase():t.ed_untitled.toUpperCase();
-  };
-  const blockIdAtPos=(pos)=>{
-    const text=f.text||"";
-    let bestIdx=-1,bestBlockId=null;
-    f.blocks.forEach(b=>{
-      const marker=currentBlockMarkerText(b);
-      if(!marker) return;
-      let searchFrom=0,idx=-1,found=-1;
-      while((idx=text.indexOf(marker,searchFrom))!==-1){
-        if(idx<=pos) found=idx; else break;
-        searchFrom=idx+1;
-      }
-      if(found!==-1 && found>bestIdx){ bestIdx=found; bestBlockId=b.id; }
-    });
-    return bestBlockId;
-  };
   const insertFotoMarker=(ph,pos)=>{
     pushHistory();
     // Se quitan los saltos de línea que ya hubiera justo antes y después del cursor y se deja
@@ -2394,9 +2367,8 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     const after = f.text.slice(pos).replace(/^\n+/,"");
     const nv = before + (before?"\n\n":"") + fotoMarker(ph) + (after?"\n\n":"") + after;
     up("text",nv);
-    const bloqueId=blockIdAtPos(pos);
-    setFotosDb(p=>p.map(x=>x.id===ph.id?{...x,bloque_id:bloqueId}:x));
-    supa.from("fotos").update({bloque_id:bloqueId}).eq("id",ph.id).then(({error})=>{if(error)console.error(error);});
+    // bloque_id ya no se escribe (Esquema del libro v5, paso 7): nadie lo leía y la estructura
+    // del libro se lee ahora directamente del texto.
     setShowPhotoMenu(false);
   };
   const removePhoto=async(fotoId)=>{
@@ -2410,8 +2382,8 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     // "Quitar" VACÍA el hueco (imagen, pie y marcador), pero no lo borra: el hueco es una
     // foto pagada y sigue disponible para subir otra imagen (decisión de Javier, 28/09/2026).
     deleteFotoFromStorage({type:"slot",fotoId});
-    supa.from("fotos").update({url:null,pie_foto:"",bloque_id:null}).eq("id",fotoId).then(({error})=>{if(error)console.error(error);});
-    setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,url:null,pie_foto:"",bloque_id:null}:x));
+    supa.from("fotos").update({url:null,pie_foto:""}).eq("id",fotoId).then(({error})=>{if(error)console.error(error);});
+    setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,url:null,pie_foto:""}:x));
   };
 
   const confirmCrop=async(dataUrl)=>{
@@ -2609,6 +2581,15 @@ sin más. Tus únicas funciones activas sobre el texto son:
   que hay junto al botón de comprar fotos, porque ese mecanismo puede cambiar y no debe haber dos sitios
   con instrucciones distintas.
 - Apreciar brevemente lo ya escrito.
+- Vigilar los títulos escritos a mano. Los capítulos y apartados solo
+  cuentan como tales si se crean con los botones "+ Capítulo" /
+  "+ Apartado" sobre el cuadro de texto. Si ves una línea suelta sin punto
+  final que parece un título escrito a mano, puedes preguntar al Autor, en
+  una frase, si quería iniciar un capítulo o un apartado, y recordarle
+  esos botones. No lo hagas si la línea termina en "?", "!" o "…", ni si
+  empieza con raya de diálogo. Si una línea empieza por ¶ o por §,
+  respétala siempre con su signo: ¶ marca un capítulo real y § un
+  apartado real.
 Todo ello en una sola frase por intervención (ver más abajo). La única
 excepción a esta regla es la descrita a continuación.
 
@@ -2768,11 +2749,14 @@ diga que no sabe qué más contar. No los ofrezcas por iniciativa propia:
 
 FORMATO DE SALIDA: cuando, y solo cuando, la excepción de redacción
 asistida te autorice a proponer un texto ya redactado, tu respuesta
-COMPLETA debe ir en HTML5 limpio: <h2> para títulos de capítulo o
-sección, <p> para cada párrafo (uno por etiqueta, sin fusionarlos),
+COMPLETA debe ir en HTML5 limpio: <p> para cada párrafo (uno por
+etiqueta, sin fusionarlos),
 <blockquote> para una reflexión o frase que el propio Autor quiera
 destacar. No uses bloques de código, ni Markdown (asteriscos,
-almohadillas), ni <hr>. Nunca antepongas ni añadas, dentro de esa misma
+almohadillas), ni <hr>. No incluyas títulos de capítulo ni de apartado
+en ninguna propuesta: los crea siempre el Autor con los botones
+"+ Capítulo" / "+ Apartado". Si el material de partida contiene una línea
+que empieza por ¶ o por §, consérvala intacta, con su signo. Nunca antepongas ni añadas, dentro de esa misma
 respuesta, ninguna frase de presentación o cierre en texto normal (del
 tipo "aquí tienes una propuesta..." o "pulsa el botón si te convence")
 ni antes ni después del HTML — la respuesta entera es la redacción, sin
@@ -2896,10 +2880,14 @@ ${capituloActual}
     const ta=taRef.current;
     const pos = ta ? ta.selectionStart : f.text.length;
     pushHistory();
-    const needsLeadingBreak = pos>0 && f.text[pos-1]!=="\n";
-    const nv = f.text.slice(0,pos) + (needsLeadingBreak?"\n\n":"") + clean + "\n\n" + f.text.slice(pos);
+    // Igual que las fotos y los títulos: se quitan los saltos sobrantes a ambos lados del cursor
+    // y el texto queda con exactamente una línea en blanco arriba y abajo (antes sobraba una
+    // debajo). El cursor queda al final del texto añadido.
+    const before=f.text.slice(0,pos).replace(/\s+$/,"");
+    const after=f.text.slice(pos).replace(/^\s+/,"");
+    const nv=(before?before+"\n\n":"")+clean+(after?"\n\n"+after:"");
     up("text", nv);
-    const newPos = pos + (needsLeadingBreak?2:0) + clean.length + 2;
+    const newPos = (before?before.length+2:0) + clean.length;
     requestAnimationFrame(()=>{
       const el=taRef.current;
       if(el){
@@ -3396,7 +3384,8 @@ ${capituloActual}
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_title}</label><input className="inp" value={f.title} onChange={e=>up("title",e.target.value)}/></div>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_subtitle}</label><input className="inp" value={f.subtitle} onChange={e=>up("subtitle",e.target.value)}/></div>
           </div>
-          <div className="fld">
+          <div className="frow" style={{marginBottom:"0.9rem",alignItems:"flex-end"}}>
+            <div className="fld" style={{marginBottom:0}}>
             <label className="lbl">{t.f_cover}</label>
             <div style={{display:"flex",alignItems:"center",gap:"0.8rem",flexWrap:"wrap"}}>
               {coverPreviewSrc()&&<img src={coverPreviewSrc()} alt="portada" style={{height:"52px",width:"38px",objectFit:"cover",borderRadius:"2px",border:"1px solid var(--border)",opacity:isCoverUploading()?0.5:1}}/>}
@@ -3406,6 +3395,8 @@ ${capituloActual}
                 <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"cover"})}/>
               </label>
             </div>
+          </div>
+            <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_name}</label><input className="inp" value={f.name} onChange={e=>up("name",e.target.value)}/></div>
           </div>
 
           <div className="mob-offers-strip">
