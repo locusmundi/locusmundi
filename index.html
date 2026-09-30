@@ -400,6 +400,13 @@ function toRoman(num) {
 // largo (—) al guion corto (–) que exige el estándar en todo el documento. (La conversión
 // completa a comillas angulares queda pendiente — es más delicada de automatizar sin arriesgar
 // texto ya bien puntuado, se deja para una revisión futura.)
+// Estructura del libro (Esquema del libro v5): la deciden SOLO los signos que insertan los
+// botones — ¶ al principio de línea = capítulo, § = apartado. Ni la palabra ni las mayúsculas
+// cuentan para la lectura, así funciona en cualquier idioma y alfabeto. Los signos no se
+// muestran al lector.
+const CHAPTER_SIGN = "¶", SECTION_SIGN = "§";
+// Las dos funciones siguientes ya no deciden la lectura; se conservan para detectar
+// "posibles títulos" en el Esquema del libro (paso 4), donde se ampliará la lista de palabras.
 const CHAPTER_MARKER_WORDS = ["CAPÍTULO","CAPITULO","CHAPTER"];
 const isAllCapsLine = (s) => { const letters = s.replace(/[^A-Za-zÀ-ÿ]/g,""); return letters.length>0 && letters===letters.toUpperCase(); };
 const isChapterMarker = (s) => CHAPTER_MARKER_WORDS.some(w=>s.toUpperCase().startsWith(w));
@@ -422,19 +429,21 @@ function renderStoryBody(text, fotos=[]) {
         </figure>
       );
     }
-    if(trimmed && isAllCapsLine(trimmed)){
-      if(isChapterMarker(trimmed)){
-        const idx = trimmed.indexOf(":");
-        const label = idx>-1 ? trimmed.slice(0,idx) : trimmed;
-        const rest = idx>-1 ? trimmed.slice(idx+1).trim() : "";
-        return (
-          <div key={i} style={{marginTop:i===0?0:"2.6rem"}}>
-            <div style={{fontFamily:"var(--serif)",fontSize:"0.8rem",textTransform:"uppercase",letterSpacing:"0.2em",color:"var(--navy)",marginBottom:"0.3rem"}}>{label}</div>
-            {rest&&<div style={{fontFamily:"var(--serif)",fontSize:"1.5rem",fontWeight:700,color:"var(--ink)",paddingBottom:"0.8rem",borderBottom:"1px solid var(--border)",marginBottom:"1.2rem"}}>{rest}</div>}
-          </div>
-        );
-      }
-      return <h3 key={i} style={{fontFamily:"var(--serif)",fontSize:"1.15rem",color:"var(--navy)",margin:"2rem 0 0.8rem",paddingBottom:"0.4rem",borderBottom:"1px solid var(--border)"}}>{trimmed}</h3>;
+    if(trimmed.startsWith(CHAPTER_SIGN)){
+      const body = trimmed.slice(CHAPTER_SIGN.length).trim();
+      const idx = body.indexOf(":");
+      const label = idx>-1 ? body.slice(0,idx) : body;
+      const rest = idx>-1 ? body.slice(idx+1).trim() : "";
+      return (
+        <div key={i} style={{marginTop:i===0?0:"2.6rem"}}>
+          <div style={{fontFamily:"var(--serif)",fontSize:"0.8rem",textTransform:"uppercase",letterSpacing:"0.2em",color:"var(--navy)",marginBottom:"0.3rem"}}>{label}</div>
+          {rest&&<div style={{fontFamily:"var(--serif)",fontSize:"1.5rem",fontWeight:700,color:"var(--ink)",paddingBottom:"0.8rem",borderBottom:"1px solid var(--border)",marginBottom:"1.2rem"}}>{rest}</div>}
+        </div>
+      );
+    }
+    if(trimmed.startsWith(SECTION_SIGN)){
+      const body = trimmed.slice(SECTION_SIGN.length).trim();
+      return <h3 key={i} style={{fontFamily:"var(--serif)",fontSize:"1.15rem",color:"var(--navy)",margin:"2rem 0 0.8rem",paddingBottom:"0.4rem",borderBottom:"1px solid var(--border)"}}>{body}</h3>;
     }
     return <p key={i}>{p}</p>;
   });
