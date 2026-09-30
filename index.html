@@ -410,6 +410,52 @@ const CHAPTER_SIGN = "¶", SECTION_SIGN = "§";
 const CHAPTER_MARKER_WORDS = ["CAPÍTULO","CAPITULO","CHAPTER"];
 const isAllCapsLine = (s) => { const letters = s.replace(/[^A-Za-zÀ-ÿ]/g,""); return letters.length>0 && letters===letters.toUpperCase(); };
 const isChapterMarker = (s) => CHAPTER_MARKER_WORDS.some(w=>s.toUpperCase().startsWith(w));
+
+// ---- Esquema del libro (v5, paso 4) ----
+// Palabras de capítulo en los idiomas de la plataforma, sin acentos. SOLO sirven para señalar
+// "posibles capítulos" escritos a mano; nunca deciden la lectura (eso lo hace el ¶).
+const CHAPTER_WORDS_ANY = ["CAPITULO","CAPITOL","CHAPTER","CHAPITRE","KAPITEL","CAPITOLO","ГЛАВА","الفصل","अध्याय"];
+const foldUpper = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
+const looksLikeChapter = (line) => {
+  const tl=line.trim();
+  if(/^第\S{1,6}章/.test(tl)) return true; // chino / japonés: 第三章
+  const u=foldUpper(tl);
+  return CHAPTER_WORDS_ANY.some(w=>u.startsWith(w) && (u.length===w.length || /[\s\d:.\-–—]/.test(u[w.length])));
+};
+const fromRoman = (s) => { const v={I:1,V:5,X:10,L:50,C:100,D:500,M:1000}; let n=0;
+  for(let i=0;i<s.length;i++){ const a=v[s[i]], b=v[s[i+1]]||0; n+= a<b ? -a : a; } return n; };
+// Número del capítulo: la SEGUNDA palabra de la cabecera ("CAPÍTULO III", "Chapter 2"), y solo
+// si es un número arábigo o un romano bien formado — para no tomar por número palabras como
+// "CIVIL" en "¶ GUERRA CIVIL" (capítulo sin número, que se deja tal cual).
+const ROMAN_OK = /^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/;
+const chapterNumToken = (body) => {
+  const m = body.match(/^(\S+\s+)([IVXLCDM]+|\d+)(?=[\s.:]|$)/);
+  if(!m) return null;
+  const tok=m[2], arabic=/^\d+$/.test(tok);
+  if(!arabic && !ROMAN_OK.test(tok)) return null;
+  return { tok, idx: m[1].length, arabic, n: arabic ? parseInt(tok,10) : fromRoman(tok) };
+};
+// Lee la estructura del libro directamente del texto, troceado igual que lo lee la Biblioteca
+// (renderStoryBody). Devuelve, en orden, capítulos (¶), apartados (§) y posibles títulos
+// escritos a mano, cada uno con la posición exacta en el texto donde empieza su línea.
+function parseOutline(text){
+  const items=[]; let pos=0;
+  (text||"").split("\n\n").forEach(part=>{
+    const start=pos; pos+=part.length+2;
+    const trimmed=part.trim(); if(!trimmed) return;
+    const lineStart=start+(part.length-part.trimStart().length);
+    if(trimmed.startsWith(CHAPTER_SIGN)){
+      const body=trimmed.slice(CHAPTER_SIGN.length).trim();
+      items.push({kind:"chapter", title:body, start:lineStart, bodyOffset:trimmed.indexOf(body), num:chapterNumToken(body)});
+    } else if(trimmed.startsWith(SECTION_SIGN)){
+      items.push({kind:"section", title:trimmed.slice(SECTION_SIGN.length).trim(), start:lineStart});
+    } else if(!trimmed.includes("\n") && trimmed.length<=100 && !/[.?!…]$/.test(trimmed) && !/^\[.*\]$/.test(trimmed)){
+      if(looksLikeChapter(trimmed)) items.push({kind:"maybeChapter", title:trimmed, start:lineStart});
+      else if(isAllCapsLine(trimmed)) items.push({kind:"maybeSection", title:trimmed, start:lineStart});
+    }
+  });
+  return items;
+}
 function renderStoryBody(text, fotos=[]) {
   return (text||"").split("\n\n").map((raw,i)=>{
     const p = raw.replace(/—/g,"–");
@@ -608,7 +654,16 @@ const T = {
     ed_rename_prompt:"Título de este",ed_new_block_prompt:"Título del nuevo",ed_confirm_delete:"¿Borrar este bloque de la lista?",
     ed_need_one_block:"Tu libro necesita al menos un bloque.",
     ed_italic:"Cursiva",ed_undo:"↺ Deshacer",ed_add_photo:"+ Fotografía",
-    ed_blocks_short:"Orden del libro",ed_search_ph:"Buscar en el texto (palabra, frase o título)",ed_search_prev:"↑ Anterior",ed_search_next:"↓ Siguiente",ed_search_none:"Sin resultados",ed_search_of:"de",ed_search_one:"coincidencia",ed_search_many:"coincidencias",
+    ed_blocks_short:"Orden del libro",
+    ol_link:"Esquema del libro",ol_maybe_one:"posible título",ol_maybe_many:"posibles títulos",ol_h:"Esquema del libro",
+    ol_sub:"Así está organizado tu libro ahora mismo, leído directamente del texto. Los capítulos y apartados se crean con los botones “+ Capítulo” y “+ Apartado”; para renombrar o borrar uno, edítalo directamente en el texto. Pulsa un título para ir a él en el texto.",
+    ol_jump:"Ir a este punto del texto",
+    ol_empty:"Tu libro aún no tiene capítulos ni apartados. Puedes crearlos con los botones “+ Capítulo” y “+ Apartado”.",
+    ol_chapter:"Capítulo",ol_section:"Apartado",ol_maybe_chapter:"Posible capítulo",ol_maybe_section:"Posible apartado",
+    ol_maybe_note:"Escrito a mano: en la Biblioteca se leerá como un párrafo normal.",
+    ol_conv_chapter:"Convertir en capítulo",ol_conv_section:"Convertir en apartado",
+    ol_num_warn:"La numeración de los capítulos no es correlativa (hay números repetidos, saltos o desorden).",
+    ol_renumber:"Renumerar capítulos",ol_close:"Cerrar",ed_search_ph:"Buscar en el texto (palabra, frase o título)",ed_search_prev:"↑ Anterior",ed_search_next:"↓ Siguiente",ed_search_none:"Sin resultados",ed_search_of:"de",ed_search_one:"coincidencia",ed_search_many:"coincidencias",
     ed_save_exit:"Guardar y salir",ed_save_exit_q:"¿Quieres guardar este trabajo solo para ti, o subirlo ya a la plataforma?",
     ed_save_private:"Guardar para mí",ed_save_upload:"Subir a la plataforma",
     ed_photos_added_h:"Fotos añadidas",ed_photo_remove:"Quitar",ed_photo_replace:"Cambiar",
@@ -851,7 +906,16 @@ const T = {
     ed_rename_prompt:"Title for this",ed_new_block_prompt:"Title for the new",ed_confirm_delete:"Delete this block from the list?",
     ed_need_one_block:"Your book needs at least one block.",
     ed_italic:"Italics",ed_undo:"↺ Undo",ed_add_photo:"+ Photo",
-    ed_blocks_short:"Book order",ed_search_ph:"Search the text (word, phrase or title)",ed_search_prev:"↑ Previous",ed_search_next:"↓ Next",ed_search_none:"No results",ed_search_of:"of",ed_search_one:"match",ed_search_many:"matches",
+    ed_blocks_short:"Book order",
+    ol_link:"Book outline",ol_maybe_one:"possible title",ol_maybe_many:"possible titles",ol_h:"Book outline",
+    ol_sub:"This is how your book is organised right now, read directly from the text. Chapters and sections are created with the “+ Chapter” and “+ Section” buttons; to rename or delete one, edit it directly in the text. Click a title to go to it in the text.",
+    ol_jump:"Go to this point in the text",
+    ol_empty:"Your book has no chapters or sections yet. You can create them with the “+ Chapter” and “+ Section” buttons.",
+    ol_chapter:"Chapter",ol_section:"Section",ol_maybe_chapter:"Possible chapter",ol_maybe_section:"Possible section",
+    ol_maybe_note:"Typed by hand: in the Library it will read as a normal paragraph.",
+    ol_conv_chapter:"Make it a chapter",ol_conv_section:"Make it a section",
+    ol_num_warn:"Chapter numbering is not consecutive (there are repeated numbers, gaps or disorder).",
+    ol_renumber:"Renumber chapters",ol_close:"Close",ed_search_ph:"Search the text (word, phrase or title)",ed_search_prev:"↑ Previous",ed_search_next:"↓ Next",ed_search_none:"No results",ed_search_of:"of",ed_search_one:"match",ed_search_many:"matches",
     ed_save_exit:"Save and exit",ed_save_exit_q:"Do you want to save this just for yourself, or upload it to the platform now?",
     ed_save_private:"Save for myself",ed_save_upload:"Upload to the platform",
     ed_photos_added_h:"Added photos",ed_photo_remove:"Remove",ed_photo_replace:"Change",
@@ -2435,6 +2499,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const historyRef=useRef([]);
   const taRef=useRef(null);
   // ---- Buscador de texto sobre el manuscrito (Esquema del libro v4, paso 1) ----
+  const [showOutline,setShowOutline]=useState(false); // ventana "Esquema del libro"
   const [showBlocks,setShowBlocks]=useState(false); // caja "Orden del libro" plegada por defecto (provisional hasta el paso 6)
   const [searchQ,setSearchQ]=useState("");
   const [searchInfo,setSearchInfo]=useState(null); // null | {cur, total} (cur=0: aún no se ha saltado)
@@ -3051,6 +3116,47 @@ ${capituloActual}
     : searchInfo.cur>0 ? searchInfo.cur+" "+t.ed_search_of+" "+searchInfo.total
     : searchInfo.total+" "+(searchInfo.total===1?t.ed_search_one:t.ed_search_many);
 
+  // ---- Esquema del libro (v5, paso 4) ----
+  const outline=parseOutline(f.text);
+  const outlineMaybe=outline.filter(x=>x.kind==="maybeChapter"||x.kind==="maybeSection").length;
+  const numbered=outline.filter(x=>x.kind==="chapter"&&x.num);
+  const numberingOk=numbered.every((x,i)=>x.num.n===i+1);
+  // Pulsar un título en el Esquema: cierra la ventana y lleva el texto hasta él, con el mismo
+  // cálculo de altura que el buscador (renglones envueltos incluidos). El cursor queda al FINAL
+  // de la línea del título: si quedara al principio, lo que se escribiera iría delante del signo.
+  const jumpToOutlineItem=(it)=>{
+    setShowOutline(false);
+    requestAnimationFrame(()=>{
+      const ta=taRef.current; if(!ta) return;
+      let lineEnd=f.text.indexOf("\n",it.start); if(lineEnd===-1) lineEnd=f.text.length;
+      ta.focus({preventScroll:true});
+      ta.setSelectionRange(lineEnd,lineEnd);
+      ta.scrollTop=Math.max(0,caretOffsetTop(ta,it.start)-ta.clientHeight/3);
+      ta.scrollIntoView({block:"nearest",behavior:"smooth"});
+    });
+  };
+  // "Convertir en…": añade el signo delante de la línea, sin tocar nada más (respeta el idioma).
+  const convertOutlineItem=(it,sign)=>{
+    pushHistory();
+    up("text", f.text.slice(0,it.start)+sign+" "+f.text.slice(it.start));
+  };
+  // "Renumerar capítulos": solo capítulos con ¶ y con número; cambia ese número por el que le
+  // toca en orden, conservando si era romano o arábigo. Los capítulos sin número (p. ej.
+  // "¶ PRÓLOGO") se dejan tal cual y no cuentan.
+  const renumberChapters=()=>{
+    const reps=[]; let k=0;
+    outline.forEach(x=>{
+      if(x.kind!=="chapter"||!x.num) return;
+      k++; const nt=x.num.arabic?String(k):toRoman(k);
+      if(nt!==x.num.tok) reps.push({at:x.start+x.bodyOffset+x.num.idx, len:x.num.tok.length, nt});
+    });
+    if(!reps.length) return;
+    pushHistory();
+    let nv=f.text;
+    for(let r=reps.length-1;r>=0;r--){ const {at,len,nt}=reps[r]; nv=nv.slice(0,at)+nt+nv.slice(at+len); }
+    up("text",nv);
+  };
+
   const pushHistory=()=>{ historyRef.current=[...historyRef.current.slice(-19), f.text]; };
   const onTextChange=(v)=>{ pushHistory(); up("text",v); };
   // Al pulsar Intro, se genera directamente un párrafo nuevo (línea en blanco incluida),
@@ -3404,6 +3510,50 @@ ${capituloActual}
             <span className={`mob-offer-chip ${photosBought>0?"on gold":""}`} onClick={()=>document.getElementById("lm-offer-photos")?.scrollIntoView({behavior:"smooth"})}>📷 {t.mob_strip_photos}</span>
             <span className={`mob-offer-chip ${pdfBought?"on gold":""}`} onClick={()=>document.getElementById("lm-offer-pdf")?.scrollIntoView({behavior:"smooth"})}>📄 {t.mob_strip_pdf}</span>
           </div>
+          <div style={{margin:"0 0 0.7rem"}}>
+            <span onClick={()=>setShowOutline(true)} style={{fontFamily:"var(--body)",fontSize:"0.72rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--navy)",cursor:"pointer",textDecoration:"underline",textUnderlineOffset:"3px"}}>
+              ☰ {t.ol_link}{outlineMaybe>0 && <span style={{color:"var(--gold)"}}> · {outlineMaybe} {outlineMaybe===1?t.ol_maybe_one:t.ol_maybe_many}</span>}
+            </span>
+          </div>
+          {showOutline && ReactDOM.createPortal((
+            <div className="ov" onClick={()=>setShowOutline(false)}>
+              <div className="modal" style={{maxWidth:"640px"}} onClick={e=>e.stopPropagation()}>
+                <button className="modal-x" onClick={()=>setShowOutline(false)}>✕</button>
+                <div className="modal-h">{t.ol_h}</div>
+                <p className="modal-sub">{t.ol_sub}</p>
+                {!numberingOk && (
+                  <div style={{background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"3px",padding:"0.8rem 1rem",marginBottom:"1.2rem",fontFamily:"var(--body)",fontSize:"0.92rem",color:"var(--ink)"}}>
+                    ⚠ {t.ol_num_warn}
+                  </div>
+                )}
+                {outline.length===0
+                  ? <p style={{fontFamily:"var(--body)",color:"var(--muted)"}}>{t.ol_empty}</p>
+                  : <div>{outline.map((it,i)=>{
+                      const maybe = it.kind==="maybeChapter"||it.kind==="maybeSection";
+                      const isCh = it.kind==="chapter"||it.kind==="maybeChapter";
+                      const tag = it.kind==="chapter"?t.ol_chapter:it.kind==="section"?t.ol_section:it.kind==="maybeChapter"?t.ol_maybe_chapter:t.ol_maybe_section;
+                      return (
+                        <div key={i} style={{padding:"0.6rem 0",borderBottom:"1px solid var(--border)",marginLeft:isCh?0:"1.4rem"}}>
+                          <div style={{fontFamily:"var(--body)",fontSize:"0.66rem",letterSpacing:"0.14em",textTransform:"uppercase",color:maybe?"var(--gold)":"var(--muted)",marginBottom:"0.2rem"}}>{tag}</div>
+                          <div onClick={()=>jumpToOutlineItem(it)} title={t.ol_jump} style={{fontFamily:"var(--serif)",fontSize:isCh?"1.05rem":"0.98rem",fontWeight:isCh&&!maybe?700:400,fontStyle:maybe?"italic":"normal",color:maybe?"var(--muted)":"var(--ink)",cursor:"pointer",textDecoration:"underline",textDecorationColor:"var(--border)",textUnderlineOffset:"3px"}}>{it.title}</div>
+                          {maybe && (
+                            <div style={{marginTop:"0.35rem",display:"flex",gap:"0.6rem",alignItems:"center",flexWrap:"wrap"}}>
+                              <span style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--muted)"}}>{t.ol_maybe_note}</span>
+                              <button type="button" className="toolbar-btn" onClick={()=>convertOutlineItem(it, it.kind==="maybeChapter"?CHAPTER_SIGN:SECTION_SIGN)}>
+                                {it.kind==="maybeChapter"?t.ol_conv_chapter:t.ol_conv_section}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}</div>}
+                <div style={{display:"flex",gap:"0.6rem",justifyContent:"flex-end",marginTop:"1.4rem",flexWrap:"wrap"}}>
+                  {numbered.length>0 && <button type="button" className="toolbar-btn" onClick={renumberChapters} disabled={numberingOk} style={numberingOk?{opacity:0.4,cursor:"not-allowed"}:{}}>{t.ol_renumber}</button>}
+                  <button type="button" className="toolbar-btn" onClick={()=>setShowOutline(false)}>{t.ol_close}</button>
+                </div>
+              </div>
+            </div>
+          ), document.body)}
           <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
             <button type="button" className="toolbar-btn" onClick={()=>addBlock("chapter")}>{t.ed_add_chapter}</button>
             <button type="button" className="toolbar-btn" onClick={()=>addBlock("apartado")}>{t.ed_add_apartado}</button>
