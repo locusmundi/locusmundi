@@ -3698,7 +3698,7 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
                     {lang==="EN"?"Send to Assistant":"Enviar al Asistente"}
                   </button>
                   {chatInputFromAssistant && (
-                    <button className={justDictated?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.9rem",flex:1}} onClick={()=>addChatToStory(chatInput)}>
+                    <button className={justDictated?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.9rem",flex:1}} disabled={listening||dictProcessing||!chatInput.trim()} onClick={()=>addChatToStory(chatInput)}>
                       {lang==="EN"?"Send to text window":"Mandar a ventana de texto"}
                     </button>
                   )}
