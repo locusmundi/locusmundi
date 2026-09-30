@@ -1,4 +1,9 @@
 // api/asistente.js — Locus Mundi
+// Versión 3 · 30/09/2026 · Paso 5b del plan del Esquema del libro
+// (LOCUS_MUNDI_PLAN_ESQUEMA_v3.md; diseño en LOCUS_MUNDI_ESQUEMA_DEL_LIBRO_v5.md).
+// Cambio respecto a la v2: las instrucciones fijas de traducción y dictado piden
+// conservar los signos de estructura ¶ (capítulo) y § (apartado) al principio de
+// línea. Nada más cambia.
 // Versión 2 · 29/09/2026 · Pieza 3 (ver Continuidad, sesión 29/09/2026, punto 9).
 // Sustituye a la versión que aceptaba cualquier petición sin sesión ni saldo.
 //
@@ -48,14 +53,14 @@ const OPERACIONES_PAGO = ['dictado', 'revision', 'conversacion'];
 // ─── Instrucciones fijas ────────────────────────────────────────────────
 
 function instruccionesTraduccion(idioma) {
-  return `Eres un traductor literario. Traduce este texto autobiográfico al ${idioma} preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia del ${idioma} —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Las líneas entre corchetes, como [FOTO 2], son marcas técnicas: cópialas exactamente igual, sin traducirlas ni cambiarlas. Solo la traducción.`;
+  return `Eres un traductor literario. Traduce este texto autobiográfico al ${idioma} preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia del ${idioma} —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Las líneas entre corchetes, como [FOTO 2], son marcas técnicas: cópialas exactamente igual, sin traducirlas ni cambiarlas. Las líneas que empiezan por el signo ¶ (capítulo) o § (apartado) son títulos: conserva ese signo exactamente al principio de la línea, con la línea separada del resto como en el original, y traduce solo el texto que lo sigue. Solo la traducción.`;
 }
 
 function instruccionesDictado(idiomaInterfaz) {
   if (idiomaInterfaz === 'EN') {
-    return 'Fix ONLY capitalization and punctuation in the following literal speech transcript. Do not change, add, remove, reorder or rephrase a single word. Return only the corrected text, nothing else.';
+    return 'Fix ONLY capitalization and punctuation in the following literal speech transcript. Do not change, add, remove, reorder or rephrase a single word. If a line starts with the sign ¶ or §, keep that sign exactly as it is. Return only the corrected text, nothing else.';
   }
-  return 'Corrige ÚNICAMENTE las mayúsculas y los signos de puntuación del siguiente texto, transcrito literalmente de un dictado por voz. No cambies, añadas, quites, reordenes ni reformules ni una sola palabra. Devuelve solo el texto corregido, sin nada más.';
+  return 'Corrige ÚNICAMENTE las mayúsculas y los signos de puntuación del siguiente texto, transcrito literalmente de un dictado por voz. No cambies, añadas, quites, reordenes ni reformules ni una sola palabra. Si una línea empieza por el signo ¶ o §, conserva ese signo exactamente igual. Devuelve solo el texto corregido, sin nada más.';
 }
 
 // ─── Supabase (por su API REST, sin librerías) ──────────────────────────
