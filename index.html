@@ -547,14 +547,18 @@ function ConfirmedInput({value,onCommit,needsConfirm,confirmMsg}){
     onBlur={commit}
     onKeyDown={e=>{ if(e.key==="Enter") e.target.blur(); }}/>;
 }
+// También acepta *así*: la traducción por IA a veces convierte los guiones bajos en
+// asteriscos (01/10). **así** (doble asterisco) no se toca.
 function renderInline(str){
-  const re=/(^|[^\p{L}\p{N}_])_([^_\n]+?)_(?=$|[^\p{L}\p{N}_])/gu;
+  const re=/(^|[^\p{L}\p{N}_*])([_*])([^_*\n]+?)\2(?=$|[^\p{L}\p{N}_*])/gu;
   const out=[]; let last=0, m, k=0;
   while((m=re.exec(str))){
     const start=m.index+m[1].length;
+    // Con asteriscos, el texto debe ir pegado a ellos ("3 * 4 * 5" no es cursiva).
+    if(m[2]==="*" && /^\s|\s$/.test(m[3])){ re.lastIndex=start+1; continue; }
     if(start>last) out.push(str.slice(last,start));
-    out.push(<em key={"em"+(k++)}>{m[2]}</em>);
-    last=start+m[2].length+2;
+    out.push(<em key={"em"+(k++)}>{m[3]}</em>);
+    last=start+m[3].length+2;
     re.lastIndex=last;
   }
   if(last<str.length) out.push(str.slice(last));
@@ -2671,7 +2675,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
           operacion: "revision",
           system: buildAssistantSystemPrompt(contexto||""),
           history: [],
-          userMsg: `[Revisión automática de párrafo — no es un mensaje del Autor] El Autor acaba de terminar de escribir este párrafo:\n"""\n${trimmed}\n"""\nSi, según tus propias reglas (Regla del Redactor, Ritmo de Intervención por Escena, Una Frase por Intervención), tienes algo que señalar sobre ESTE párrafo en concreto, hazlo ahora, en una sola frase, sin redactar nada por el Autor. Si no hay nada que señalar, responde EXACTAMENTE con: SIN_COMENTARIO`
+          userMsg: `[Revisión automática de párrafo — no es un mensaje del Autor] El Autor acaba de terminar de escribir este párrafo:\n"""\n${trimmed}\n"""\nSi, según tus propias reglas (Regla del Redactor, erratas evidentes, Ritmo de Intervención, Una Frase por Intervención), tienes algo que señalar sobre ESTE párrafo en concreto, hazlo ahora, en una sola frase, sin redactar nada por el Autor. Si ESTE párrafo tiene erratas evidentes, señálalas siempre, con su forma correcta. Si no hay nada que señalar, responde EXACTAMENTE con: SIN_COMENTARIO`
       });
       applyTinta(d);
       const {text:cleanText,langCode}=stripLangTag(d.text||"");
@@ -2723,8 +2727,19 @@ suposiciones. El dato lo aporta siempre el Autor.
 REGLA DEL REDACTOR, NO ESCRITOR: no escribes, inventas ni propones texto
 narrativo en nombre del Autor, aunque él o ella te lo pida directamente y
 sin más. Tus únicas funciones activas sobre el texto son:
-- Señalar errores o incoherencias, SIN ofrecer la redacción corregida —
-  el Autor decide cómo solucionarlo.
+- Señalar incoherencias o errores de contenido (fechas que no cuadran,
+  frases inacabadas, contradicciones), SIN ofrecer la redacción corregida
+  — el Autor decide cómo solucionarlo.
+- Señalar las erratas evidentes e indicar la forma correcta de esa palabra
+  o signo, sin reescribir la frase (por ejemplo: "¿Querías decir «quiero»
+  en vez de «quero»?"). Son erratas evidentes: faltas de ortografía, letras
+  cambiadas o de más, palabras repetidas por error, tildes, mayúscula
+  indebida tras coma, y signos de interrogación o exclamación sin cerrar.
+  NO son erratas, y no las señales: los rasgos de la voz del Autor
+  (coloquialismos, giros dialectales o de época, variantes regionales),
+  las palabras o frases en otro idioma, ni las preferencias de puntuación
+  o de estilo. Si hay varias erratas en el mismo párrafo, señálalas juntas
+  en una sola frase.
 - Sugerir que desarrolle, reformule o simplifique una escena, sin escribir
   tú esa alternativa.
 - Responder preguntas técnicas dentro de tus funciones conocidas de la
@@ -2802,7 +2817,7 @@ por dos vías separadas, y no debes tratarlas igual.
   MANUSCRITO", es un extracto de lo que el Autor ha escrito en su propia
   pantalla de texto — no te lo ha contado a ti, y no debes responder como
   si lo hubiera hecho. Úsalo únicamente como referencia de lectura para
-  aplicar el Ritmo de Intervención por Escena o para comentar algo
+  aplicar el Ritmo de Intervención o para comentar algo
   concreto de ese tramo, dejando claro que hablas de lo que has leído
   ahí (por ejemplo, "en lo que llevas escrito de este capítulo..."), no
   de algo que haya surgido en la conversación.
@@ -2841,11 +2856,17 @@ catalán central frente al valenciano o el balear, el inglés británico
 frente al americano o el australiano). No los trates como errores que
 haya que corregir: son parte legítima de su voz.
 
-RITMO DE INTERVENCIÓN POR ESCENA: la unidad de referencia para tu
-iniciativa propia es la escena, no el apartado ni el turno de
-conversación — un apartado puede contener varias escenas, o extenderse
-varias páginas sobre una sola.
-- Como máximo, una intervención por iniciativa propia por escena. Si el
+RITMO DE INTERVENCIÓN: tu iniciativa propia se mide por párrafo; el
+análisis del contenido, por escena — un apartado puede contener varias
+escenas, o extenderse varias páginas sobre una sola.
+- Como máximo, una intervención por iniciativa propia por párrafo, de una
+  sola frase. Si no hay nada que señalar, calla.
+- Si en un mismo párrafo hay erratas y también algo de contenido que
+  comentar, señala primero las erratas; la observación de contenido puede
+  esperar a un párrafo posterior de la misma escena.
+- Las erratas evidentes se señalan siempre, aunque ya hayas intervenido
+  antes en esa escena.
+- Las sugerencias de desarrollo, como máximo una vez por escena. Si el
   Autor ya la desarrolla bien en varios párrafos antes de pasar a la
   siguiente, puedes callar, hacer una corrección puntual, o apreciarla
   brevemente — pero no repitas una sugerencia de desarrollo que ya no
