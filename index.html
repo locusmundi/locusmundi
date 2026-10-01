@@ -837,8 +837,8 @@ const T = {
     privacy_back_btn:"← Volver a mi libro",
     ai_h:"Asistente IA",ai_sub:"La IA se adapta a tu voz y tu idioma. Escribe abajo tus dudas o consultas.",
     ai_open_panel:"Abrir el Asistente",ai_listen:"Escucha y habla",ai_stop_listen:"Detener",ai_dict_processing:"Escribiendo lo que has dicho…",
-    ai_usage_h:"Uso de IA",ai_usage_ok:"Con margen de sobra",ai_usage_mid:"Se está acabando",
-    ai_usage_low:"Casi agotado",ai_usage_none:"Se ha agotado",
+    ai_usage_h:"Uso de IA",ai_usage_ok:"Queda tinta de sobra",ai_usage_mid:"La tinta se está acabando",
+    ai_usage_low:"Queda muy poca tinta",ai_usage_none:"Se ha agotado la tinta",
     ai_recharge_btn:"Recargar el Asistente",
     ai_recharge_notice:"Esta función estará activa en cuanto abramos los pagos en la plataforma. De momento no se te ha cobrado nada.",
     ai_no_ink:"Se ha agotado la tinta del Asistente. Puedes recargarlo arriba, en «Uso de IA». Lo que ya has escrito está a salvo.",
@@ -1097,8 +1097,8 @@ const T = {
     privacy_back_btn:"← Back to my book",
     ai_h:"AI Assistant",ai_sub:"The AI adapts to your voice and your language. Type your questions or queries below.",
     ai_open_panel:"Open the Assistant",ai_listen:"Listen and speak",ai_stop_listen:"Stop",ai_dict_processing:"Writing down what you said…",
-    ai_usage_h:"AI usage",ai_usage_ok:"Plenty left",ai_usage_mid:"Running low",
-    ai_usage_low:"Almost out",ai_usage_none:"Used up",
+    ai_usage_h:"AI usage",ai_usage_ok:"Plenty of ink left",ai_usage_mid:"Ink is running low",
+    ai_usage_low:"Very little ink left",ai_usage_none:"Out of ink",
     ai_recharge_btn:"Top up the Assistant",
     ai_recharge_notice:"This feature will be active once we turn on payments on the platform. Nothing has been charged yet.",
     ai_no_ink:"The Assistant has run out of ink. You can top it up above, under “AI usage”. What you have written is safe.",
@@ -1875,13 +1875,13 @@ const ASSISTANT_FAQ_ES = [
   {q:"¿El Asistente me escribe mi historia?",
    a:"No. El Asistente es un editor a tu servicio, no un escritor: nunca inventa datos, nombres, fechas o escenas que tú no le hayas contado. Su trabajo es ayudarte a ordenar, señalar y organizar lo que tú mismo cuentas — la voz del libro es siempre la tuya."},
   {q:"Entonces, ¿qué hace exactamente mientras escribo?",
-   a:"Va leyendo tus párrafos y, cuando lo cree útil, hace un único comentario breve por escena: señala una fecha que no cuadra, una posible incoherencia con algo dicho antes, o te sugiere ampliar una escena si le faltan datos básicos (dónde, cuándo, cómo lo viviste). No interrumpe si no hace falta, y no insiste dos veces sobre lo mismo."},
+   a:"Va leyendo tus párrafos a medida que los terminas (al pulsar Intro). Si encuentra erratas, te las señala con su forma correcta. Además, cuando lo cree útil, hace un comentario breve: señala una fecha que no cuadra o una posible incoherencia con algo dicho antes, o te sugiere ampliar una escena si le faltan datos básicos (dónde, cuándo, cómo lo viviste). No interrumpe si no hace falta, comenta como máximo una vez por párrafo y no insiste dos veces sobre lo mismo. Si prefieres escribir sin comentarios, cierra la ventana del Asistente con la ✕: mientras esté cerrada, no revisa nada ni gasta tinta. Si solo quieres que no te hable en voz alta, pulsa el botón 🔊 que está junto al de Dictado."},
   {q:"Si me quedo bloqueado y no sé cómo contar algo, ¿me ayuda?",
    a:"Sí, ese es el único caso en que puede proponerte una redacción. Cuéntale que no sabes cómo seguir una escena concreta; si ya tienes algo escrito sobre ella, puede limpiártelo y ordenártelo (puntuación, muletillas), sin añadir nada que tú no hayas dicho. Si no tienes nada escrito, te invita a contárselo de viva voz y trabaja a partir de esa narración."},
   {q:"¿Puedo dictar en vez de escribir?",
    a:"Sí. Elige en el selector 🌐 el idioma en que vas a hablar y pulsa «Escucha y habla». Al pulsar «Detener», lo que has dicho aparece en tu caja con las mayúsculas y la puntuación ajustadas, sin cambiar ninguna palabra. Entonces decides: «Enviar al Asistente», si quieres preguntarle algo o que comente ese texto, o «Mandar a ventana de texto», si quieres incorporarlo a tu libro."},
   {q:"¿Puede corregir la ortografía o el estilo de lo que ya he escrito?",
-   a:"Señala errores e incoherencias y puede apuntar si conviene desarrollar, reformular o simplificar algo — pero no te entrega la corrección hecha ni reescribe tu texto por su cuenta; la decisión y la redacción final son siempre tuyas."},
+   a:"La ortografía, sí; el estilo, no. Al terminar cada párrafo, te señala las erratas evidentes (letras cambiadas, tildes, palabras repetidas, signos sin cerrar) con su forma correcta. Si un párrafo tiene cuatro o más, te ofrece una versión corregida: si aceptas, aparece en tu caja y, con «Sustituir en el texto», reemplaza al original (y puedes deshacerlo). Esa corrección nunca toca tu vocabulario, tus giros ni tu manera de contar. En el estilo, puede apuntarte si conviene desarrollar, reformular o simplificar algo, pero la redacción final es siempre tuya."},
   {q:"¿Cuestiona lo que recuerdo o me acusa de estar equivocado?",
    a:"No. Un recuerdo tuyo nunca se pone en duda como tal. Si algo choca con un hecho histórico de dominio público, te lo plantea como una pregunta abierta, nunca como una corrección — la última palabra es siempre tuya."}
 ];
@@ -1889,13 +1889,13 @@ const ASSISTANT_FAQ_EN = [
   {q:"Does the Assistant write my story for me?",
    a:"No. The Assistant is an editor at your service, not a writer: it never invents facts, names, dates or scenes you haven't told it. Its job is to help you order and organise what you yourself recount — the voice of the book is always yours."},
   {q:"So what does it actually do while I write?",
-   a:"It reads your paragraphs and, when it thinks it's useful, makes a single brief comment per scene: it points out a date that doesn't add up, a possible inconsistency with something said earlier, or suggests expanding a scene if basic details are missing (where, when, how you experienced it). It doesn't interrupt when it doesn't need to, and won't repeat itself."},
+   a:"It reads your paragraphs as you finish them (when you press Enter). If it finds typos, it points them out with the correct form. Also, when it thinks it's useful, it makes a brief comment: it points out a date that doesn't add up or a possible inconsistency with something said earlier, or suggests expanding a scene if it lacks basic details (where, when, how you lived it). It doesn't interrupt unless needed, comments at most once per paragraph and never insists twice on the same thing. If you'd rather write without comments, close the Assistant window with the ✕: while it is closed, it reviews nothing and uses no ink. If you only want it not to speak aloud, press the 🔊 button next to the Dictation one."},
   {q:"If I get stuck and don't know how to tell something, does it help?",
    a:"Yes, that's the one case where it can offer you a draft. Tell it you don't know how to continue a particular scene; if you already have something written about it, it can tidy it up (punctuation, filler words) without adding anything you haven't said. If you have nothing written, it invites you to tell it out loud and works from that."},
   {q:"Can I dictate instead of typing?",
    a:"Yes. Choose the language you will speak in with the \ud83c\udf10 selector and press \u201cListen and speak\u201d. When you press \u201cStop\u201d, what you said appears in your box with capitals and punctuation fixed, without changing a single word. Then you decide: \u201cSend to Assistant\u201d, if you want to ask it something or have it comment on that text, or \u201cSend to text window\u201d, if you want to add it to your book."},
   {q:"Can it correct spelling or style in what I've already written?",
-   a:"It points out errors and inconsistencies and can flag whether a scene would benefit from more detail, rephrasing or simplifying — but it won't hand you the fix or rewrite your text itself; the decision and the final wording are always yours."},
+   a:"Spelling, yes; style, no. When you finish each paragraph, it points out obvious typos (swapped letters, accents, repeated words, unclosed question or exclamation marks) with the correct form. If a paragraph has four or more, it offers you a corrected version: if you accept, it appears in your box and “Replace in text” swaps it for the original (and you can undo it). That correction never touches your vocabulary, your turns of phrase or the way you tell things. On style, it may suggest developing, rephrasing or simplifying something, but the final wording is always yours."},
   {q:"Does it question my memories or tell me I'm wrong?",
    a:"No. A memory of yours is never questioned as such. If something clashes with a well-known historical fact, it raises it as an open question, never as a correction — you always have the final word."}
 ];
@@ -3532,7 +3532,8 @@ ${capituloActual}
       }
     });
 
-    if(f.assistantActive && !(tinta && tinta.tinta<=0)){
+    // Con la ventana del Asistente cerrada no hay revisión automática ni gasto de tinta (01/10).
+    if(f.assistantActive && showAiPanel && !(tinta && tinta.tinta<=0)){
       const before=f.text.slice(0,s);
       const paraStart=before.lastIndexOf("\n\n");
       const justWritten=before.slice(paraStart===-1?0:paraStart+2);
@@ -3958,7 +3959,7 @@ ${capituloActual}
         {f.assistantActive&&(
           <div className="wr-ai-col">
             {showAiPanel
-              ? <AssistantPanel open={showAiPanel} onClose={()=>{if("speechSynthesis" in window)window.speechSynthesis.cancel();setSpeaking(false);setShowAiPanel(false);}} t={t}
+              ? <AssistantPanel open={showAiPanel} onClose={()=>{if("speechSynthesis" in window)window.speechSynthesis.cancel();setSpeaking(false);setShowAiPanel(false);if(paragraphCheckRef.current.timer)clearTimeout(paragraphCheckRef.current.timer);setActiveOfferId(null);}} t={t}
                   speak={speak} speaking={speaking} setSpeaking={setSpeaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}
                   lang={lang} f={f} up={up} chatMsgs={chatMsgs} setChatMsgs={setChatMsgs}
                   chatInput={chatInput} setChatInput={setChatInput} chatInputFromAssistant={chatInputFromAssistant} setChatInputFromAssistant={setChatInputFromAssistant} chatLoading={chatLoading}
