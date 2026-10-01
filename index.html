@@ -434,9 +434,22 @@ const isChapterMarker = (s) => CHAPTER_MARKER_WORDS.some(w=>s.toUpperCase().star
 // "posibles capítulos" escritos a mano; nunca deciden la lectura (eso lo hace el ¶).
 const CHAPTER_WORDS_ANY = ["CAPITULO","CAPITOL","CHAPTER","CHAPITRE","KAPITEL","CAPITOLO","ГЛАВА","الفصل","अध्याय"];
 const foldUpper = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
+// Partes del libro sin número que van con categoría de capítulo (01/10): se proponen como
+// "posible capítulo", no como apartado. Solo si son la línea entera o van seguidas de dos puntos,
+// punto o guion ("PRÓLOGO", "Epílogo: diez años después"), para no señalar frases normales.
+const FRONT_BACK_WORDS = ["PROLOGO","EPILOGO","PREFACIO","INTRODUCCION","PRESENTACION",
+  "PROLEG","EPILEG","PREFACI","INTRODUCCIO","PRESENTACIO",
+  "PROLOGUE","EPILOGUE","PREFACE","FOREWORD","AFTERWORD","INTRODUCTION",
+  "AVANT-PROPOS","PROLOG","EPILOG","VORWORT","NACHWORT","EINLEITUNG",
+  "PREFAZIONE","INTRODUZIONE","INTRODUCAO","APRESENTACAO"];
+const looksLikeFrontBack = (line) => {
+  const u=foldUpper(line.trim());
+  return FRONT_BACK_WORDS.some(w=>u.startsWith(w) && /^(\s*[:.\-–—].*)?$/s.test(u.slice(w.length)));
+};
 const looksLikeChapter = (line) => {
   const tl=line.trim();
   if(/^第\S{1,6}章/.test(tl)) return true; // chino / japonés: 第三章
+  if(looksLikeFrontBack(tl)) return true; // PRÓLOGO, EPÍLOGO… (01/10)
   // Estructura "PALABRA + número [: título]" (CAPÍTUL IV, PARTE 2…): posible capítulo aunque la
   // palabra esté mal escrita o no esté en la lista.
   const sm=tl.match(/^(\S+)\s+([IVXLCDM]+|\d+)\s*(?:[:.\-–—]|$)/);
@@ -509,6 +522,8 @@ function renumberChaptersText(text, houseStyle=false){
   });
   let nv=text;
   for(let r=reps.length-1;r>=0;r--){ const {at,len,nt}=reps[r]; nv=nv.slice(0,at)+nt+nv.slice(at+len); }
+  // Estilo de la casa (01/10): toda la línea del capítulo en mayúsculas, como la escribe "+ Capítulo".
+  if(houseStyle) nv=nv.split("\n\n").map(part=>part.trim().startsWith(CHAPTER_SIGN)?part.toUpperCase():part).join("\n\n");
   return nv;
 }
 // Cursiva: el editor (texto plano) la marca con guiones bajos, _así_, como WhatsApp; al leer se
@@ -567,11 +582,14 @@ function renderStoryBody(text, fotos=[]) {
     if(trimmed.startsWith(CHAPTER_SIGN)){
       const body = trimmed.slice(CHAPTER_SIGN.length).trim();
       const idx = body.indexOf(":");
-      const label = idx>-1 ? body.slice(0,idx) : body;
-      const rest = idx>-1 ? body.slice(idx+1).trim() : "";
+      // Capítulo sin número y sin dos puntos ("¶ PRÓLOGO", "¶ EPÍLOGO"): se muestra como título
+      // grande con raya, sin etiqueta pequeña encima (01/10). "¶ CAPÍTULO III" sin título, como antes.
+      const plainTitle = idx===-1 && !chapterNumToken(body) && !chapterWordNoNum(body);
+      const label = plainTitle ? "" : (idx>-1 ? body.slice(0,idx) : body);
+      const rest = plainTitle ? body : (idx>-1 ? body.slice(idx+1).trim() : "");
       return (
         <div key={i} style={{marginTop:i===0?0:"2.6rem"}}>
-          <div style={{fontFamily:"var(--serif)",fontSize:"0.8rem",textTransform:"uppercase",letterSpacing:"0.2em",color:"var(--navy)",marginBottom:"0.3rem"}}>{label}</div>
+          {label&&<div style={{fontFamily:"var(--serif)",fontSize:"0.8rem",textTransform:"uppercase",letterSpacing:"0.2em",color:"var(--navy)",marginBottom:"0.3rem"}}>{label}</div>}
           {rest&&<div style={{fontFamily:"var(--serif)",fontSize:"1.5rem",fontWeight:700,color:"var(--ink)",paddingBottom:"0.8rem",borderBottom:"1px solid var(--border)",marginBottom:"1.2rem"}}>{rest}</div>}
         </div>
       );
@@ -754,7 +772,7 @@ const T = {
     ol_chapter:"Capítulo",ol_section:"Apartado",ol_maybe_chapter:"Posible capítulo",ol_maybe_section:"Posible apartado",
     ol_maybe_note:"Escrito a mano: en la Biblioteca se leerá como un párrafo normal.",
     ol_conv_chapter:"Convertir en capítulo",ol_conv_section:"Convertir en apartado",
-    ol_num_warn:"La numeración de los capítulos no es correlativa o no está en números romanos (hay números repetidos, saltos, desorden, números arábigos o capítulos sin número).",
+    ol_num_warn:"Los capítulos no siguen el estilo del libro: numeración correlativa en romanos y título en mayúsculas (hay números repetidos, saltos, desorden, números arábigos, capítulos sin número o en minúsculas).",
     ol_renumber:"Renumerar capítulos",ol_close:"Cerrar",ed_search_ph:"Buscar en el texto (palabra, frase o título)",ed_search_prev:"↑ Anterior",ed_search_next:"↓ Siguiente",ed_search_none:"Sin resultados",ed_search_of:"de",ed_search_one:"coincidencia",ed_search_many:"coincidencias",
     ed_save_exit:"Guardar y salir",ed_save_exit_q:"¿Quieres guardar este trabajo solo para ti, o subirlo ya a la plataforma?",
     ed_save_private:"Guardar para mí",ed_save_upload:"Subir a la plataforma",
@@ -1009,7 +1027,7 @@ const T = {
     ol_chapter:"Chapter",ol_section:"Section",ol_maybe_chapter:"Possible chapter",ol_maybe_section:"Possible section",
     ol_maybe_note:"Typed by hand: in the Library it will read as a normal paragraph.",
     ol_conv_chapter:"Make it a chapter",ol_conv_section:"Make it a section",
-    ol_num_warn:"Chapter numbering is not consecutive or not in Roman numerals (there are repeated numbers, gaps, disorder, Arabic numerals or unnumbered chapters).",
+    ol_num_warn:"Chapters do not follow the book's style: consecutive Roman numerals and titles in capitals (there are repeated numbers, gaps, disorder, Arabic numerals, unnumbered chapters or lowercase titles).",
     ol_renumber:"Renumber chapters",ol_close:"Close",ed_search_ph:"Search the text (word, phrase or title)",ed_search_prev:"↑ Previous",ed_search_next:"↓ Next",ed_search_none:"No results",ed_search_of:"of",ed_search_one:"match",ed_search_many:"matches",
     ed_save_exit:"Save and exit",ed_save_exit_q:"Do you want to save this just for yourself, or upload it to the platform now?",
     ed_save_private:"Save for myself",ed_save_upload:"Upload to the platform",
@@ -1780,7 +1798,7 @@ const EDITOR_FAQ_ES = [
   {q:"¿Cómo divido mi libro en capítulos y apartados?",
    a:"Con los botones «+ Capítulo» y «+ Apartado»: coloca el cursor donde quieras empezarlo, pulsa el botón y escribe el título. El programa pone delante un signo: ¶ para los capítulos y § para los apartados. Esos signos solo se ven mientras escribes, nunca en el libro publicado: sirven para que la plataforma distinga sin error un título del texto normal. No los borres: sin ellos, la línea se leería como un párrafo más. Para cambiar un título, edítalo detrás del signo; para quitarlo, borra la línea entera. Es muy intuitivo. Puedes hacer tus pruebas sin temor."},
   {q:"¿Qué es el «Esquema del libro»?",
-   a:"Una ventana que muestra, en orden, los capítulos y apartados de tu libro tal como están en ese momento. Si pulsas un título, vas directamente a ese punto del texto. Si has escrito un título a mano, sin los botones, lo señala como «posible capítulo» o «posible apartado» y te ofrece convertirlo con un clic. Si la numeración no es correlativa o no está en números romanos, te avisa y te permite renumerar."},
+   a:"Una ventana que muestra, en orden, los capítulos y apartados de tu libro tal como están en ese momento. Si pulsas un título, vas directamente a ese punto del texto. Si has escrito un título a mano, sin los botones, lo señala como «posible capítulo» o «posible apartado» y te ofrece convertirlo con un clic. Si la numeración no es correlativa o los capítulos no siguen el estilo del libro (números romanos y mayúsculas), te avisa y te permite corregirlo con un clic."},
   {q:"¿Cómo encuentro una palabra o un pasaje?",
    a:"Con el buscador que hay sobre el texto: escribe una palabra, una frase o un título y recorre lo encontrado con «Siguiente» y «Anterior». No distingue mayúsculas ni acentos."},
   {q:"¿Cómo pongo algo en cursiva?",
@@ -1800,7 +1818,7 @@ const EDITOR_FAQ_EN = [
   {q:"How do I divide my book into chapters and sections?",
    a:"With the \u201c+ Chapter\u201d and \u201c+ Section\u201d buttons: place the cursor where you want it to start, press the button and type the title. The program puts a sign in front: \u00b6 for chapters and \u00a7 for sections. These signs are only visible while you write, never in the published book: they let the platform tell a title from normal text without mistakes. Don't delete them: without them, the line would read as just another paragraph. To change a title, edit it after the sign; to remove it, delete the whole line. It's very intuitive. Feel free to experiment."},
   {q:"What is the \u201cBook outline\u201d?",
-   a:"A window that shows, in order, your book's chapters and sections as they are right now. Click a title to go straight to that point in the text. If you typed a title by hand, without the buttons, it flags it as a \u201cpossible chapter\u201d or \u201cpossible section\u201d and offers to convert it with one click. If chapter numbering is not consecutive or not in Roman numerals, it warns you and lets you renumber."},
+   a:"A window that shows, in order, your book's chapters and sections as they are right now. Click a title to go straight to that point in the text. If you typed a title by hand, without the buttons, it flags it as a \u201cpossible chapter\u201d or \u201cpossible section\u201d and offers to convert it with one click. If chapter numbering is not consecutive or chapters do not follow the book's style (Roman numerals and capitals), it warns you and lets you fix it with one click."},
   {q:"How do I find a word or passage?",
    a:"With the search box above the text: type a word, a phrase or a title and move through the results with \u201cNext\u201d and \u201cPrevious\u201d. It ignores capitals and accents."},
   {q:"How do I put something in italics?",
@@ -3193,9 +3211,12 @@ ${capituloActual}
     });
   };
   // "Convertir en…": añade el signo delante de la línea, sin tocar nada más (respeta el idioma).
+  // Al convertir en capítulo, la línea pasa también a mayúsculas (estilo de la casa, 01/10).
   const convertOutlineItem=(it,sign)=>{
     pushHistory();
-    up("text", f.text.slice(0,it.start)+sign+" "+f.text.slice(it.start));
+    const line=f.text.slice(it.start, it.start+it.title.length);
+    const nl=sign===CHAPTER_SIGN ? line.toUpperCase() : line;
+    up("text", f.text.slice(0,it.start)+sign+" "+nl+f.text.slice(it.start+it.title.length));
   };
   const renumberChapters=()=>{
     const nv=renumberChaptersText(f.text,true);
