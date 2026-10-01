@@ -191,6 +191,13 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .wr-grid{display:flex;flex-direction:column;gap:1.8rem}
 .wr-work{display:grid;grid-template-columns:1fr;gap:1.4rem;align-items:start}
 @media(min-width:841px){.wr-work.wr-work-split{grid-template-columns:1.7fr 1fr}}
+/* Ordenador (01/10): el botón "Abrir el Asistente" acompaña al Autor al bajar por la página y
+   queda siempre a la vista, bajo la cabecera, a la altura de la caja de texto. La columna se
+   estira a toda la altura para que el botón pueda desplazarse. En el móvil no cambia nada. */
+@media(min-width:841px){
+  .wr-work.wr-work-split .wr-ai-col{align-self:stretch}
+  .wr-work.wr-work-split .ai-open-btn{position:sticky;top:7rem;z-index:5}
+}
 .mob-offers-strip{display:none}
 @media(max-width:840px){
   .mob-offers-strip{display:flex;gap:0.5rem;flex-wrap:wrap;margin:0 0 0.8rem 0;
@@ -564,7 +571,22 @@ function renderInline(str){
   if(last<str.length) out.push(str.slice(last));
   return out.length ? out : str;
 }
-function renderStoryBody(text, fotos=[]) {
+// Comillas del libro de estilo (§9bis, 01/10): en libros en castellano, gallego y catalán, cada
+// pareja de comillas rectas o curvas de un párrafo se muestra como «…». Solo en la lectura; el
+// texto guardado no cambia. No se toca: un párrafo que ya tiene «» (sus comillas inglesas son
+// el segundo nivel), un párrafo con comillas desparejadas (p. ej. un diálogo que sigue en el
+// párrafo siguiente), las traducciones ni los demás idiomas. Portugués: pendiente de distinguir
+// Portugal («») y Brasil (“”) en el selector de idioma.
+const ANGLE_QUOTE_LANGS = ["ES","GL","CA"];
+function toAngleQuotes(str, lang){
+  if(!lang || !ANGLE_QUOTE_LANGS.includes(lang)) return str;
+  if(str.includes("«")) return str;
+  const n=(str.match(/["“”]/g)||[]).length;
+  if(n===0 || n%2) return str;
+  let open=true;
+  return str.replace(/["“”]/g,()=>{ const q=open?"«":"»"; open=!open; return q; });
+}
+function renderStoryBody(text, fotos=[], lang=null) {
   return (text||"").split("\n\n").map((raw,i)=>{
     const p = raw.replace(/—/g,"–");
     const trimmed = p.trim();
@@ -602,7 +624,7 @@ function renderStoryBody(text, fotos=[]) {
       const body = trimmed.slice(SECTION_SIGN.length).trim();
       return <h3 key={i} style={{fontFamily:"var(--serif)",fontSize:"1.15rem",color:"var(--navy)",margin:"2rem 0 0.8rem",paddingBottom:"0.4rem",borderBottom:"1px solid var(--border)"}}>{body}</h3>;
     }
-    return <p key={i}>{renderInline(p)}</p>;
+    return <p key={i}>{renderInline(toAngleQuotes(p, lang))}</p>;
   });
 }
 // librerías). Se usa para la respuesta de seguridad: nunca se guarda en
@@ -822,6 +844,10 @@ const T = {
     ai_no_ink:"Se ha agotado la tinta del Asistente. Puedes recargarlo arriba, en «Uso de IA». Lo que ya has escrito está a salvo.",
     ai_no_session:"Tu sesión ha caducado. Sal y vuelve a entrar para seguir; lo que has escrito está guardado.",
     ai_error_retry:"He tenido un problema para responder. ¿Puedes repetir tu último mensaje?",
+    ai_offer_yes:"Sí, propónmela",ai_offer_no:"No, gracias",ai_replace_btn:"Sustituir en el texto",
+    ai_corr_ready:"He escrito la versión corregida en tu ventana de abajo. Si te convence, pulsa «Sustituir en el texto».",
+    ai_corr_unfaithful:"No he conseguido una corrección que respete del todo tu texto, así que prefiero no proponértela; te sugiero revisar tú ese párrafo.",
+    ai_corr_notfound:"No encuentro el párrafo original tal como estaba; quizá lo has cambiado. Bórralo tú y pulsa «Mandar a ventana de texto».",
     gift_link:"🎁",gift_h:"Regala el Plan Familiar",
     gift_sub:"Regala a alguien especial la oportunidad de escribir y conservar su historia, con toda la ayuda incluida.",
     gift_item1:"Una carga del Asistente de IA para escribir (5 €)",
@@ -1077,6 +1103,10 @@ const T = {
     ai_no_ink:"The Assistant has run out of ink. You can top it up above, under “AI usage”. What you have written is safe.",
     ai_no_session:"Your session has expired. Sign out and back in to continue; your writing is saved.",
     ai_error_retry:"I had a problem answering. Could you repeat your last message?",
+    ai_offer_yes:"Yes, suggest it",ai_offer_no:"No, thanks",ai_replace_btn:"Replace in text",
+    ai_corr_ready:"I've written the corrected version in your window below. If it works for you, press “Replace in text.”",
+    ai_corr_unfaithful:"I couldn't produce a correction that fully respects your text, so I'd rather not suggest one; please check that paragraph yourself.",
+    ai_corr_notfound:"I can't find the original paragraph as it was; you may have changed it. Delete it yourself and press “Send to text window.”",
     gift_link:"🎁",gift_h:"Gift the Family Plan",
     gift_sub:"Give someone special the chance to write and preserve their story, with all the help included.",
     gift_item1:"One AI writing Assistant top-up (€5)",
@@ -1203,6 +1233,29 @@ async function callAI({ operacion, system, userMsg, history, idioma }) {
 function isMobileUA(){
   return /Android|iPhone|iPad|iPod|Mobile|webOS/i.test(navigator.userAgent);
 }
+// Corrección ortotipográfica ofrecida (Agente Editorial V7, §2.10).
+// Marca interna con la que el Asistente indica que ofrece una versión corregida (nunca se muestra).
+const OFFER_TAG=/\[\[OFERTA_CORRECCION\]\]/i;
+const OFFER_TAG_G=/\s*\[\[OFERTA_CORRECCION\]\]\s*/gi;
+// Instrucción fija de la corrección (operación "revision", Flash-Lite).
+const CORRECTION_SYSTEM=`Eres un corrector ortotipográfico. Recibirás un párrafo de una autobiografía. Corrige ÚNICAMENTE: faltas de ortografía, tildes, letras cambiadas o de más, palabras repetidas por error, mayúsculas, puntuación y errores sintácticos evidentes (una concordancia rota, una palabra que falta). NO cambies el vocabulario, el orden de las frases, los giros, los coloquialismos, las variantes regionales ni las palabras en otro idioma; no añadas ni quites información; si una frase es ambigua, déjala como está. Conserva los guiones bajos de la cursiva (_así_) y, si el párrafo empieza por el signo ¶ o §, conserva ese signo. Devuelve SOLO el párrafo corregido, en su mismo idioma, sin comillas añadidas, comentarios ni explicaciones.`;
+// Red de seguridad, sin IA: la corrección no puede cambiar demasiadas palabras. Tildes,
+// mayúsculas y puntuación no cuentan. Límite: 6 palabras o el 30 % del párrafo, lo que sea mayor.
+// (Servirá también para la corrección del dictado: Pendientes del Asistente, punto 4.)
+function correctionIsFaithful(original, corrected){
+  const words=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu," ").split(/\s+/).filter(Boolean);
+  const a=words(original), b=words(corrected);
+  if(!b.length) return false;
+  let prev=Array.from({length:b.length+1},(_,j)=>j);
+  for(let i=1;i<=a.length;i++){
+    const cur=[i];
+    for(let j=1;j<=b.length;j++) cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    prev=cur;
+  }
+  return prev[b.length] <= Math.max(6, Math.ceil(a.length*0.3));
+}
+
 function stripLangTag(text){
   const m = (text||"").match(/\s*\[\[LANG:([a-z]{2}(?:-[A-Z]{2})?)\]\]\s*$/i);
   if(!m) return {text: text||"", langCode: null};
@@ -1419,7 +1472,7 @@ function Read({auto,setView,t}) {
     <div className="read-wrap fu">
       <button className="back" onClick={()=>setView("library")}>{t.back}</button>
       {coverAndTitle(shownLang?.label||readLangCode, tr&&<> · <span onClick={backToLangChoice} style={{cursor:"pointer",textDecoration:"underline"}}>{t.change_lang}</span></>)}
-      <div className="r-body">{renderStoryBody(tr||auto.text, auto.fotos||[])}</div>
+      <div className="r-body">{renderStoryBody(tr||auto.text, auto.fotos||[], tr?null:auto.lang)}</div>
       {/* Etiquetas retiradas de la lectura (29/09): siguen guardadas y sirven para buscar en la Biblioteca. */}
       {!tr&&auto.fullUrl&&(
         <div style={{margin:"1.8rem 0",padding:"1.2rem 1.5rem",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"1rem"}}>
@@ -2663,11 +2716,19 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const dictationPrecedingRef=useRef("");
 
   const paragraphCheckRef = useRef({timer:null, lastChecked:""});
+  // Corrección ortotipográfica ofrecida (Agente Editorial V7, §2.10).
+  // activeOfferId: el ofrecimiento cuyos botones se ven (caduca al revisar otro párrafo o al
+  // pulsar uno de los botones). correctionTarget: el párrafo original que "Sustituir en el
+  // texto" reemplazará; se olvida en cuanto la caja "Tú" deja de tener la propuesta.
+  const [activeOfferId,setActiveOfferId]=useState(null);
+  const [correctionTarget,setCorrectionTarget]=useState(null);
+  useEffect(()=>{ if(!chatInputFromAssistant) setCorrectionTarget(null); },[chatInputFromAssistant]);
 
   const checkParagraphInBackground = async (paragraphText, contexto) => {
     const trimmed = (paragraphText||"").trim();
     if(!trimmed || trimmed===paragraphCheckRef.current.lastChecked) return;
     paragraphCheckRef.current.lastChecked = trimmed;
+    setActiveOfferId(null); // un párrafo nuevo hace caducar el ofrecimiento anterior
     try{
       // Contexto reducido (el párrafo y unos anteriores), no el capítulo entero:
       // la revisión automática se hace con Flash-Lite y gasta tinta.
@@ -2675,18 +2736,80 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
           operacion: "revision",
           system: buildAssistantSystemPrompt(contexto||""),
           history: [],
-          userMsg: `[Revisión automática de párrafo — no es un mensaje del Autor] El Autor acaba de terminar de escribir este párrafo:\n"""\n${trimmed}\n"""\nSi, según tus propias reglas (Regla del Redactor, erratas evidentes, Ritmo de Intervención, Una Frase por Intervención), tienes algo que señalar sobre ESTE párrafo en concreto, hazlo ahora, en una sola frase, sin redactar nada por el Autor. Si ESTE párrafo tiene erratas evidentes, señálalas siempre, con su forma correcta. Si no hay nada que señalar, responde EXACTAMENTE con: SIN_COMENTARIO`
+          userMsg: `[Revisión automática de párrafo — no es un mensaje del Autor] El Autor acaba de terminar de escribir este párrafo:\n"""\n${trimmed}\n"""\nSi, según tus propias reglas (Regla del Redactor, erratas evidentes, Ritmo de Intervención, Una Frase por Intervención), tienes algo que señalar sobre ESTE párrafo en concreto, hazlo ahora, en una sola frase, sin redactar nada por el Autor. Si ESTE párrafo tiene entre una y tres erratas evidentes, señálalas siempre, con su forma correcta; si tiene cuatro o más, aplica CORRECCIÓN ORTOTIPOGRÁFICA OFRECIDA. Los párrafos anteriores que veas en el contexto ya fueron revisados: no comentes nada de ellos ni vuelvas sobre erratas ya señaladas. Si no hay nada que señalar, responde EXACTAMENTE con: SIN_COMENTARIO`
       });
       applyTinta(d);
-      const {text:cleanText,langCode}=stripLangTag(d.text||"");
-      if(cleanText.trim() && cleanText.trim()!=="SIN_COMENTARIO"){
-        setChatMsgs(h=>[...h,{role:"model",text:cleanText,langCode}]);
+      const hasOffer=OFFER_TAG.test(d.text||"");
+      const {text:rawText,langCode}=stripLangTag((d.text||"").replace(OFFER_TAG_G,"\n"));
+      const cleanText=rawText.trim();
+      if(cleanText && cleanText!=="SIN_COMENTARIO"){
+        const id=Date.now();
+        setChatMsgs(h=>[...h,{role:"model",text:cleanText,langCode,offer:hasOffer?{id,paragraph:trimmed}:undefined}]);
+        if(hasOffer) setActiveOfferId(id);
       }
     }catch(e){
       // Revisión de fondo: un fallo aquí no debe interrumpir al Autor. Si es
       // falta de tinta, solo se refleja en la barra (que ofrece recargar).
       if(e.code==="SIN_TINTA") setTinta(p=>({tinta:0,ultimaCarga:(p&&p.ultimaCarga)||e.ultimaCarga||0}));
     }
+  };
+
+  // "Sí, propónmela": el programa pide la corrección con una instrucción fija y la comprueba
+  // (red de seguridad) antes de ponerla en la caja "Tú".
+  const acceptCorrection=async(offer)=>{
+    if(chatLoading) return;
+    setActiveOfferId(null);
+    setChatMsgs(h=>[...h,{role:"user",text:t.ai_offer_yes}]);
+    setChatLoading(true);
+    try{
+      const d=await callAI({operacion:"revision",system:CORRECTION_SYSTEM,history:[],userMsg:offer.paragraph});
+      applyTinta(d);
+      const fixed=stripLangTag((d.text||"").replace(OFFER_TAG_G,"\n")).text.replace(/^```[a-z]*\s*|\s*```$/g,"").trim();
+      if(fixed && correctionIsFaithful(offer.paragraph,fixed)){
+        setChatInput(fixed);
+        setChatInputFromAssistant(true);
+        setJustDictated(false);
+        setCorrectionTarget(offer.paragraph);
+        setChatMsgs(h=>[...h,{role:"model",text:t.ai_corr_ready}]);
+      } else {
+        setChatMsgs(h=>[...h,{role:"model",text:t.ai_corr_unfaithful}]);
+      }
+    }catch(e){
+      if(e.code==="SIN_TINTA"){
+        setTinta(p=>({tinta:0,ultimaCarga:(p&&p.ultimaCarga)||e.ultimaCarga||0}));
+        setChatMsgs(h=>[...h,{role:"model",text:t.ai_no_ink}]);
+      } else if(e.code==="SIN_SESION"){
+        setChatMsgs(h=>[...h,{role:"model",text:t.ai_no_session}]);
+      } else {
+        setChatMsgs(h=>[...h,{role:"model",text:t.ai_error_retry}]);
+      }
+    }
+    setChatLoading(false);
+  };
+  const declineCorrection=()=>{
+    setActiveOfferId(null);
+    setChatMsgs(h=>[...h,{role:"user",text:t.ai_offer_no}]);
+  };
+  // "Sustituir en el texto": reemplaza el párrafo original por la versión corregida, solo si lo
+  // encuentra tal cual y una sola vez; si no, no toca nada y lo dice.
+  const replaceParagraphInStory=(text)=>{
+    const target=correctionTarget;
+    const clean=htmlToPlain(text);
+    const i=target ? f.text.indexOf(target) : -1;
+    if(i===-1 || f.text.indexOf(target,i+1)!==-1){
+      setCorrectionTarget(null);
+      setChatMsgs(h=>[...h,{role:"model",text:t.ai_corr_notfound}]);
+      return;
+    }
+    pushHistory();
+    up("text", f.text.slice(0,i)+clean+f.text.slice(i+target.length));
+    setChatInput("");
+    setChatInputFromAssistant(false);
+    setCorrectionTarget(null);
+    requestAnimationFrame(()=>{
+      const el=taRef.current;
+      if(el){ const pos=i+clean.length; el.focus(); el.selectionStart=el.selectionEnd=pos; }
+    });
   };
 
   const getCurrentChapterText=()=>{
@@ -2738,8 +2861,9 @@ sin más. Tus únicas funciones activas sobre el texto son:
   NO son erratas, y no las señales: los rasgos de la voz del Autor
   (coloquialismos, giros dialectales o de época, variantes regionales),
   las palabras o frases en otro idioma, ni las preferencias de puntuación
-  o de estilo. Si hay varias erratas en el mismo párrafo, señálalas juntas
-  en una sola frase.
+  o de estilo. Si hay entre una y tres erratas en el mismo párrafo,
+  señálalas juntas en una sola frase; con cuatro o más, aplica CORRECCIÓN
+  ORTOTIPOGRÁFICA OFRECIDA (más abajo).
 - Sugerir que desarrolle, reformule o simplifique una escena, sin escribir
   tú esa alternativa.
 - Responder preguntas técnicas dentro de tus funciones conocidas de la
@@ -2866,6 +2990,10 @@ escenas, o extenderse varias páginas sobre una sola.
   esperar a un párrafo posterior de la misma escena.
 - Las erratas evidentes se señalan siempre, aunque ya hayas intervenido
   antes en esa escena.
+- Cada errata se señala una sola vez. Comenta solo el párrafo que se
+  acaba de escribir: no vuelvas sobre erratas de párrafos anteriores, ni
+  preguntes si se han corregido, ni repitas un ofrecimiento de corrección
+  que el Autor no ha aceptado.
 - Las sugerencias de desarrollo, como máximo una vez por escena. Si el
   Autor ya la desarrolla bien en varios párrafos antes de pasar a la
   siguiente, puedes callar, hacer una corrección puntual, o apreciarla
@@ -2880,6 +3008,17 @@ escenas, o extenderse varias páginas sobre una sola.
   de la sesión.
 - Tienes estrictamente prohibido emitir cuestionarios o listas de
   preguntas acumuladas que abrumen al Autor.
+
+CORRECCIÓN ORTOTIPOGRÁFICA OFRECIDA: solo en la revisión automática de un
+párrafo. Si ESE párrafo tiene cuatro o más erratas evidentes, no las
+enumeres: di en una sola frase, en el idioma del Autor, "Este párrafo
+tiene varios descuidos; ¿quieres que te proponga una versión corregida?",
+y añade en una línea aparte, justo antes de la etiqueta de idioma, la
+marca interna [[OFERTA_CORRECCION]] (nunca la menciones ni la expliques).
+No escribas tú la versión corregida en la conversación: la prepara el
+sistema si el Autor pulsa el botón «Sí, propónmela» que aparece bajo tu
+ofrecimiento. Si el Autor te la pide por escrito, dile en una frase que
+pulse ese botón.
 
 UNA FRASE POR INTERVENCIÓN: ninguna intervención por iniciativa propia
 tuya, en ningún supuesto de este documento, puede exceder de una sola
@@ -2971,7 +3110,8 @@ ${capituloActual}
         userMsg: text
       });
       applyTinta(d);
-      const {text:cleanText,langCode}=stripLangTag(d.text);
+      const {text:rawText,langCode}=stripLangTag((d.text||"").replace(OFFER_TAG_G,"\n"));
+      const cleanText=rawText.trim();
       setChatMsgs(h=>[...h,{role:"model",text:cleanText,langCode}]);
       const {html}=splitAssistantReply(cleanText);
       if(html){
@@ -3712,8 +3852,10 @@ ${capituloActual}
                   lang={lang} f={f} up={up} chatMsgs={chatMsgs} setChatMsgs={setChatMsgs}
                   chatInput={chatInput} setChatInput={setChatInput} chatInputFromAssistant={chatInputFromAssistant} setChatInputFromAssistant={setChatInputFromAssistant} chatLoading={chatLoading}
                   sendChatMessage={sendChatMessage} listening={listening} dictProcessing={dictProcessing} justDictated={justDictated} startListening={startListening}
-                  stopListening={stopListening} addChatToStory={addChatToStory}/>
-              : <button className="ai-open-btn" style={{width:"100%",marginTop:"5.1rem" /* estimado: punto medio entre título/subtítulo y "Orden del libro"; ajustar a ojo si no cuadra exacto */,padding:"0.55rem 0.75rem",
+                  stopListening={stopListening} addChatToStory={addChatToStory}
+                  activeOfferId={activeOfferId} acceptCorrection={acceptCorrection} declineCorrection={declineCorrection}
+                  correctionTarget={correctionTarget} replaceParagraphInStory={replaceParagraphInStory}/>
+              : <button className="ai-open-btn" style={{width:"100%",marginTop:"5.1rem" /* posición inicial junto al título; al bajar, se queda fijo bajo la cabecera (CSS .ai-open-btn, 01/10) */,padding:"0.55rem 0.75rem",
                     fontFamily:"var(--body)",fontSize:"0.96rem",lineHeight:"1.2",boxSizing:"border-box",
                     background:"#2a6a2a",border:"1px solid #2a6a2a",borderRadius:"2px",
                     color:"#fff",cursor:"pointer"}} onClick={()=>setShowAiPanel(true)}>
@@ -3779,7 +3921,8 @@ const editIconStyle={background:"none",border:"none",color:"var(--muted)",cursor
 const arrowStyle={background:"none",border:"none",color:"var(--navy)",cursor:"pointer",fontSize:"0.68rem",lineHeight:1,padding:"1px 4px"};
 
 function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,rechargeMsg,setRechargeMsg,
-  lang,f,up,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,dictProcessing,justDictated,startListening,stopListening,addChatToStory}) {
+  lang,f,up,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,dictProcessing,justDictated,startListening,stopListening,addChatToStory,
+  activeOfferId,acceptCorrection,declineCorrection,correctionTarget,replaceParagraphInStory}) {
   if(!open) return null;
   const [rechargeOpen,setRechargeOpen]=useState(false);const [rechargeAmt,setRechargeAmt]=useState(5);const [rechargeOk,setRechargeOk]=useState(false);
   const usageLabel=aiUsage<=0?t.ai_usage_none:aiUsage<20?t.ai_usage_low:aiUsage<50?t.ai_usage_mid:t.ai_usage_ok;
@@ -3863,6 +4006,12 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
                   return (
                     <div key={i} style={{alignSelf:"flex-start",maxWidth:"92%"}}>
                       <div style={{background:"#f1ede3",color:"var(--ink)",borderRadius:"10px",padding:"0.55rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.5,whiteSpace:"pre-line"}}>{displayText}</div>
+                      {m.offer && m.offer.id===activeOfferId && (
+                        <div style={{display:"flex",gap:"0.4rem",marginTop:"0.35rem",flexWrap:"wrap"}}>
+                          <button className="btn-pub" style={{padding:"0.3rem 0.8rem",fontSize:"0.82rem"}} disabled={chatLoading} onClick={()=>acceptCorrection(m.offer)}>{t.ai_offer_yes}</button>
+                          <button className="btn-out" style={{padding:"0.3rem 0.8rem",fontSize:"0.82rem"}} disabled={chatLoading} onClick={declineCorrection}>{t.ai_offer_no}</button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -3880,8 +4029,8 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
                     {lang==="EN"?"Send to Assistant":"Enviar al Asistente"}
                   </button>
                   {chatInputFromAssistant && (
-                    <button className={justDictated?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.9rem",flex:1}} disabled={listening||dictProcessing||!chatInput.trim()} onClick={()=>addChatToStory(chatInput)}>
-                      {lang==="EN"?"Send to text window":"Mandar a ventana de texto"}
+                    <button className={justDictated?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.9rem",flex:1}} disabled={listening||dictProcessing||!chatInput.trim()} onClick={()=>correctionTarget?replaceParagraphInStory(chatInput):addChatToStory(chatInput)}>
+                      {correctionTarget ? t.ai_replace_btn : (lang==="EN"?"Send to text window":"Mandar a ventana de texto")}
                     </button>
                   )}
                 </div>
