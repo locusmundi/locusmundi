@@ -1295,6 +1295,15 @@ function errataFromCorrection(original, fixed){
   const seen=new Set();
   return out.reverse().filter(e=>e.mal!==e.bien && e.bien && !seen.has(e.mal+"|"+e.bien) && seen.add(e.mal+"|"+e.bien));
 }
+// Párrafos completos de un texto idénticos a uno dado: posición de inicio de cada uno.
+function paragraphSpans(text, target){
+  const out=[]; const re=/[^\n]+(?:\n(?!\s*\n)[^\n]*)*/g; let m;
+  while((m=re.exec(text||""))){
+    const lead=m[0].length-m[0].trimStart().length;
+    if(m[0].trim()===target) out.push(m.index+lead);
+  }
+  return out;
+}
 // Pregunta con 1-3 erratas, compuesta por el programa (una sola frase).
 function errataQuestion(list, lang){
   const join=(arr,y)=>arr.length<2?arr.join(""):arr.slice(0,-1).join(", ")+" "+y+" "+arr[arr.length-1];
@@ -2783,6 +2792,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // pulsar uno de los botones). correctionTarget: el párrafo original que "Sustituir en el
   // texto" reemplazará; se olvida en cuanto la caja "Tú" deja de tener la propuesta.
   const [activeOfferId,setActiveOfferId]=useState(null);
+  const latestTextRef=useRef(f.text); latestTextRef.current=f.text; // texto actual, para la revisión en segundo plano
   const [correctionTarget,setCorrectionTarget]=useState(null);
   useEffect(()=>{ if(!chatInputFromAssistant) setCorrectionTarget(null); },[chatInputFromAssistant]);
 
@@ -2825,7 +2835,12 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       }
       if(errata.length>=4){
         const id=Date.now();
-        setChatMsgs(h=>[...h,{role:"model",text:t.ai_offer_msg,langCode,offer:{id,paragraph:trimmed,fixed,pos:paraPos}}]);
+        // Qué copia es este párrafo (k) entre los párrafos idénticos del libro (n). Si al sustituir
+        // ya no hay n copias, es que el Autor lo ha cambiado: no se toca nada (V7.1).
+        const sp=paragraphSpans(latestTextRef.current,trimmed);
+        let k=0; sp.forEach((x,q)=>{ if(Math.abs(x-paraPos)<Math.abs(sp[k]-paraPos)) k=q; });
+        if(!sp.length) return; // el párrafo ya no está tal cual: no se ofrece nada
+        setChatMsgs(h=>[...h,{role:"model",text:t.ai_offer_msg,langCode,offer:{id,paragraph:trimmed,fixed,k,n:sp.length}}]);
         setActiveOfferId(id);
       } else if(errata.length>0){
         setChatMsgs(h=>[...h,{role:"model",text:errataQuestion(errata,lang),langCode}]);
@@ -2860,7 +2875,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
         setChatInput(fixed);
         setChatInputFromAssistant(true);
         setJustDictated(false);
-        setCorrectionTarget({text:offer.paragraph,pos:offer.pos||0});
+        setCorrectionTarget({text:offer.paragraph,k:offer.k||0,n:offer.n||1});
         setChatMsgs(h=>[...h,{role:"model",text:t.ai_corr_ready}]);
       } else {
         setChatMsgs(h=>[...h,{role:"model",text:t.ai_corr_unfaithful}]);
@@ -2889,25 +2904,23 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const replaceParagraphInStory=(text)=>{
     const target=correctionTarget;
     const clean=htmlToPlain(text);
-    const spans=[]; const re=/[^\n]+(?:\n(?!\s*\n)[^\n]*)*/g; let m;
-    while((m=re.exec(f.text))){
-      const lead=m[0].length-m[0].trimStart().length;
-      if(target && m[0].trim()===target.text) spans.push({start:m.index+lead,len:m[0].trim().length});
-    }
-    if(!spans.length){
+    const spans=target ? paragraphSpans(f.text,target.text) : [];
+    if(!spans.length || spans.length!==target.n){
       setCorrectionTarget(null);
       setChatMsgs(h=>[...h,{role:"model",text:t.ai_corr_notfound}]);
       return;
     }
-    const sp=spans.reduce((best,x)=>Math.abs(x.start-target.pos)<Math.abs(best.start-target.pos)?x:best);
+    const start=spans[Math.min(target.k,spans.length-1)];
     pushHistory();
-    up("text", f.text.slice(0,sp.start)+clean+f.text.slice(sp.start+sp.len));
+    up("text", f.text.slice(0,start)+clean+f.text.slice(start+target.text.length));
     setChatInput("");
     setChatInputFromAssistant(false);
     setCorrectionTarget(null);
+    // Cursor al final del párrafo sustituido y vista en él (el cambio de texto mandaba la vista
+    // al final del libro): blur/focus fuerza al navegador a mostrar el cursor, como con Intro.
     requestAnimationFrame(()=>{
       const el=taRef.current;
-      if(el){ const p2=sp.start+clean.length; el.focus(); el.selectionStart=el.selectionEnd=p2; }
+      if(el){ const p2=start+clean.length; el.focus(); el.selectionStart=el.selectionEnd=p2; el.blur(); el.focus(); }
     });
   };
 
@@ -4123,9 +4136,10 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
               {dictProcessing && <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",fontStyle:"italic",margin:"0.3rem 0 0"}}>{t.ai_dict_processing}</div>}
               <div style={{display:"flex",flexDirection:"column",gap:"0.4rem",marginTop:"0.5rem"}}>
                 <div style={{display:"flex",gap:"0.4rem",flexWrap:"wrap"}}>
+                  {!correctionTarget && /* con una corrección en la caja, solo tiene sentido "Sustituir" (01/10) */
                   <button className={justDictated?"btn-out":"btn-pub"} style={{padding:"0.45rem 0.9rem",flex:1}} disabled={chatLoading||!chatInput.trim()||listening||dictProcessing} onClick={()=>sendChatMessage(chatInput)}>
                     {lang==="EN"?"Send to Assistant":"Enviar al Asistente"}
-                  </button>
+                  </button>}
                   {chatInputFromAssistant && (
                     <button className={justDictated?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.9rem",flex:1}} disabled={listening||dictProcessing||!chatInput.trim()} onClick={()=>correctionTarget?replaceParagraphInStory(chatInput):addChatToStory(chatInput)}>
                       {correctionTarget ? t.ai_replace_btn : (lang==="EN"?"Send to text window":"Mandar a ventana de texto")}
