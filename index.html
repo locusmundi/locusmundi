@@ -844,6 +844,7 @@ const T = {
     ai_no_ink:"Se ha agotado la tinta del Asistente. Puedes recargarlo arriba, en «Uso de IA». Lo que ya has escrito está a salvo.",
     ai_no_session:"Tu sesión ha caducado. Sal y vuelve a entrar para seguir; lo que has escrito está guardado.",
     ai_error_retry:"He tenido un problema para responder. ¿Puedes repetir tu último mensaje?",
+    ai_offer_msg:"Este párrafo tiene varios descuidos; ¿quieres que te proponga una versión corregida?",
     ai_offer_yes:"Sí, propónmela",ai_offer_no:"No, gracias",ai_replace_btn:"Sustituir en el texto",
     ai_corr_ready:"He escrito la versión corregida en tu ventana de abajo. Si te convence, pulsa «Sustituir en el texto».",
     ai_corr_unfaithful:"No he conseguido una corrección que respete del todo tu texto, así que prefiero no proponértela; te sugiero revisar tú ese párrafo.",
@@ -1103,6 +1104,7 @@ const T = {
     ai_no_ink:"The Assistant has run out of ink. You can top it up above, under “AI usage”. What you have written is safe.",
     ai_no_session:"Your session has expired. Sign out and back in to continue; your writing is saved.",
     ai_error_retry:"I had a problem answering. Could you repeat your last message?",
+    ai_offer_msg:"This paragraph has several slips; would you like me to suggest a corrected version?",
     ai_offer_yes:"Yes, suggest it",ai_offer_no:"No, thanks",ai_replace_btn:"Replace in text",
     ai_corr_ready:"I've written the corrected version in your window below. If it works for you, press “Replace in text.”",
     ai_corr_unfaithful:"I couldn't produce a correction that fully respects your text, so I'd rather not suggest one; please check that paragraph yourself.",
@@ -1239,6 +1241,22 @@ const OFFER_TAG=/\[\[OFERTA_CORRECCION\]\]/i;
 const OFFER_TAG_G=/\s*\[\[OFERTA_CORRECCION\]\]\s*/gi;
 // Instrucción fija de la corrección (operación "revision", Flash-Lite).
 const CORRECTION_SYSTEM=`Eres un corrector ortotipográfico. Recibirás un párrafo de una autobiografía. Corrige ÚNICAMENTE: faltas de ortografía, tildes, letras cambiadas o de más, palabras repetidas por error, mayúsculas, puntuación y errores sintácticos evidentes (una concordancia rota, una palabra que falta). NO cambies el vocabulario, el orden de las frases, los giros, los coloquialismos, las variantes regionales ni las palabras en otro idioma; no añadas ni quites información; si una frase es ambigua, déjala como está. Conserva los guiones bajos de la cursiva (_así_) y, si el párrafo empieza por el signo ¶ o §, conserva ese signo. Devuelve SOLO el párrafo corregido, en su mismo idioma, sin comillas añadidas, comentarios ni explicaciones.`;
+// Agente Editorial V7.1: marcas de errata que devuelve la revisión por párrafo.
+const ERRATA_RE=/\[\[ERRATA:\s*([\s\S]*?)\s*(?:→|->)\s*([\s\S]*?)\s*\]\]/g;
+function extractErrata(text){
+  const errata=[]; let m; ERRATA_RE.lastIndex=0;
+  while((m=ERRATA_RE.exec(text))){
+    const mal=m[1].trim(), bien=m[2].trim();
+    if(mal && bien && mal!==bien) errata.push({mal,bien});
+  }
+  return {errata, rest:text.replace(ERRATA_RE," ")};
+}
+// Pregunta con 1-3 erratas, compuesta por el programa (una sola frase).
+function errataQuestion(list, lang){
+  const join=(arr,y)=>arr.length<2?arr.join(""):arr.slice(0,-1).join(", ")+" "+y+" "+arr[arr.length-1];
+  if(lang==="EN") return "Did you mean "+join(list.map(e=>`“${e.bien}” instead of “${e.mal}”`),"and")+"?";
+  return "¿Querías decir "+join(list.map(e=>`«${e.bien}» en vez de «${e.mal}»`),"y")+"?";
+}
 // Red de seguridad, sin IA: la corrección no puede cambiar demasiadas palabras. Tildes,
 // mayúsculas y puntuación no cuentan. Límite: 6 palabras o el 30 % del párrafo, lo que sea mayor.
 // (Servirá también para la corrección del dictado: Pendientes del Asistente, punto 4.)
@@ -2736,16 +2754,26 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
           operacion: "revision",
           system: buildAssistantSystemPrompt(contexto||""),
           history: [],
-          userMsg: `[Revisión automática de párrafo — no es un mensaje del Autor] El Autor acaba de terminar de escribir este párrafo:\n"""\n${trimmed}\n"""\nSi, según tus propias reglas (Regla del Redactor, erratas evidentes, Ritmo de Intervención, Una Frase por Intervención), tienes algo que señalar sobre ESTE párrafo en concreto, hazlo ahora, en una sola frase, sin redactar nada por el Autor. Si ESTE párrafo tiene entre una y tres erratas evidentes, señálalas siempre, con su forma correcta; si tiene cuatro o más, aplica CORRECCIÓN ORTOTIPOGRÁFICA OFRECIDA. Los párrafos anteriores que veas en el contexto ya fueron revisados: no comentes nada de ellos ni vuelvas sobre erratas ya señaladas. Si no hay nada que señalar, responde EXACTAMENTE con: SIN_COMENTARIO`
+          userMsg: `[Revisión automática de párrafo — no es un mensaje del Autor] El Autor acaba de terminar de escribir este párrafo:\n"""\n${trimmed}\n"""\nRevisa SOLO este párrafo: los anteriores que veas en el contexto ya fueron revisados y no debes comentar nada de ellos.\n1) ERRATAS EVIDENTES de este párrafo (faltas de ortografía; tildes, también en palabras que existen pero no encajan en la frase, como «tenia» por «tenía» o «enseño» por «enseñó»; letras cambiadas o de más; palabras repetidas por error; mayúscula indebida tras coma; signos de interrogación o exclamación sin cerrar). NO son erratas: los rasgos de la voz del Autor, las palabras en otro idioma ni las preferencias de estilo. Escribe cada errata en una línea aparte con este formato exacto: [[ERRATA: texto erróneo → forma correcta]]. Copia el texto erróneo EXACTAMENTE como aparece en el párrafo, con sus mayúsculas y signos. No las comentes en ninguna frase: el sistema compone el mensaje para el Autor.\n2) Además, si según tus reglas (Regla del Redactor, Ritmo de Intervención, Una Frase por Intervención) tienes una observación sobre este párrafo que no sea de erratas, escríbela en una sola frase, sin redactar nada por el Autor.\nSi no hay erratas ni observación, responde EXACTAMENTE con: SIN_COMENTARIO`
       });
       applyTinta(d);
-      const hasOffer=OFFER_TAG.test(d.text||"");
-      const {text:rawText,langCode}=stripLangTag((d.text||"").replace(OFFER_TAG_G,"\n"));
-      const cleanText=rawText.trim();
-      if(cleanText && cleanText!=="SIN_COMENTARIO"){
+      // Agente Editorial V7.1: el Asistente solo detecta las erratas (marcas [[ERRATA: … → …]]);
+      // el programa descarta las que no están en este párrafo (no repetir), las cuenta y compone
+      // el mensaje: 1-3, una pregunta con sus formas correctas; 4 o más, el ofrecimiento con botones.
+      // Si hay erratas, la observación de contenido espera (prioridad de §2.5).
+      const {errata,rest}=extractErrata(d.text||"");
+      const {text:obsText,langCode}=stripLangTag(rest.replace(OFFER_TAG_G,"\n"));
+      let obs=obsText.trim();
+      if(obs==="SIN_COMENTARIO") obs="";
+      const valid=errata.filter((e,k,arr)=>trimmed.includes(e.mal) && arr.findIndex(x=>x.mal===e.mal)===k);
+      if(valid.length>=4){
         const id=Date.now();
-        setChatMsgs(h=>[...h,{role:"model",text:cleanText,langCode,offer:hasOffer?{id,paragraph:trimmed}:undefined}]);
-        if(hasOffer) setActiveOfferId(id);
+        setChatMsgs(h=>[...h,{role:"model",text:t.ai_offer_msg,langCode,offer:{id,paragraph:trimmed}}]);
+        setActiveOfferId(id);
+      } else if(valid.length>0){
+        setChatMsgs(h=>[...h,{role:"model",text:errataQuestion(valid,lang),langCode}]);
+      } else if(obs){
+        setChatMsgs(h=>[...h,{role:"model",text:obs,langCode}]);
       }
     }catch(e){
       // Revisión de fondo: un fallo aquí no debe interrumpir al Autor. Si es
@@ -3009,16 +3037,13 @@ escenas, o extenderse varias páginas sobre una sola.
 - Tienes estrictamente prohibido emitir cuestionarios o listas de
   preguntas acumuladas que abrumen al Autor.
 
-CORRECCIÓN ORTOTIPOGRÁFICA OFRECIDA: solo en la revisión automática de un
-párrafo. Si ESE párrafo tiene cuatro o más erratas evidentes, no las
-enumeres: di en una sola frase, en el idioma del Autor, "Este párrafo
-tiene varios descuidos; ¿quieres que te proponga una versión corregida?",
-y añade en una línea aparte, justo antes de la etiqueta de idioma, la
-marca interna [[OFERTA_CORRECCION]] (nunca la menciones ni la expliques).
-No escribas tú la versión corregida en la conversación: la prepara el
-sistema si el Autor pulsa el botón «Sí, propónmela» que aparece bajo tu
-ofrecimiento. Si el Autor te la pide por escrito, dile en una frase que
-pulse ese botón.
+CORRECCIÓN ORTOTIPOGRÁFICA OFRECIDA: en la revisión automática de un
+párrafo, comunica las erratas solo con las marcas que te indique la
+petición; el sistema las cuenta y compone el mensaje para el Autor (con
+cuatro o más, le ofrece una versión corregida con unos botones). No
+escribas tú la versión corregida en la conversación: la prepara el
+sistema si el Autor pulsa «Sí, propónmela». Si el Autor te la pide por
+escrito, dile en una frase que pulse ese botón, bajo el ofrecimiento.
 
 UNA FRASE POR INTERVENCIÓN: ninguna intervención por iniciativa propia
 tuya, en ningún supuesto de este documento, puede exceder de una sola
@@ -3110,7 +3135,7 @@ ${capituloActual}
         userMsg: text
       });
       applyTinta(d);
-      const {text:rawText,langCode}=stripLangTag((d.text||"").replace(OFFER_TAG_G,"\n"));
+      const {text:rawText,langCode}=stripLangTag(extractErrata(d.text||"").rest.replace(OFFER_TAG_G,"\n"));
       const cleanText=rawText.trim();
       setChatMsgs(h=>[...h,{role:"model",text:cleanText,langCode}]);
       const {html}=splitAssistantReply(cleanText);
