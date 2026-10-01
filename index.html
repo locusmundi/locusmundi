@@ -231,6 +231,9 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   border:1px solid var(--border);border-radius:2px;color:var(--ink);
   outline:none;transition:border-color .2s}
 .ta:focus{border-color:var(--gold)}
+/* Caja del manuscrito: una línea de aire al pie (pedido por Javier, 01/10), para que lo
+   escrito no quede pegado al borde inferior. 1.78em = una línea de texto. */
+.ta.ta-ms{padding-bottom:calc(0.95rem + 1.78em)}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:0.95rem}
 .toolbar-btn{font-family:var(--body);font-size:0.78rem;letter-spacing:0.06em;
   padding:0.3rem 0.8rem;background:var(--bg2);color:var(--navy);
@@ -3180,7 +3183,18 @@ ${capituloActual}
   };
 
   const pushHistory=()=>{ historyRef.current=[...historyRef.current.slice(-19), f.text]; };
-  const onTextChange=(v)=>{ pushHistory(); up("text",v); };
+  // Si se escribe al final del texto, la caja baja hasta el fondo para que se vea la línea
+  // de aire del pie (01/10). Escribiendo en mitad del texto, el desplazamiento lo decide el navegador.
+  const scrollTaToBottom=()=>requestAnimationFrame(()=>{
+    const el=taRef.current;
+    if(el) el.scrollTop=el.scrollHeight;
+  });
+  const onTextChange=(e)=>{
+    const el=e.target;
+    const atEnd=el.selectionEnd===el.value.length;
+    pushHistory(); up("text",el.value);
+    if(atEnd) scrollTaToBottom();
+  };
   // Al pulsar Intro, se genera directamente un párrafo nuevo (línea en blanco incluida),
   // sin que el Autor tenga que pulsarlo dos veces — así los dos idiomas leen igual en pantalla
   // y nadie corre el riesgo de que su texto quede todo en un único párrafo.
@@ -3201,6 +3215,7 @@ ${capituloActual}
       if(el){
         el.selectionStart=el.selectionEnd=s+2;
         el.blur(); el.focus(); // fuerza que el navegador recalcule y muestre el cursor, aunque quede cerca del borde inferior visible
+        if(el.selectionEnd===el.value.length) el.scrollTop=el.scrollHeight; // al final del texto: muestra la línea de aire del pie
       }
     });
 
@@ -3591,7 +3606,7 @@ ${capituloActual}
             <button type="button" className="toolbar-btn" onClick={()=>searchGo(1)} disabled={!searchQ.trim()} style={searchQ.trim()?{}:{opacity:0.4,cursor:"not-allowed"}}>{t.ed_search_next}</button>
             {searchStatus&&<span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{searchStatus}</span>}
           </div>
-          <textarea ref={taRef} className="ta" placeholder={t.f_text_ph} value={f.text} onChange={e=>onTextChange(e.target.value)} onKeyDown={onTextKeyDown}/>
+          <textarea ref={taRef} className="ta ta-ms" placeholder={t.f_text_ph} value={f.text} onChange={onTextChange} onKeyDown={onTextKeyDown}/>
 
           {fotosDb.length>0&&(
             <div id="lm-photos-added" style={{marginTop:"1rem"}}>
