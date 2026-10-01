@@ -765,7 +765,7 @@ const T = {
     ed_confirm_title:"Has cambiado el título de tu libro. Como ya está publicado, así aparecerá en la Biblioteca. ¿Confirmas el cambio?",
     ed_confirm_name:"Has cambiado tu nombre de Autor. Como tu libro ya está publicado, así aparecerá en la Biblioteca. ¿Confirmas el cambio?",
     ed_autosave:"Autoguardado activo.",ed_faq_link:"¿Cómo funciona el editor de textos?",
-    ol_link:"Esquema del libro",ol_maybe_one:"posible título",ol_maybe_many:"posibles títulos",ol_h:"Esquema del libro",
+    ol_link:"Esquema del libro",ol_maybe_one:"posible título",ol_check_chapters:"revisar capítulos",ol_maybe_many:"posibles títulos",ol_h:"Esquema del libro",
     ol_sub:"Así está organizado tu libro ahora mismo, leído directamente del texto. Los capítulos y apartados se crean con los botones “+ Capítulo” y “+ Apartado”; para renombrar o borrar uno, edítalo directamente en el texto. Pulsa un título para ir a él en el texto.",
     ol_jump:"Ir a este punto del texto",
     ol_empty:"Tu libro aún no tiene capítulos ni apartados. Puedes crearlos con los botones “+ Capítulo” y “+ Apartado”.",
@@ -1020,7 +1020,7 @@ const T = {
     ed_confirm_title:"You have changed your book's title. As it is already published, this is how it will appear in the Library. Do you confirm the change?",
     ed_confirm_name:"You have changed your Author name. As your book is already published, this is how it will appear in the Library. Do you confirm the change?",
     ed_autosave:"Autosave on.",ed_faq_link:"How does the text editor work?",
-    ol_link:"Book outline",ol_maybe_one:"possible title",ol_maybe_many:"possible titles",ol_h:"Book outline",
+    ol_link:"Book outline",ol_maybe_one:"possible title",ol_check_chapters:"check chapters",ol_maybe_many:"possible titles",ol_h:"Book outline",
     ol_sub:"This is how your book is organised right now, read directly from the text. Chapters and sections are created with the “+ Chapter” and “+ Section” buttons; to rename or delete one, edit it directly in the text. Click a title to go to it in the text.",
     ol_jump:"Go to this point in the text",
     ol_empty:"Your book has no chapters or sections yet. You can create them with the “+ Chapter” and “+ Section” buttons.",
@@ -3576,7 +3576,7 @@ ${capituloActual}
           </div>
           <div style={{margin:"0 0 0.7rem"}}>
             <span onClick={()=>setShowOutline(true)} style={{fontFamily:"var(--body)",fontSize:"0.72rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--navy)",cursor:"pointer",textDecoration:"underline",textUnderlineOffset:"3px"}}>
-              ☰ {t.ol_link}{outlineMaybe>0 && <span style={{color:"var(--gold)"}}> · {outlineMaybe} {outlineMaybe===1?t.ol_maybe_one:t.ol_maybe_many}</span>}
+              ☰ {t.ol_link}{outlineMaybe>0 && <span style={{color:"var(--gold)"}}> · {outlineMaybe} {outlineMaybe===1?t.ol_maybe_one:t.ol_maybe_many}</span>}{!numberingOk && <span style={{color:"var(--gold)"}}> · {t.ol_check_chapters}</span>/* aviso fuera de la ventana (01/10) */}
             </span>
           </div>
           {showOutline && ReactDOM.createPortal((
