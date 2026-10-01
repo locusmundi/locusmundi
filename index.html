@@ -1262,14 +1262,26 @@ function cleanCorrection(text){
 function errataFromCorrection(original, fixed){
   if(!fixed || !correctionIsFaithful(original, fixed)) return [];
   const core=w=>w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu,"");
-  const toks=s=>s.split(/\s+/).map(core).filter(Boolean);
-  const a=toks(original), b=toks(fixed);
+  const toks=s=>s.split(/\s+/).filter(Boolean).map(r=>{const c=core(r);const k=r.indexOf(c);return {r,c,head:r.slice(0,k),tail:r.slice(k+c.length)};}).filter(x=>x.c);
+  const A=toks(original), B=toks(fixed);
+  const a=A.map(x=>x.c), b=B.map(x=>x.c);
   const D=Array.from({length:a.length+1},(_,i)=>Array.from({length:b.length+1},(_,j)=>i===0?j:(j===0?i:0)));
   for(let i=1;i<=a.length;i++) for(let j=1;j<=b.length;j++)
     D[i][j]=Math.min(D[i-1][j]+1,D[i][j-1]+1,D[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
   const out=[]; let i=a.length, j=b.length;
   while(i>0||j>0){
-    if(i>0&&j>0&&a[i-1]===b[j-1]&&D[i][j]===D[i-1][j-1]){ i--; j--; continue; }
+    if(i>0&&j>0&&a[i-1]===b[j-1]&&D[i][j]===D[i-1][j-1]){
+      // Misma palabra: solo cuentan como errata los signos que el libro de estilo considera
+      // descuido (V7.1): ¿ ? ¡ ! sin abrir o cerrar, y la coma ante mayúscula ("noche, Yo")
+      // que el corrector convierte en punto. El resto de cambios de comas no cuenta.
+      const x=A[i-1], y=B[j-1], nx=A[i], ny=B[j];
+      const qs=/[¿?¡!]/;
+      if((x.tail!==y.tail && qs.test(x.tail+y.tail)) || (x.head!==y.head && qs.test(x.head+y.head)))
+        out.push({mal:x.r,bien:y.r});
+      else if(x.tail.includes(",") && /[.;:]/.test(y.tail) && !y.tail.includes(",") && nx && ny && nx.c===ny.c && /^\p{Lu}/u.test(nx.c))
+        out.push({mal:x.r+" "+nx.r,bien:y.r+" "+(ny?ny.r:nx.r)});
+      i--; j--; continue;
+    }
     if(i>0&&j>0&&D[i][j]===D[i-1][j-1]+1){ out.push({mal:a[i-1],bien:b[j-1]}); i--; j--; continue; }
     if(i>0&&D[i][j]===D[i-1][j]+1){ // palabra de más en el original (p. ej. "a a")
       const w=a[i-1];
@@ -2774,7 +2786,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [correctionTarget,setCorrectionTarget]=useState(null);
   useEffect(()=>{ if(!chatInputFromAssistant) setCorrectionTarget(null); },[chatInputFromAssistant]);
 
-  const checkParagraphInBackground = async (paragraphText, contexto) => {
+  const checkParagraphInBackground = async (paragraphText, contexto, paraPos=0) => {
     const trimmed = (paragraphText||"").trim();
     if(!trimmed || trimmed===paragraphCheckRef.current.lastChecked) return;
     paragraphCheckRef.current.lastChecked = trimmed;
@@ -2813,7 +2825,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       }
       if(errata.length>=4){
         const id=Date.now();
-        setChatMsgs(h=>[...h,{role:"model",text:t.ai_offer_msg,langCode,offer:{id,paragraph:trimmed,fixed}}]);
+        setChatMsgs(h=>[...h,{role:"model",text:t.ai_offer_msg,langCode,offer:{id,paragraph:trimmed,fixed,pos:paraPos}}]);
         setActiveOfferId(id);
       } else if(errata.length>0){
         setChatMsgs(h=>[...h,{role:"model",text:errataQuestion(errata,lang),langCode}]);
@@ -2848,7 +2860,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
         setChatInput(fixed);
         setChatInputFromAssistant(true);
         setJustDictated(false);
-        setCorrectionTarget(offer.paragraph);
+        setCorrectionTarget({text:offer.paragraph,pos:offer.pos||0});
         setChatMsgs(h=>[...h,{role:"model",text:t.ai_corr_ready}]);
       } else {
         setChatMsgs(h=>[...h,{role:"model",text:t.ai_corr_unfaithful}]);
@@ -2871,23 +2883,31 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   };
   // "Sustituir en el texto": reemplaza el párrafo original por la versión corregida, solo si lo
   // encuentra tal cual y una sola vez; si no, no toca nada y lo dice.
+  // "Sustituir en el texto": reemplaza el párrafo original por la versión corregida. Busca
+  // párrafos completos idénticos al original (no trozos de otros párrafos); si hay varios, el
+  // más cercano a donde estaba al revisarlo. Si no hay ninguno, no toca nada y lo dice.
   const replaceParagraphInStory=(text)=>{
     const target=correctionTarget;
     const clean=htmlToPlain(text);
-    const i=target ? f.text.indexOf(target) : -1;
-    if(i===-1 || f.text.indexOf(target,i+1)!==-1){
+    const spans=[]; const re=/[^\n]+(?:\n(?!\s*\n)[^\n]*)*/g; let m;
+    while((m=re.exec(f.text))){
+      const lead=m[0].length-m[0].trimStart().length;
+      if(target && m[0].trim()===target.text) spans.push({start:m.index+lead,len:m[0].trim().length});
+    }
+    if(!spans.length){
       setCorrectionTarget(null);
       setChatMsgs(h=>[...h,{role:"model",text:t.ai_corr_notfound}]);
       return;
     }
+    const sp=spans.reduce((best,x)=>Math.abs(x.start-target.pos)<Math.abs(best.start-target.pos)?x:best);
     pushHistory();
-    up("text", f.text.slice(0,i)+clean+f.text.slice(i+target.length));
+    up("text", f.text.slice(0,sp.start)+clean+f.text.slice(sp.start+sp.len));
     setChatInput("");
     setChatInputFromAssistant(false);
     setCorrectionTarget(null);
     requestAnimationFrame(()=>{
       const el=taRef.current;
-      if(el){ const pos=i+clean.length; el.focus(); el.selectionStart=el.selectionEnd=pos; }
+      if(el){ const p2=sp.start+clean.length; el.focus(); el.selectionStart=el.selectionEnd=p2; }
     });
   };
 
@@ -3507,7 +3527,8 @@ ${capituloActual}
       const previos=(paraStart===-1?"":before.slice(0,paraStart)).split(/\n\s*\n/).filter(x=>x.trim()).slice(-3).join("\n\n");
       const contexto=(previos?previos+"\n\n":"")+justWritten;
       if(paragraphCheckRef.current.timer) clearTimeout(paragraphCheckRef.current.timer);
-      paragraphCheckRef.current.timer=setTimeout(()=>checkParagraphInBackground(justWritten,contexto),1500);
+      const paraPos=paraStart===-1?0:paraStart+2; // dónde empieza el párrafo, para "Sustituir en el texto"
+      paragraphCheckRef.current.timer=setTimeout(()=>checkParagraphInBackground(justWritten,contexto,paraPos),1500);
     }
   };
   const applyItalic=()=>{
