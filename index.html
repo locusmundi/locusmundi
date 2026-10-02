@@ -331,6 +331,29 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .ch-sw{left:-11px;bottom:-11px;cursor:nesw-resize}
 .ch-se{right:-11px;bottom:-11px;cursor:nwse-resize}
 .crop-actions{display:flex;gap:0.7rem;margin-top:0.9rem}
+/* Editor de fotos con IA (pieza 5, 02/10/2026) */
+.fe-modal{max-width:620px}
+.fe-modal-wide{max-width:860px}
+.fe-img{display:block;max-width:100%;max-height:44vh;margin:0.4rem auto 1.1rem;border:1px solid var(--border);border-radius:2px;background:var(--bg2)}
+.fe-block{border-top:1px solid var(--border);padding:1rem 0 0.4rem}
+.fe-block-h{font-family:var(--serif);font-size:1.2rem;font-weight:500;color:var(--ink);margin-bottom:0.2rem}
+.fe-note{font-family:var(--body);font-size:0.88rem;color:var(--muted);line-height:1.5}
+.fe-tones{display:flex;flex-wrap:wrap;gap:0.5rem;margin:0.7rem 0 0.8rem}
+.fe-tone{font-family:var(--body);font-size:0.92rem;padding:0.45rem 0.95rem;background:#fff;color:var(--ink);border:1px solid var(--border);border-radius:2px;cursor:pointer}
+.fe-tone[aria-pressed="true"]{border-color:var(--navy);background:var(--navy);color:#fff}
+.fe-tone:disabled{opacity:0.5;cursor:not-allowed}
+.fe-check{display:flex;gap:0.6rem;align-items:flex-start;margin:0.7rem 0;font-family:var(--body);font-size:1rem;color:var(--ink);cursor:pointer}
+.fe-check input{margin-top:0.3rem;width:18px;height:18px;accent-color:var(--navy)}
+.fe-msg{font-family:var(--body);font-size:0.92rem;line-height:1.5;padding:0.65rem 0.8rem;border-radius:2px;margin:0.8rem 0;background:var(--bg2);border-left:3px solid var(--gold);color:var(--ink)}
+.fe-msg.err{border-left-color:#b23b3b}
+.fe-compare{display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin:0.6rem 0 0.4rem}
+.fe-compare figure{margin:0}
+.fe-compare img{display:block;width:100%;max-height:52vh;object-fit:contain;border:1px solid var(--border);border-radius:2px;background:var(--bg2)}
+.fe-compare figcaption{font-family:var(--serif);font-size:1rem;color:var(--muted);margin-bottom:0.3rem}
+.fe-actions{display:flex;gap:0.7rem;flex-wrap:wrap;margin-top:0.9rem}
+.fe-actions button{flex:1 1 0;min-width:8rem}
+.fe-actions .btn-out:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+@media (max-width:600px){.fe-compare{grid-template-columns:1fr}.fe-compare img{max-height:40vh}}
 .modal-x:hover{color:var(--ink)}
 .modal-h{font-family:var(--serif);font-size:1.65rem;font-weight:400;color:var(--ink);margin-bottom:0.45rem}
 .modal-sub{font-family:var(--body);font-size:0.95rem;color:var(--muted);margin-bottom:1.6rem;line-height:1.6}
@@ -809,6 +832,31 @@ const T = {
     photo_confirm_remove_one:"Si quitas esta imagen, podrás subir otra en su lugar, pero esa será definitiva. ¿Quitarla?",
     photo_confirm_remove_final:"Esta imagen ya es definitiva. Si la quitas, esta foto quedará vacía y no podrás subir otra. ¿Quitarla de todos modos?",
     photo_badge_one:"Se puede cambiar una vez",photo_badge_next_final:"La próxima imagen será definitiva",photo_badge_final:"Imagen definitiva",
+    // Editor de fotos con IA (pieza 5, 02/10/2026). Textos aprobados por Javier (Continuidad, sesión 02/10).
+    fe_edit:"Editar",fe_title_photo:"Editar foto",fe_title_cover:"Editar portada",
+    fe_tone_h:"Tono",fe_tone_note:"Gratis y sin límite.",
+    fe_tone_original:"Original",fe_tone_bn:"Blanco y negro",fe_tone_sepia:"Sepia",fe_tone_save:"Guardar tono",
+    fe_tone_confirm_bn:"La foto quedará en blanco y negro y no podrás volver al color original. ¿Continuar?",
+    fe_tone_confirm_sepia:"La foto quedará en sepia y no podrás volver al color original. ¿Continuar?",
+    fe_ai_h:"Mejorar con IA",
+    fe_restore:"Restaurar",fe_restore_note:"Arregla rayas, manchas y desvaído, y corrige la luz.",
+    fe_colorize:"Colorear",
+    fe_propose:"Preparar propuesta",
+    fe_left_photo:"Te quedan {n} de {max} ediciones con IA para esta foto.",
+    fe_left_cover:"Te quedan {n} de {max} ediciones con IA para la portada.",
+    fe_each_costs:"Cada propuesta gasta una edición, la aceptes o no.",
+    fe_waiting:"Preparando la propuesta… puede tardar hasta un minuto.",
+    fe_review:"Revísala con calma, sobre todo los rostros. Si algo no te convence, descártala: tu foto original no se toca hasta que aceptes.",
+    fe_before:"Antes",fe_after:"Después",fe_accept:"Aceptar",fe_discard:"Descartar",
+    fe_close_discard:"Si cierras, se descartará la propuesta.",
+    fe_exhausted_photo:"Has usado las {max} ediciones con IA de esta foto. Puedes seguir cambiando el tono.",
+    fe_exhausted_cover:"Has usado las {max} ediciones con IA de la portada. Puedes seguir cambiando el tono.",
+    fe_failed:"No se ha podido preparar la propuesta. No se ha descontado ninguna edición. Puedes intentarlo de nuevo.",
+    fe_cover_not_included:"La edición de la portada se incluye al añadir una foto a tu libro o al activar el Asistente.",
+    fe_saving:"Guardando…",fe_loading:"Cargando la imagen…",
+    fe_error:"No se ha podido completar. Inténtalo de nuevo.",
+    fe_session:"Tu sesión ha caducado. Vuelve a entrar en tu cuenta.",
+    fe_load_error:"No se ha podido cargar la imagen. Cierra la ventana e inténtalo de nuevo.",
     ai_ask_name_h:"¿Con qué nombre quieres que te llame?",
     ai_ask_tuusted_h:"¿Prefieres que te hable de tú o de usted?",
     ai_tu:"De tú",ai_usted:"De usted",ai_start_using:"Empezar a usar el Asistente",
@@ -1069,6 +1117,30 @@ const T = {
     photo_confirm_remove_one:"If you remove this image, you can upload another in its place, but that one will be final. Remove it?",
     photo_confirm_remove_final:"This image is already final. If you remove it, this photo will be left empty and you won't be able to upload another. Remove it anyway?",
     photo_badge_one:"Can be changed once",photo_badge_next_final:"The next image will be final",photo_badge_final:"Final image",
+    fe_edit:"Edit",fe_title_photo:"Edit photo",fe_title_cover:"Edit cover",
+    fe_tone_h:"Tone",fe_tone_note:"Free and unlimited.",
+    fe_tone_original:"Original",fe_tone_bn:"Black and white",fe_tone_sepia:"Sepia",fe_tone_save:"Save tone",
+    fe_tone_confirm_bn:"The photo will be black and white and you won't be able to go back to the original colour. Continue?",
+    fe_tone_confirm_sepia:"The photo will be sepia and you won't be able to go back to the original colour. Continue?",
+    fe_ai_h:"Improve with AI",
+    fe_restore:"Restore",fe_restore_note:"Repairs scratches, stains and fading, and corrects the light.",
+    fe_colorize:"Colourise",
+    fe_propose:"Prepare a proposal",
+    fe_left_photo:"You have {n} of {max} AI edits left for this photo.",
+    fe_left_cover:"You have {n} of {max} AI edits left for the cover.",
+    fe_each_costs:"Each proposal uses one edit, whether you accept it or not.",
+    fe_waiting:"Preparing the proposal… this can take up to a minute.",
+    fe_review:"Take your time to check it, especially the faces. If anything doesn't convince you, discard it: your original photo isn't touched until you accept.",
+    fe_before:"Before",fe_after:"After",fe_accept:"Accept",fe_discard:"Discard",
+    fe_close_discard:"If you close, the proposal will be discarded.",
+    fe_exhausted_photo:"You've used the {max} AI edits for this photo. You can still change the tone.",
+    fe_exhausted_cover:"You've used the {max} AI edits for the cover. You can still change the tone.",
+    fe_failed:"The proposal couldn't be prepared. No edit has been used. You can try again.",
+    fe_cover_not_included:"Cover editing is included when you add a photo to your book or activate the Assistant.",
+    fe_saving:"Saving…",fe_loading:"Loading the image…",
+    fe_error:"This couldn't be completed. Please try again.",
+    fe_session:"Your session has expired. Please sign in again.",
+    fe_load_error:"The image couldn't be loaded. Close the window and try again.",
     ai_ask_name_h:"What name should I call you?",
     ai_ask_tuusted_h:"Not applicable in English — name only.",
     ai_tu:"Informal",ai_usted:"Formal",ai_start_using:"Start using the Assistant",
@@ -1719,6 +1791,281 @@ function CropRotateModal({file,t,onCancel,onConfirm}) {
           <button className="btn-out" style={{flex:1}} onClick={onCancel}>{t.crop_cancel}</button>
           <button className="btn-pub" style={{flex:1}} onClick={confirm}>{t.crop_confirm}</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Editor de fotos con IA (pieza 5, 02/10/2026) ---------------------------------
+// Ventana aprobada por Javier (Continuidad, sesión "02/10/2026"). El servidor es
+// api/foto-editor.js (sesión "01/10/2026 (noche, cierre)"): guarda con la clave de
+// servicio, así que nada de lo que se guarda aquí gasta el cambio de imagen.
+// - Tono (B/N, sepia): lo hace el navegador y lo guarda el servidor. Gratis.
+// - IA (restaurar, colorear): una propuesta cada vez; cada una gasta una edición.
+// - Al aceptar, el navegador deja la propuesta como las demás fotos: proporción del
+//   original, 1.600 px como máximo y JPG.
+const FOTO_EDITOR_LIMITE=4; // solo para mostrar el contador; el que manda es el del servidor
+
+// Carga una imagen de Storage de forma que el lienzo pueda leerla (crossOrigin).
+// El parámetro extra evita que el navegador reutilice la copia ya mostrada en la
+// página, que se pidió sin permiso de lectura y bloquearía el lienzo.
+function feCargarImagen(url){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.crossOrigin="anonymous";
+    img.onload=()=>resolve(img);
+    img.onerror=()=>reject(new Error("IMAGEN"));
+    img.src=url+(url.includes("?")?"&":"?")+"lmfe="+Date.now();
+  });
+}
+
+// ¿Es en blanco y negro (o sepia)? En una foto monocroma, aunque esté teñida, el
+// "color" de todos los puntos es casi el mismo; en una foto en color varía mucho.
+function feEsMonocroma(img){
+  const lado=120, k=Math.min(1,lado/Math.max(img.naturalWidth,img.naturalHeight));
+  const w=Math.max(1,Math.round(img.naturalWidth*k)), h=Math.max(1,Math.round(img.naturalHeight*k));
+  const c=document.createElement("canvas"); c.width=w; c.height=h;
+  const ctx=c.getContext("2d"); ctx.drawImage(img,0,0,w,h);
+  const d=ctx.getImageData(0,0,w,h).data;
+  let n=0,sa=0,sb=0,saa=0,sbb=0;
+  for(let i=0;i<d.length;i+=4){
+    const r=d[i],g=d[i+1],b=d[i+2], y=0.299*r+0.587*g+0.114*b;
+    const a=r-y, bb=b-y;
+    sa+=a; sb+=bb; saa+=a*a; sbb+=bb*bb; n++;
+  }
+  const va=saa/n-(sa/n)*(sa/n), vb=sbb/n-(sb/n)*(sb/n);
+  return Math.sqrt(Math.max(0,va)+Math.max(0,vb))<7;
+}
+
+// Aplica el tono a la imagen entera y devuelve un JPG (mismo tamaño que la guardada).
+function feAplicarTono(img,tono){
+  const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight;
+  const ctx=c.getContext("2d"); ctx.drawImage(img,0,0);
+  const im=ctx.getImageData(0,0,c.width,c.height), d=im.data;
+  // Sepia: del marrón oscuro al crema, siguiendo la luminosidad (conserva el contraste).
+  const osc=[38,24,12], cla=[255,244,222];
+  for(let i=0;i<d.length;i+=4){
+    const y=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    if(tono==="sepia"){
+      const f=y/255;
+      d[i]=osc[0]+(cla[0]-osc[0])*f; d[i+1]=osc[1]+(cla[1]-osc[1])*f; d[i+2]=osc[2]+(cla[2]-osc[2])*f;
+    }else{
+      d[i]=d[i+1]=d[i+2]=y;
+    }
+  }
+  ctx.putImageData(im,0,0);
+  return c.toDataURL("image/jpeg",0.86);
+}
+
+// Deja la propuesta como las demás fotos: proporción del original (recorte mínimo y
+// centrado si la IA la hubiera cambiado), 1.600 px por el lado mayor y JPG.
+function feTerminarPropuesta(prop,anchoOrig,altoOrig){
+  const objetivo=anchoOrig/altoOrig, actual=prop.naturalWidth/prop.naturalHeight;
+  let sx=0,sy=0,sw=prop.naturalWidth,sh=prop.naturalHeight;
+  if(Math.abs(actual-objetivo)/objetivo>0.01){
+    if(actual>objetivo){ sw=sh*objetivo; sx=(prop.naturalWidth-sw)/2; }
+    else{ sh=sw/objetivo; sy=(prop.naturalHeight-sh)/2; }
+  }
+  let w=sw,h=sh; const max=1600;
+  if(Math.max(w,h)>max){ const k=max/Math.max(w,h); w*=k; h*=k; }
+  const c=document.createElement("canvas"); c.width=Math.max(1,Math.round(w)); c.height=Math.max(1,Math.round(h));
+  c.getContext("2d").drawImage(prop,sx,sy,sw,sh,0,0,c.width,c.height);
+  return c.toDataURL("image/jpeg",0.86);
+}
+
+// Llamada única a api/foto-editor.js. Los errores llevan su código en e.code.
+async function fotoEditorApi(body){
+  const { data } = await supa.auth.getSession();
+  const res=await fetch("/api/foto-editor",{
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({...body, token:data.session?data.session.access_token:null})
+  });
+  const d=await res.json().catch(()=>({}));
+  if(!res.ok||d.error){ const e=new Error(d.error||"ERROR"); e.code=d.error||"ERROR"; e.data=d; throw e; }
+  return d;
+}
+
+function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,onSaved,onClose}){
+  const esPortada=target.type==="cover";
+  const objetivo=esPortada?{objetivo:"portada",historiaId}:{objetivo:"foto",fotoId:target.fotoId};
+  const [url,setUrl]=useState(imageUrl);        // imagen guardada en este momento
+  const [img,setImg]=useState(null);            // la misma, lista para el lienzo
+  const [cargaFallida,setCargaFallida]=useState(false);
+  const [mono,setMono]=useState(null);          // ¿blanco y negro o sepia?
+  const [tono,setTono]=useState("original");
+  const [tonoVista,setTonoVista]=useState(null); // JPG con el tono aplicado
+  const [restaurar,setRestaurar]=useState(false);
+  const [colorear,setColorear]=useState(false);
+  const [ediciones,setEdiciones]=useState(null);
+  const [limite,setLimite]=useState(FOTO_EDITOR_LIMITE);
+  const [propuesta,setPropuesta]=useState(null); // {url}
+  const [ocupado,setOcupado]=useState(null);     // "tono" | "proponer" | "aceptar" | "descartar"
+  const [aviso,setAviso]=useState(null);         // {texto, error}
+
+  const fmt=(s)=>s.replace("{n}",String(Math.max(0,limite-(ediciones||0)))).replace("{max}",String(limite));
+
+  // Ediciones gastadas, leídas frescas de Supabase al abrir.
+  useEffect(()=>{
+    let vivo=true;
+    (async()=>{
+      const q=esPortada
+        ? supa.from("historias").select("portada_ediciones_ia").eq("id",historiaId).maybeSingle()
+        : supa.from("fotos").select("ediciones_ia").eq("id",target.fotoId).maybeSingle();
+      const {data}=await q;
+      if(vivo) setEdiciones(data?(esPortada?data.portada_ediciones_ia:data.ediciones_ia)||0:0);
+    })();
+    return ()=>{vivo=false;};
+  },[]);
+
+  // Cada vez que cambia la imagen guardada: se carga para el lienzo y se mira si es monocroma.
+  useEffect(()=>{
+    let vivo=true;
+    setImg(null); setMono(null); setTono("original"); setTonoVista(null); setCargaFallida(false);
+    if(!url){ setCargaFallida(true); return; }
+    feCargarImagen(url).then(im=>{
+      if(!vivo) return;
+      setImg(im);
+      try{ setMono(feEsMonocroma(im)); }catch(e){ console.error(e); setMono(false); }
+    }).catch(e=>{ console.error(e); if(vivo) setCargaFallida(true); });
+    return ()=>{vivo=false;};
+  },[url]);
+
+  const elegirTono=(nuevo)=>{
+    setTono(nuevo); setAviso(null);
+    if(nuevo==="original"||!img){ setTonoVista(null); return; }
+    try{ setTonoVista(feAplicarTono(img,nuevo)); }
+    catch(e){ console.error(e); setTonoVista(null); setTono("original"); setAviso({texto:t.fe_error,error:true}); }
+  };
+
+  const mensajeError=(e)=>{
+    if(e.code==="SIN_SESION") return t.fe_session;
+    if(e.code==="SIN_PROPUESTA") return t.fe_failed;
+    if(e.code==="PORTADA_NO_INCLUIDA") return t.fe_cover_not_included;
+    return t.fe_error;
+  };
+
+  const guardarTono=async()=>{
+    if(!tonoVista||ocupado) return;
+    if(mono===false && !window.confirm(tono==="sepia"?t.fe_tone_confirm_sepia:t.fe_tone_confirm_bn)) return;
+    setOcupado("tono"); setAviso(null);
+    try{
+      const d=await fotoEditorApi({operacion:"guardarTono",...objetivo,imagen:tonoVista});
+      onSaved(target,d.url); setUrl(d.url);
+    }catch(e){ console.error(e); setAviso({texto:mensajeError(e),error:true}); }
+    finally{ setOcupado(null); }
+  };
+
+  const proponer=async()=>{
+    if(ocupado||(!restaurar&&!colorear)) return;
+    setOcupado("proponer"); setAviso(null);
+    try{
+      const d=await fotoEditorApi({operacion:"proponer",...objetivo,restaurar,colorear:colorear&&mono===true});
+      setEdiciones(d.ediciones); if(d.limite) setLimite(d.limite);
+      setPropuesta({url:d.propuestaUrl});
+    }catch(e){
+      console.error(e);
+      if(e.code==="SIN_EDICIONES"){
+        if(e.data&&typeof e.data.ediciones==="number") setEdiciones(e.data.ediciones);
+        if(e.data&&e.data.limite) setLimite(e.data.limite);
+      }else{
+        setAviso({texto:mensajeError(e),error:true});
+      }
+    }finally{ setOcupado(null); }
+  };
+
+  const aceptar=async()=>{
+    if(!propuesta||!img||ocupado) return;
+    setOcupado("aceptar"); setAviso(null);
+    try{
+      const prop=await feCargarImagen(propuesta.url);
+      const jpg=feTerminarPropuesta(prop,img.naturalWidth,img.naturalHeight);
+      const d=await fotoEditorApi({operacion:"aceptar",...objetivo,imagen:jpg});
+      onSaved(target,d.url);
+      setPropuesta(null); setRestaurar(false); setColorear(false);
+      setUrl(d.url);
+    }catch(e){ console.error(e); setAviso({texto:mensajeError(e),error:true}); }
+    finally{ setOcupado(null); }
+  };
+
+  const descartar=async()=>{
+    if(!propuesta||ocupado) return;
+    setOcupado("descartar"); setAviso(null);
+    try{ await fotoEditorApi({operacion:"descartar",...objetivo}); }catch(e){ console.error(e); }
+    setPropuesta(null); setOcupado(null);
+  };
+
+  const cerrar=()=>{
+    if(ocupado) return; // mientras se prepara o se guarda, no se cierra
+    if(propuesta){
+      if(!window.confirm(t.fe_close_discard)) return;
+      fotoEditorApi({operacion:"descartar",...objetivo}).catch(e=>console.error(e));
+    }
+    onClose();
+  };
+
+  const agotadas=ediciones!==null && ediciones>=limite;
+  const bloqueado=!!ocupado;
+
+  return (
+    <div className="ov">
+      <div className={"modal fe-modal"+(propuesta?" fe-modal-wide":"")} role="dialog" aria-modal="true" aria-labelledby="fe-title">
+        <button className="modal-x" onClick={cerrar} disabled={bloqueado} aria-label="×">×</button>
+        <div id="fe-title" className="modal-h">{esPortada?t.fe_title_cover:t.fe_title_photo}</div>
+
+        {propuesta ? (<>
+          <p className="fe-note" style={{color:"var(--ink)"}}>{t.fe_review}</p>
+          <div className="fe-compare">
+            <figure><figcaption>{t.fe_before}</figcaption><img src={url} alt={t.fe_before}/></figure>
+            <figure><figcaption>{t.fe_after}</figcaption><img src={propuesta.url} alt={t.fe_after}/></figure>
+          </div>
+          {aviso&&<div className={"fe-msg"+(aviso.error?" err":"")} role="alert">{aviso.texto}</div>}
+          <div className="fe-actions">
+            <button className="btn-out" onClick={descartar} disabled={bloqueado}>{t.fe_discard}</button>
+            <button className="btn-pub" onClick={aceptar} disabled={bloqueado||!img}>{ocupado==="aceptar"?t.fe_saving:t.fe_accept}</button>
+          </div>
+        </>) : (<>
+          {url&&<img className="fe-img" src={tonoVista||url} alt=""/>}
+          {cargaFallida&&<div className="fe-msg err" role="alert">{t.fe_load_error}</div>}
+          {!img&&!cargaFallida&&<p className="fe-note" style={{textAlign:"center"}}>{t.fe_loading}</p>}
+
+          <div className="fe-block">
+            <div className="fe-block-h">{t.fe_tone_h}</div>
+            <div className="fe-note">{t.fe_tone_note}</div>
+            <div className="fe-tones">
+              {[["original",t.fe_tone_original],["bn",t.fe_tone_bn],["sepia",t.fe_tone_sepia]].map(([k,lbl])=>(
+                <button key={k} type="button" className="fe-tone" aria-pressed={tono===k} disabled={!img||bloqueado} onClick={()=>elegirTono(k)}>{lbl}</button>
+              ))}
+            </div>
+            <button className="btn-sm" type="button" disabled={!tonoVista||bloqueado} style={(!tonoVista||bloqueado)?{opacity:0.5,cursor:"not-allowed"}:null} onClick={guardarTono}>
+              {ocupado==="tono"?t.fe_saving:t.fe_tone_save}
+            </button>
+          </div>
+
+          <div className="fe-block">
+            <div className="fe-block-h">{t.fe_ai_h}</div>
+            {!iaPermitida ? (
+              <div className="fe-msg">{t.fe_cover_not_included}</div>
+            ) : agotadas ? (
+              <div className="fe-msg">{esPortada?fmt(t.fe_exhausted_cover):fmt(t.fe_exhausted_photo)}</div>
+            ) : (<>
+              <label className="fe-check">
+                <input type="checkbox" checked={restaurar} disabled={bloqueado||!img} onChange={e=>setRestaurar(e.target.checked)}/>
+                <span>{t.fe_restore}<br/><span className="fe-note">{t.fe_restore_note}</span></span>
+              </label>
+              {mono===true&&(
+                <label className="fe-check">
+                  <input type="checkbox" checked={colorear} disabled={bloqueado||!img} onChange={e=>setColorear(e.target.checked)}/>
+                  <span>{t.fe_colorize}</span>
+                </label>
+              )}
+              <p className="fe-note" style={{margin:"0.4rem 0 0.2rem"}}>{t.fe_each_costs}</p>
+              {ediciones!==null&&<p className="fe-note" style={{marginBottom:"0.7rem"}}>{fmt(esPortada?t.fe_left_cover:t.fe_left_photo)}</p>}
+              {ocupado==="proponer"&&<div className="fe-msg" role="status">{t.fe_waiting}</div>}
+              <button className="btn-pub" type="button" disabled={bloqueado||!img||ediciones===null||(!restaurar&&!(colorear&&mono===true))} onClick={proponer}>{t.fe_propose}</button>
+            </>)}
+            {aviso&&<div className={"fe-msg"+(aviso.error?" err":"")} role="alert">{aviso.texto}</div>}
+          </div>
+        </>)}
       </div>
     </div>
   );
@@ -2691,6 +3038,15 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     }finally{
       setPendingPhoto(null);
     }
+  };
+  // Editor de fotos con IA (pieza 5, 02/10/2026): {type:"slot",fotoId} | {type:"cover"}.
+  // Todo lo que guarda la ventana lo escribe api/foto-editor.js (no gasta el cambio de
+  // imagen); aquí solo se refleja la URL nueva. En la portada, el autoguardado volverá a
+  // escribir la misma URL que ya puso el servidor.
+  const [fotoEditor,setFotoEditor]=useState(null);
+  const fotoEditorGuardada=(target,url)=>{
+    if(target.type==="cover") up("coverImg",url);
+    else setFotosDb(p=>p.map(x=>x.id===target.fotoId?{...x,url}:x));
   };
   const [showPhotoMenu,setShowPhotoMenu]=useState(false);
   const photoInsertPosRef=useRef(0);
@@ -3795,6 +4151,13 @@ ${capituloActual}
         </div>
       )}
       {cropFile&&<CropRotateModal file={cropFile} t={t} onCancel={cancelCrop} onConfirm={confirmCrop}/>}
+      {fotoEditor&&<PhotoEditorModal
+        target={fotoEditor} t={t}
+        imageUrl={fotoEditor.type==="cover"?f.coverImg:(fotosDb.find(x=>x.id===fotoEditor.fotoId)||{}).url}
+        historiaId={historiaIdRef.current}
+        iaPermitida={fotoEditor.type==="slot"||fotosDb.length>0||!!(tinta&&tinta.ultimaCarga>0)}
+        onSaved={fotoEditorGuardada}
+        onClose={()=>setFotoEditor(null)}/>}
       {unpubStep&&(
         <div className="ov">
           <div className="modal" style={{maxWidth:"380px"}}>
@@ -3837,6 +4200,7 @@ ${capituloActual}
                 {t.ed_change_cover}
                 <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"cover"})}/>
               </label>
+              {f.coverImg&&!isCoverUploading()&&<span style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--navy)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setFotoEditor({type:"cover"})}>{t.fe_edit}</span>}
             </div>
           </div>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_name}</label><ConfirmedInput value={f.name} onCommit={v=>up("name",v)} needsConfirm={!!f.published} confirmMsg={t.ed_confirm_name}/></div>
@@ -3941,11 +4305,12 @@ ${capituloActual}
                       const txt=n>=2?t.photo_badge_final:(n===1?(ph.url?t.photo_badge_one:t.photo_badge_next_final):null);
                       return txt?<div style={{fontFamily:"var(--body)",fontSize:"0.66rem",color:"var(--muted)",fontStyle:"italic",marginBottom:"0.35rem"}}>{txt}</div>:null;})()}
                     <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} placeholder={t.ed_photo_caption_ph} value={ph.pie_foto||""} onChange={e=>setPhotoCaption(ph.id,e.target.value)}/>
-                    <div style={{display:"flex",gap:"0.4rem",fontSize:"0.7rem"}}>
+                    <div style={{display:"flex",gap:"0.2rem 0.4rem",fontSize:"0.7rem",flexWrap:"wrap"}}>
                       <label style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={avisoAntesDeElegir(ph)}>
                         {ph.url?t.ed_photo_replace:t.ed_photo_upload}
                         <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"slot",fotoId:ph.id})}/>
                       </label>
+                      {ph.url&&!isSlotUploading(ph.id)&&<span style={{color:"var(--navy)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setFotoEditor({type:"slot",fotoId:ph.id})}>{t.fe_edit}</span>}
                       {ph.url&&<span style={{color:"#b23b3b",textDecoration:"underline",cursor:"pointer"}} onClick={()=>removePhoto(ph.id)}>{t.ed_photo_remove}</span>}
                     </div>
                   </div>
