@@ -835,12 +835,13 @@ const T = {
     // Editor de fotos con IA (pieza 5, 02/10/2026). Textos aprobados por Javier (Continuidad, sesión 02/10).
     fe_edit:"Editar",fe_title_photo:"Editar foto",fe_title_cover:"Editar portada",
     fe_tone_h:"Tono",fe_tone_note:"Gratis y sin límite.",
-    fe_tone_original:"Original",fe_tone_bn:"Blanco y negro",fe_tone_sepia:"Sepia",fe_tone_save:"Guardar tono",
+    fe_tone_original:"Como está",fe_tone_bn:"Blanco y negro",fe_tone_sepia:"Sepia",fe_tone_save:"Guardar tono",
     fe_tone_confirm_bn:"La foto quedará en blanco y negro y no podrás volver al color original. ¿Continuar?",
     fe_tone_confirm_sepia:"La foto quedará en sepia y no podrás volver al color original. ¿Continuar?",
     fe_ai_h:"Mejorar con IA",
     fe_restore:"Restaurar",fe_restore_note:"Arregla rayas, manchas y desvaído, y corrige la luz.",
-    fe_colorize:"Colorear",
+    fe_colorize:"Colorear",fe_colorize_note:"Para fotos en blanco y negro, sepia o con el color muy perdido.",
+    fe_download:"Descargar",
     fe_propose:"Preparar propuesta",
     fe_left_photo:"Te quedan {n} de {max} ediciones con IA para esta foto.",
     fe_left_cover:"Te quedan {n} de {max} ediciones con IA para la portada.",
@@ -1119,12 +1120,13 @@ const T = {
     photo_badge_one:"Can be changed once",photo_badge_next_final:"The next image will be final",photo_badge_final:"Final image",
     fe_edit:"Edit",fe_title_photo:"Edit photo",fe_title_cover:"Edit cover",
     fe_tone_h:"Tone",fe_tone_note:"Free and unlimited.",
-    fe_tone_original:"Original",fe_tone_bn:"Black and white",fe_tone_sepia:"Sepia",fe_tone_save:"Save tone",
+    fe_tone_original:"As it is",fe_tone_bn:"Black and white",fe_tone_sepia:"Sepia",fe_tone_save:"Save tone",
     fe_tone_confirm_bn:"The photo will be black and white and you won't be able to go back to the original colour. Continue?",
     fe_tone_confirm_sepia:"The photo will be sepia and you won't be able to go back to the original colour. Continue?",
     fe_ai_h:"Improve with AI",
     fe_restore:"Restore",fe_restore_note:"Repairs scratches, stains and fading, and corrects the light.",
-    fe_colorize:"Colourise",
+    fe_colorize:"Colourise",fe_colorize_note:"For black-and-white or sepia photos, or ones whose colour has badly faded.",
+    fe_download:"Download",
     fe_propose:"Prepare a proposal",
     fe_left_photo:"You have {n} of {max} AI edits left for this photo.",
     fe_left_cover:"You have {n} of {max} AI edits left for the cover.",
@@ -1819,22 +1821,36 @@ function feCargarImagen(url){
   });
 }
 
-// ¿Es en blanco y negro (o sepia)? En una foto monocroma, aunque esté teñida, el
-// "color" de todos los puntos es casi el mismo; en una foto en color varía mucho.
-function feEsMonocroma(img){
+// ¿Es gris puro (un escaneo en blanco y negro)? Solo esto se detecta, porque se
+// distingue sin error. Una foto en color muy desvaída y una sepia se parecen demasiado
+// (prueba con la foto reservada, 02/10): por eso "Colorear" se ofrece siempre y el aviso
+// del tono sale en todas las fotos que no sean gris puro.
+function feEsGrisPuro(img){
   const lado=120, k=Math.min(1,lado/Math.max(img.naturalWidth,img.naturalHeight));
   const w=Math.max(1,Math.round(img.naturalWidth*k)), h=Math.max(1,Math.round(img.naturalHeight*k));
   const c=document.createElement("canvas"); c.width=w; c.height=h;
   const ctx=c.getContext("2d"); ctx.drawImage(img,0,0,w,h);
   const d=ctx.getImageData(0,0,w,h).data;
-  let n=0,sa=0,sb=0,saa=0,sbb=0;
+  let n=0,conColor=0;
   for(let i=0;i<d.length;i+=4){
-    const r=d[i],g=d[i+1],b=d[i+2], y=0.299*r+0.587*g+0.114*b;
-    const a=r-y, bb=b-y;
-    sa+=a; sb+=bb; saa+=a*a; sbb+=bb*bb; n++;
+    const r=d[i],g=d[i+1],b=d[i+2];
+    if(Math.max(r,g,b)-Math.min(r,g,b)>8) conColor++;
+    n++;
   }
-  const va=saa/n-(sa/n)*(sa/n), vb=sbb/n-(sb/n)*(sb/n);
-  return Math.sqrt(Math.max(0,va)+Math.max(0,vb))<7;
+  return conColor/n<0.01;
+}
+
+// Descarga el archivo guardado tal cual (sin volver a comprimirlo). El atributo
+// "download" no funciona con archivos de otro dominio (Storage), por eso se pide
+// primero el archivo y se descarga desde la propia página.
+async function feDescargar(url,nombre){
+  const r=await fetch(url+(url.includes("?")?"&":"?")+"lmfe="+Date.now());
+  if(!r.ok) throw new Error("DESCARGA");
+  const blob=await r.blob();
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=nombre+".jpg";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
 }
 
 // Aplica el tono a la imagen entera y devuelve un JPG (mismo tamaño que la guardada).
@@ -1885,13 +1901,13 @@ async function fotoEditorApi(body){
   return d;
 }
 
-function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,onSaved,onClose}){
+function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescarga,onSaved,onClose}){
   const esPortada=target.type==="cover";
   const objetivo=esPortada?{objetivo:"portada",historiaId}:{objetivo:"foto",fotoId:target.fotoId};
   const [url,setUrl]=useState(imageUrl);        // imagen guardada en este momento
   const [img,setImg]=useState(null);            // la misma, lista para el lienzo
   const [cargaFallida,setCargaFallida]=useState(false);
-  const [mono,setMono]=useState(null);          // ¿blanco y negro o sepia?
+  const [grisPuro,setGrisPuro]=useState(null);  // escaneo en blanco y negro: el tono no necesita aviso
   const [tono,setTono]=useState("original");
   const [tonoVista,setTonoVista]=useState(null); // JPG con el tono aplicado
   const [restaurar,setRestaurar]=useState(false);
@@ -1920,12 +1936,12 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,onSaved,onCl
   // Cada vez que cambia la imagen guardada: se carga para el lienzo y se mira si es monocroma.
   useEffect(()=>{
     let vivo=true;
-    setImg(null); setMono(null); setTono("original"); setTonoVista(null); setCargaFallida(false);
+    setImg(null); setGrisPuro(null); setTono("original"); setTonoVista(null); setCargaFallida(false);
     if(!url){ setCargaFallida(true); return; }
     feCargarImagen(url).then(im=>{
       if(!vivo) return;
       setImg(im);
-      try{ setMono(feEsMonocroma(im)); }catch(e){ console.error(e); setMono(false); }
+      try{ setGrisPuro(feEsGrisPuro(im)); }catch(e){ console.error(e); setGrisPuro(false); }
     }).catch(e=>{ console.error(e); if(vivo) setCargaFallida(true); });
     return ()=>{vivo=false;};
   },[url]);
@@ -1946,7 +1962,7 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,onSaved,onCl
 
   const guardarTono=async()=>{
     if(!tonoVista||ocupado) return;
-    if(mono===false && !window.confirm(tono==="sepia"?t.fe_tone_confirm_sepia:t.fe_tone_confirm_bn)) return;
+    if(grisPuro!==true && !window.confirm(tono==="sepia"?t.fe_tone_confirm_sepia:t.fe_tone_confirm_bn)) return;
     setOcupado("tono"); setAviso(null);
     try{
       const d=await fotoEditorApi({operacion:"guardarTono",...objetivo,imagen:tonoVista});
@@ -1959,7 +1975,7 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,onSaved,onCl
     if(ocupado||(!restaurar&&!colorear)) return;
     setOcupado("proponer"); setAviso(null);
     try{
-      const d=await fotoEditorApi({operacion:"proponer",...objetivo,restaurar,colorear:colorear&&mono===true});
+      const d=await fotoEditorApi({operacion:"proponer",...objetivo,restaurar,colorear});
       setEdiciones(d.ediciones); if(d.limite) setLimite(d.limite);
       setPropuesta({url:d.propuestaUrl});
     }catch(e){
@@ -1994,6 +2010,14 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,onSaved,onCl
     setPropuesta(null); setOcupado(null);
   };
 
+  const descargar=async()=>{
+    if(!url||ocupado) return;
+    setOcupado("descargar"); setAviso(null);
+    try{ await feDescargar(url,nombreDescarga||"foto"); }
+    catch(e){ console.error(e); setAviso({texto:t.fe_error,error:true}); }
+    finally{ setOcupado(null); }
+  };
+
   const cerrar=()=>{
     if(ocupado) return; // mientras se prepara o se guarda, no se cierra
     if(propuesta){
@@ -2025,6 +2049,9 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,onSaved,onCl
           </div>
         </>) : (<>
           {url&&<img className="fe-img" src={tonoVista||url} alt=""/>}
+          {url&&<div style={{textAlign:"center",margin:"-0.4rem 0 1rem"}}>
+            <button className="btn-out" type="button" style={{padding:"0.45rem 1.4rem",fontSize:"0.92rem"}} disabled={bloqueado} onClick={descargar}>{t.fe_download}</button>
+          </div>}
           {cargaFallida&&<div className="fe-msg err" role="alert">{t.fe_load_error}</div>}
           {!img&&!cargaFallida&&<p className="fe-note" style={{textAlign:"center"}}>{t.fe_loading}</p>}
 
@@ -2052,16 +2079,14 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,onSaved,onCl
                 <input type="checkbox" checked={restaurar} disabled={bloqueado||!img} onChange={e=>setRestaurar(e.target.checked)}/>
                 <span>{t.fe_restore}<br/><span className="fe-note">{t.fe_restore_note}</span></span>
               </label>
-              {mono===true&&(
-                <label className="fe-check">
-                  <input type="checkbox" checked={colorear} disabled={bloqueado||!img} onChange={e=>setColorear(e.target.checked)}/>
-                  <span>{t.fe_colorize}</span>
-                </label>
-              )}
+              <label className="fe-check">
+                <input type="checkbox" checked={colorear} disabled={bloqueado||!img} onChange={e=>setColorear(e.target.checked)}/>
+                <span>{t.fe_colorize}<br/><span className="fe-note">{t.fe_colorize_note}</span></span>
+              </label>
               <p className="fe-note" style={{margin:"0.4rem 0 0.2rem"}}>{t.fe_each_costs}</p>
               {ediciones!==null&&<p className="fe-note" style={{marginBottom:"0.7rem"}}>{fmt(esPortada?t.fe_left_cover:t.fe_left_photo)}</p>}
               {ocupado==="proponer"&&<div className="fe-msg" role="status">{t.fe_waiting}</div>}
-              <button className="btn-pub" type="button" disabled={bloqueado||!img||ediciones===null||(!restaurar&&!(colorear&&mono===true))} onClick={proponer}>{t.fe_propose}</button>
+              <button className="btn-pub" type="button" disabled={bloqueado||!img||ediciones===null||(!restaurar&&!colorear)} onClick={proponer}>{t.fe_propose}</button>
             </>)}
             {aviso&&<div className={"fe-msg"+(aviso.error?" err":"")} role="alert">{aviso.texto}</div>}
           </div>
@@ -2331,6 +2356,12 @@ const PHOTOS_FAQ_ES = [
    a:"Borra la línea con su marca, por ejemplo [FOTO 3], como borrarías cualquier palabra, y vuelve a pulsar «+ Fotografía» donde quieras ponerla. Puedes mover las fotos de sitio las veces que quieras."},
   {q:"¿Puedo cambiar la imagen de una foto?",
    a:"Sí, una vez. Cada foto comprada es un espacio en tu libro: subes una imagen y, si te equivocas o cambias de idea, puedes sustituirla por otra una sola vez. La portada va aparte: puedes cambiarla siempre que quieras."},
+  {q:"¿Puedo mejorar mis fotos?",
+   a:"Sí, con «Editar», junto a cada foto y a la portada. Puedes cambiar el tono a blanco y negro o sepia, gratis y sin límite. También puedes mejorarla con inteligencia artificial: «Restaurar» arregla rayas, manchas y desvaído y corrige la luz, y «Colorear» da color a fotos en blanco y negro, sepia o con el color muy perdido. Cada foto incluye 4 ediciones con IA. La portada tiene otras 4 si has añadido alguna foto a tu libro o has activado el Asistente."},
+  {q:"¿Y si no me gusta lo que propone la IA?",
+   a:"Verás el antes y el después, y tu foto no se toca hasta que aceptes. Revisa con calma los rostros. Cada propuesta gasta una edición, la aceptes o no. Editar una foto no gasta su cambio de imagen."},
+  {q:"¿Puedo guardar mis fotos editadas en mi ordenador?",
+   a:"Sí: pulsa «Editar» y luego «Descargar». Es gratis."},
   {q:"¿Y si borro su marca sin querer?",
    a:"No pasa nada: la foto sigue ahí abajo, sin colocar. Vuelve a pulsar «+ Fotografía» donde quieras y elígela de nuevo."},
   {q:"¿Se ve así, con esa marca de texto, cuando alguien lee mi libro?",
@@ -2347,6 +2378,12 @@ const PHOTOS_FAQ_EN = [
    a:"Delete the line with its mark, for example [PHOTO 3], just like deleting any word, and press \u201c+ Photo\u201d again wherever you want to put it. You can move photos around as many times as you like."},
   {q:"Can I change a photo's image?",
    a:"Yes, once. Each photo you buy is a space in your book: you upload an image and, if you make a mistake or change your mind, you can replace it with another just once. The cover is separate: you can change it whenever you like."},
+  {q:"Can I improve my photos?",
+   a:"Yes, with \u201cEdit\u201d, next to each photo and the cover. You can change the tone to black and white or sepia, free and as often as you like. You can also improve it with artificial intelligence: \u201cRestore\u201d repairs scratches, stains and fading and corrects the light, and \u201cColourise\u201d adds colour to black-and-white or sepia photos, or ones whose colour has badly faded. Each photo includes 4 AI edits. The cover has another 4 if you have added a photo to your book or activated the Assistant."},
+  {q:"What if I don't like what the AI proposes?",
+   a:"You'll see the before and after, and your photo isn't touched until you accept. Take your time to check the faces. Each proposal uses one edit, whether you accept it or not. Editing a photo doesn't use up its image change."},
+  {q:"Can I save my edited photos to my computer?",
+   a:"Yes: press \u201cEdit\u201d and then \u201cDownload\u201d. It's free."},
   {q:"What if I delete its mark by accident?",
    a:"No harm done: the photo is still there below, just unplaced. Press \u201c+ Photo\u201d again wherever you like and pick it once more."},
   {q:"Does that text mark show up like that when someone reads my book?",
@@ -4156,6 +4193,7 @@ ${capituloActual}
         imageUrl={fotoEditor.type==="cover"?f.coverImg:(fotosDb.find(x=>x.id===fotoEditor.fotoId)||{}).url}
         historiaId={historiaIdRef.current}
         iaPermitida={fotoEditor.type==="slot"||fotosDb.length>0||!!(tinta&&tinta.ultimaCarga>0)}
+        nombreDescarga={fotoEditor.type==="cover"?(lang==="EN"?"Cover":"Portada"):(()=>{const ph=fotosDb.find(x=>x.id===fotoEditor.fotoId);const w=t.photo_word.charAt(0).toUpperCase()+t.photo_word.slice(1);return ph?w+" "+ph.orden:w;})()}
         onSaved={fotoEditorGuardada}
         onClose={()=>setFotoEditor(null)}/>}
       {unpubStep&&(
