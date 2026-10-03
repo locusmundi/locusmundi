@@ -1,4 +1,11 @@
 // api/foto-editor.js — Editor de fotos con IA (Locus Mundi, pieza 5)
+// Versión 2 · 03/10/2026 · Sustituye a la versión 1 (01/10/2026).
+// Cambio respecto a la v1: no se trabaja nunca sobre una historia marcada para
+// borrar ("Eliminar mi historia"). (1) resolverObjetivo responde "no encontrada"
+// si la historia de la foto o de la portada está marcada; (2) puedeEditarPortada
+// solo cuenta las historias vivas del Autor. Motivo: con el índice parcial (una
+// sola historia viva por Autor, 03/10/2026) puede convivir 30 días la historia
+// eliminada con la nueva. Ver Continuidad, sesión "03/10/2026". Nada más cambia.
 // Versión 1 · 01/10/2026 · Diseño: Continuidad, sesión "01/10/2026 (noche)",
 // puntos 1, 4, 5 y 6; decisiones del 29/09 (punto 4: 4 ediciones, portada).
 //
@@ -117,11 +124,13 @@ function urlPublica(ruta) {
 
 // ---------- Objetivo: foto o portada, con comprobación de propiedad ----------
 // Rutas idénticas a fotoStoragePath del index.html: {autor}/{historia}/foto-{id}.jpg o cover.jpg
+// v2: una historia marcada para borrar se trata como inexistente (no se edita,
+// no se gasta IA ni se guardan imágenes que la purga va a borrar).
 async function resolverObjetivo(body, autorId) {
   if (body.objetivo === "portada") {
     if (!ID_VALIDO.test(String(body.historiaId || ""))) return null;
-    const h = (await leer("historias", `id=eq.${body.historiaId}`, "id,autor_id,portada_url,portada_ediciones_ia"))[0];
-    if (!h || h.autor_id !== autorId) return null;
+    const h = (await leer("historias", `id=eq.${body.historiaId}`, "id,autor_id,portada_url,portada_ediciones_ia,marcado_borrado"))[0];
+    if (!h || h.autor_id !== autorId || h.marcado_borrado === true) return null;
     return {
       tipo: "portada",
       url: h.portada_url,
@@ -137,8 +146,8 @@ async function resolverObjetivo(body, autorId) {
     if (!ID_VALIDO.test(String(body.fotoId || ""))) return null;
     const f = (await leer("fotos", `id=eq.${body.fotoId}`, "id,historia_id,url,ediciones_ia"))[0];
     if (!f) return null;
-    const h = (await leer("historias", `id=eq.${f.historia_id}`, "id,autor_id"))[0];
-    if (!h || h.autor_id !== autorId) return null;
+    const h = (await leer("historias", `id=eq.${f.historia_id}`, "id,autor_id,marcado_borrado"))[0];
+    if (!h || h.autor_id !== autorId || h.marcado_borrado === true) return null;
     return {
       tipo: "foto",
       url: f.url,
@@ -154,10 +163,11 @@ async function resolverObjetivo(body, autorId) {
 }
 
 // Portada editable con IA: al menos un hueco de foto (cualquier origen) o una carga de tinta.
+// v2: solo cuentan las fotos de la historia viva, no las de una historia eliminada.
 async function puedeEditarPortada(autorId) {
   const a = (await leer("autores", `id=eq.${autorId}`, "tinta_ultima_carga"))[0];
   if (a && Number(a.tinta_ultima_carga) > 0) return true;
-  const hs = await leer("historias", `autor_id=eq.${autorId}`, "id");
+  const hs = await leer("historias", `autor_id=eq.${autorId}&marcado_borrado=eq.false`, "id");
   if (!hs.length) return false;
   const ids = hs.map((h) => h.id).join(",");
   const fs = await leer("fotos", `historia_id=in.(${ids})&limit=1`, "id");
