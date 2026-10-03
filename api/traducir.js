@@ -1,6 +1,15 @@
 // api/traducir.js — Locus Mundi
-// Versión 1 · 03/10/2026 · Diseño: LOCUS_MUNDI_DISENO_TRADUCIR.md v2
-// (Continuidad, sesión "03/10/2026 (tarde)").
+// Versión 2 · 03/10/2026 · Sustituye a la versión 1 (commit 21fcd2d).
+// Diseño: LOCUS_MUNDI_DISENO_TRADUCIR.md v2 (Continuidad, sesiones "03/10/2026 (tarde)"
+// y "03/10/2026 (lectura nueva)").
+// Cambios de la v2:
+//  - Las lecturas de Supabase se reintentan una vez tras una breve pausa (leer no gasta).
+//    Motivo: un "Supabase GET 401" aislado el 03/10 a las 17:45, con la petición gemela
+//    correcta en el mismo instante.
+//  - Si Supabase responde con error, el registro guarda también su mensaje, no solo el código.
+//  - Cada llamada a Gemini anota sus tokens (entrada, salida y "pensar"), para saber si
+//    Flash-Lite piensa antes de responder (pendiente del diseño, apartado 6).
+//  - Quitado IDIOMAS_ORIGEN_EXTRA, que no se usaba.
 //
 // Traducción gratuita y sin cuenta de los libros PUBLICADOS y no eliminados,
 // por tramos y a demanda, con caché compartida sin caducidad.
@@ -55,8 +64,6 @@ const IDIOMAS = {
   'GL':    'gallego',
   'CA':    'catalán'
 };
-// Solo como idioma de ORIGEN (libros antiguos sin país).
-const IDIOMAS_ORIGEN_EXTRA = { 'PT': 'portugués' };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -160,10 +167,25 @@ function cabecerasServicio() {
   };
 }
 
+const esperar = ms => new Promise(r => setTimeout(r, ms));
+
+// Lectura con un reintento: si Supabase falla (o la red), se espera un momento y se
+// prueba otra vez. Leer no gasta nada. El error final lleva el mensaje de Supabase.
 async function supabaseGet(ruta) {
-  const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${ruta}`, { headers: cabecerasServicio() });
-  if (!r.ok) throw new Error(`Supabase GET ${r.status}`);
-  return r.json();
+  let ultimo = '';
+  for (let intento = 0; intento < 2; intento++) {
+    if (intento) await esperar(400);
+    try {
+      const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${ruta}`, { headers: cabecerasServicio() });
+      if (r.ok) return r.json();
+      const cuerpo = (await r.text().catch(() => '')).slice(0, 300);
+      ultimo = `Supabase GET ${r.status}: ${cuerpo}`;
+    } catch (e) {
+      ultimo = `Supabase GET sin respuesta: ${e.message}`;
+    }
+    console.error(ultimo, '| intento', intento + 1, '| tabla', ruta.split('?')[0]);
+  }
+  throw new Error(ultimo);
 }
 
 // Solo publicada y no marcada para borrar.
@@ -243,8 +265,14 @@ async function llamarGemini(sistema, mensaje, json) {
     console.error('Error de Gemini:', data);
     throw new Error(data.error?.message || 'Error al llamar a Gemini');
   }
+  const uso = data.usageMetadata || {};
+  console.log('Tokens Gemini', JSON.stringify({
+    entrada: uso.promptTokenCount || 0,
+    salida: uso.candidatesTokenCount || 0,
+    pensar: uso.thoughtsTokenCount || 0
+  }));
   const texto = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
-  return { texto, coste: costeEnEuros(data.usageMetadata) };
+  return { texto, coste: costeEnEuros(uso) };
 }
 
 // Hasta dos intentos. Devuelve { contenido, coste } o null si no cuadra.
