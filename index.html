@@ -853,7 +853,7 @@ const T = {
     fe_exhausted_photo:"Has usado las {max} ediciones con IA de esta foto. Puedes seguir cambiando el tono.",
     fe_exhausted_cover:"Has usado las {max} ediciones con IA de la portada. Puedes seguir cambiando el tono.",
     fe_failed:"No se ha podido preparar la propuesta. No se ha descontado ninguna edición. Puedes intentarlo de nuevo.",
-    fe_cover_not_included:"La edición de la portada se incluye al añadir una foto a tu libro o al activar el Asistente.",
+    fe_cover_not_included:"La mejora de la imagen de portada con IA se incluye al añadir fotos adicionales a tu libro o al activar el Asistente editorial. Encontrarás las dos opciones más abajo, en esta misma página.",
     fe_saving:"Guardando…",fe_loading:"Cargando la imagen…",
     fe_error:"No se ha podido completar. Inténtalo de nuevo.",
     fe_session:"Tu sesión ha caducado. Vuelve a entrar en tu cuenta.",
@@ -875,7 +875,11 @@ const T = {
     privacy_link:"Eliminar mi historia",
     privacy_h:"Eliminar mi historia",
     privacy_delete_h:"Eliminar mi historia por completo",
-    privacy_delete_warn:"Esto borra tu historia para siempre, incluido tu propio archivo. No hay vuelta atrás, ni siquiera para ti. Si solo quieres que no se lea, usa \"Despublicar mi historia\" en vez de esto.",
+    privacy_delete_warn:"Esto borra tu historia para siempre, con todas sus fotografías, también las que hayas pagado, e incluido tu propio archivo. No hay vuelta atrás, ni siquiera para ti. La tinta del Asistente que te quede se conserva en tu cuenta. Si solo quieres que no se lea, usa \"Despublicar mi historia\" en vez de esto.",
+    privacy_delete_error:"No se ha podido eliminar tu historia. No se ha borrado nada. Inténtalo de nuevo dentro de un momento.",
+    save_error_banner:"No se ha podido guardar tu trabajo. Lo seguimos intentando; no cierres esta página hasta que desaparezca este aviso.",
+    photos_add_error:"No se han podido añadir las fotos. Inténtalo de nuevo dentro de un momento.",
+    ai_setup_h:"Prepara tu Asistente para este libro",ai_setup_start:"Empezar",ai_active_short:"✓ Asistente activo",
     privacy_delete_phrase:"quiero borrar mi historia para siempre",
     privacy_delete_phrase_lbl:"Escribe exactamente esta frase para continuar:",
     privacy_delete_input_ph:"Escribe aquí la frase",
@@ -1138,7 +1142,7 @@ const T = {
     fe_exhausted_photo:"You've used the {max} AI edits for this photo. You can still change the tone.",
     fe_exhausted_cover:"You've used the {max} AI edits for the cover. You can still change the tone.",
     fe_failed:"The proposal couldn't be prepared. No edit has been used. You can try again.",
-    fe_cover_not_included:"Cover editing is included when you add a photo to your book or activate the Assistant.",
+    fe_cover_not_included:"AI enhancement of the cover image is included when you add additional photos to your book or activate the Editorial Assistant. You'll find both options further down this page.",
     fe_saving:"Saving…",fe_loading:"Loading the image…",
     fe_error:"This couldn't be completed. Please try again.",
     fe_session:"Your session has expired. Please sign in again.",
@@ -1160,7 +1164,11 @@ const T = {
     privacy_link:"Delete my story",
     privacy_h:"Delete my story",
     privacy_delete_h:"Delete my story completely",
-    privacy_delete_warn:"This deletes your story forever, including your own file. There's no going back, not even for you. If you just want it unread, use \"Unpublish my story\" instead.",
+    privacy_delete_warn:"This deletes your story forever, with all its photographs, including any you paid for, and your own file too. There's no going back, not even for you. Any Assistant ink you have left stays in your account. If you just want it unread, use \"Unpublish my story\" instead.",
+    privacy_delete_error:"Your story could not be deleted. Nothing has been removed. Please try again in a moment.",
+    save_error_banner:"Your work could not be saved. We're still trying; please don't close this page until this notice disappears.",
+    photos_add_error:"The photos could not be added. Please try again in a moment.",
+    ai_setup_h:"Set up your Assistant for this book",ai_setup_start:"Start",ai_active_short:"✓ Assistant active",
     privacy_delete_phrase:"I want to delete my story forever",
     privacy_delete_phrase_lbl:"Type this exact phrase to continue:",
     privacy_delete_input_ph:"Type the phrase here",
@@ -2820,6 +2828,17 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   });
   const [fotosDb,setFotosDb]=useState([]); // filas reales de la tabla `fotos` (no viven en contenido/f)
   const fotoSaveTimers=useRef({}); // debounce del pie de foto, por id
+  // Guardado robusto (03/10/2026): si crear o guardar la historia falla, se avisa en una
+  // franja visible y se reintenta solo; nunca se aparenta guardar lo que no se ha guardado.
+  const [saveError,setSaveError]=useState(false);
+  const [saveRetryTick,setSaveRetryTick]=useState(0);
+  const saveRetryTimerRef=useRef(null);
+  const skipNextSaveRef=useRef(false); // tras "Eliminar": no crear libro nuevo hasta que el Autor escriba o suba algo
+  const programarReintento=()=>{
+    setSaveError(true);
+    if(saveRetryTimerRef.current) return;
+    saveRetryTimerRef.current=setTimeout(()=>{ saveRetryTimerRef.current=null; setSaveRetryTick(n=>n+1); },5000);
+  };
 
   // ---- Carga inicial desde Supabase --------------------------------------
   useEffect(()=>{
@@ -2870,6 +2889,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
         .insert({ autor_id: user.id, titulo:"", contenido:{}, estado_publicacion:"borrador" })
         .select("id").single();
       if(!error && data) historiaIdRef.current = data.id;
+      else { console.error("No se pudo crear la historia:", error); programarReintento(); }
       creatingHistoriaRef.current = null;
       return historiaIdRef.current;
     })();
@@ -2879,16 +2899,16 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // ---- Autoguardado en Supabase (con un pequeño retraso para no saturar) --
   useEffect(()=>{
     if(!loadedRef.current) return; // no guardar mientras se carga el estado inicial
+    if(skipNextSaveRef.current){ skipNextSaveRef.current=false; return; } // el vaciado tras "Eliminar" no crea libro
     getOrCreateHistoriaId(); // crea la fila cuanto antes si hace falta, en paralelo, sin esperar el debounce de abajo
     if(saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
       const id = await getOrCreateHistoriaId();
-      if(!id) return; // sin sesión
+      if(!id) return; // sin sesión, o creación fallida (ya avisada y con reintento)
       const estado = f.published ? "publicado" : (f.publishedId ? "despublicado" : "borrador");
       const wasPublished = wasPublishedRef.current;
       const justPublished = f.published && !wasPublished;
       const justUnpublished = !f.published && wasPublished;
-      wasPublishedRef.current = f.published;
       const { coverImg, ...contenido } = f;
       const payload = {
         autor_id: autorIdRef.current,
@@ -2898,7 +2918,18 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
         estado_publicacion: estado,
         ...(justPublished ? { fecha_publicacion: new Date().toISOString() } : {})
       };
-      await supa.from("historias").update(payload).eq("id", id);
+      // Solo se guarda en la historia viva: si se eliminó en otra pestaña, no se escribe en
+      // la marcada; se suelta y el siguiente intento crea la nueva con lo que hay en pantalla.
+      const { data: guardadas, error: errGuardar } = await supa.from("historias")
+        .update(payload).eq("id", id).eq("marcado_borrado", false).select("id");
+      if(errGuardar || !guardadas || !guardadas.length){
+        console.error("No se pudo guardar la historia:", errGuardar);
+        if(!errGuardar && historiaIdRef.current===id) historiaIdRef.current = null;
+        programarReintento();
+        return;
+      }
+      setSaveError(false);
+      wasPublishedRef.current = f.published; // solo tras guardar de verdad
       if(justPublished || justUnpublished){
         fetch("/api/registro-lssi", {
           method: "POST",
@@ -2911,7 +2942,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       }
     }, 1200);
     return ()=>clearTimeout(saveTimerRef.current);
-  },[f,email]);
+  },[f,email,saveRetryTick]);
 
   const up=(k,v)=>setF(p=>(({...p,[k]:v})));
 
@@ -2997,14 +3028,14 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // huecos con el mismo número (y el mismo marcador FOTO n en el texto).
   const addFotoSlots=async(n)=>{
     const historiaId=await getOrCreateHistoriaId();
-    if(!historiaId) return;
+    if(!historiaId){ alert(t.photos_add_error); return; }
     let nextNum=fotosDb.length?Math.max(...fotosDb.map(x=>x.orden))+1:1; // no se reutiliza aunque se borren fotos de en medio
     for(let i=0;i<n;i++){
       const{data,error}=await supa.from("fotos").insert({
         historia_id:historiaId, bloque_id:null, url:null, pie_foto:"",
         orden:nextNum, origen:"comprada", lote_compra_id:null, fecha_compra:null
       }).select().single();
-      if(error||!data) break;
+      if(error||!data){ console.error("No se pudo crear el hueco de foto:", error); alert(t.photos_add_error); break; }
       setFotosDb(p=>[...p,data]);
       nextNum++;
     }
@@ -3021,7 +3052,9 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
 
   // ---- Marcador "FOTO n" en el propio texto (igual que los de capítulo/apartado) ----
   const fotoMarker=(ph)=>"["+t.photo_word.toUpperCase()+" "+ph.orden+"]"; // [FOTO n]: se lee como marca técnica, no como texto del Autor
-  const isFotoPlaced=(ph)=>f.text.includes(fotoMarker(ph));
+  // El texto puede llevar la marca en cualquiera de los dos idiomas de la interfaz (03/10/2026).
+  const fotoMarkersAll=(ph)=>["[FOTO "+ph.orden+"]","[PHOTO "+ph.orden+"]"];
+  const isFotoPlaced=(ph)=>fotoMarkersAll(ph).some(m=>f.text.includes(m));
   const insertFotoMarker=(ph,pos)=>{
     pushHistory();
     // Se quitan los saltos de línea que ya hubiera justo antes y después del cursor y se deja
@@ -3040,8 +3073,10 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     if(n===1 && !window.confirm(t.photo_confirm_remove_one)) return;
     if(n>=2 && !window.confirm(t.photo_confirm_remove_final)) return;
     const ph=fotosDb.find(x=>x.id===fotoId);
-    if(ph && f.text.includes(fotoMarker(ph))){
-      up("text", f.text.replace(fotoMarker(ph)+"\n\n","").replace(fotoMarker(ph),""));
+    if(ph && isFotoPlaced(ph)){
+      let nt=f.text;
+      fotoMarkersAll(ph).forEach(m=>{ nt=nt.replace(m+"\n\n","").replace(m,""); });
+      up("text", nt);
     }
     // "Quitar" VACÍA el hueco (imagen, pie y marcador), pero no lo borra: el hueco es una
     // foto pagada y sigue disponible para subir otra imagen (decisión de Javier, 28/09/2026).
@@ -3122,6 +3157,9 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // Tinta del Asistente, leída de `autores` y actualizada tras cada respuesta.
   // null = aún no leída. La barra "Uso de IA" = tinta / última carga.
   const [tinta,setTinta]=useState(null); // {tinta, ultimaCarga}
+  // Derecho al Asistente: del Autor, no del libro (03/10/2026). Lo tiene quien ha cargado tinta
+  // alguna vez. f.assistantActive pasa a significar solo "preparado para este libro" (tú/usted y nombre).
+  const hasAiRight = !!(tinta && tinta.ultimaCarga>0);
   const aiUsage = !tinta ? 100
     : tinta.tinta<=0 ? 0
     : tinta.ultimaCarga>0 ? Math.max(1,Math.min(100,Math.round(tinta.tinta/tinta.ultimaCarga*100)))
@@ -3156,6 +3194,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // sobrevive a recargar la página); antes era un contador en memoria que volvía a 0.
   const photosBought=fotosDb.length;const [pdfBought,setPdfBought]=useState(null);
   const [showAiOverlay,setShowAiOverlay]=useState(false);
+  const [showAiSetup,setShowAiSetup]=useState(false); // preparar tú/usted y nombre en un libro nuevo, sin pago
   const [aiCharge,setAiCharge]=useState(5);const [aiTermsOk,setAiTermsOk]=useState(false);
   const [aiTuUsted,setAiTuUsted]=useState(null);const [aiNameDraft,setAiNameDraft]=useState(f.name||"");
   const [showSaveExit,setShowSaveExit]=useState(false);
@@ -3986,29 +4025,54 @@ ${capituloActual}
 
   const [deletePhrase,setDeletePhrase]=useState("");
   const [deleteStep,setDeleteStep]=useState(null); // null | "sent" | "done"
+  const [deleteError,setDeleteError]=useState(false);
   const doDeleteForever=async ()=>{
-    if(f.published&&f.publishedId) onUnpublish(f.publishedId);
+    setDeleteError(false);
+    // Primero se marca; si falla, no se toca nada más (03/10/2026).
     if(historiaIdRef.current){
-      await supa.from("historias").update({
+      const { data: marcadas, error } = await supa.from("historias").update({
         marcado_borrado: true,
         fecha_marcado_borrado: new Date().toISOString()
-      }).eq("id", historiaIdRef.current);
+      }).eq("id", historiaIdRef.current).select("id");
+      if(error || !marcadas || !marcadas.length){
+        console.error("No se pudo marcar la historia:", error);
+        setDeleteError(true);
+        return;
+      }
     }
-    historiaIdRef.current = null; // se "suelta" la fila marcada; si se vuelve a escribir, se crea una nueva
+    if(f.published&&f.publishedId) onUnpublish(f.publishedId);
+    // Registro LSSI: si estaba publicada, eliminar es también despublicar (no depende del autoguardado).
+    if(wasPublishedRef.current && autorIdRef.current){
+      fetch("/api/registro-lssi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "despublicacion", autor_id: autorIdRef.current })
+      }).catch(()=>{});
+    }
+    wasPublishedRef.current = false;
+    if(saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if(saveRetryTimerRef.current){ clearTimeout(saveRetryTimerRef.current); saveRetryTimerRef.current=null; }
+    setSaveError(false);
+    historiaIdRef.current = null; // se "suelta" la fila marcada; el libro nuevo se crea cuando el Autor escriba o suba algo
+    skipNextSaveRef.current = true; // el vaciado de abajo no debe crear ya la fila nueva
     setF(p=>({...p,text:"",title:"",subtitle:"",coverImg:null,blocks:[{id:crypto.randomUUID(),type:"chapter",title:"",num:1}],
       wizardDone:false,published:false,publishedId:null,assistantActive:false}));
     setFotosDb([]);
     setDeleteStep("done");
   };
 
-  const topBar = (
+  const topBar = (<>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"0.6rem",marginBottom:"1.4rem"}}>
       <button className="back" onClick={()=>setView("home")}>{t.back_home}</button>
       <span style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)"}}>
         {t.auth_greeting} {email} · <span style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={onLogout}>{t.auth_logout}</span>
       </span>
     </div>
-  );
+    {saveError&&(
+      <div role="alert" style={{position:"sticky",top:0,zIndex:50,margin:"0 0 1rem",padding:"0.7rem 0.9rem",background:"#b23b3b",color:"#fff",
+        fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.45,borderRadius:"2px"}}>{t.save_error_banner}</div>
+    )}
+  </>);
   const narrowCard=(children)=>(
     <div style={{maxWidth:"460px",margin:"0 auto",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"4px",padding:"2.2rem"}}>
       {children}
@@ -4088,6 +4152,7 @@ ${capituloActual}
         {deleteStep==="sent"&&(<>
           <button className="back" onClick={()=>setDeleteStep(null)}>{t.auth_back}</button>
           <p className="wr-sub">{t.privacy_delete_sent_sub}</p>
+          {deleteError&&<p style={{fontFamily:"var(--body)",fontSize:"0.84rem",color:"#b23b3b",lineHeight:1.5}}>{t.privacy_delete_error}</p>}
           <button className="btn-pub" style={{width:"100%"}} onClick={doDeleteForever}>{t.unpub_sim_btn}</button>
         </>)}
         {deleteStep==="done"&&(<>
@@ -4149,6 +4214,29 @@ ${capituloActual}
               setF(p=>({...p,assistantActive:true,assistantTuUsted:asksTuUsted?aiTuUsted:null,assistantName:aiNameDraft||f.name}));
               setShowAiOverlay(false);
             }}>{t.ai_activate_with} {aiCharge} €</button>
+          </div>
+        </div>
+      )}
+      {showAiSetup&&(
+        <div className="ov">
+          <div className="modal" style={{maxWidth:"440px",maxHeight:"88vh",overflowY:"auto"}}>
+            <button className="modal-x" onClick={()=>setShowAiSetup(false)}>×</button>
+            <div className="modal-h" style={{fontSize:"1.2rem"}}>{t.ai_setup_h}</div>
+            {asksTuUsted?
+              <>
+                <div className="lbl" style={{marginTop:"0.6rem"}}>{t.ai_ask_tuusted_h}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:"0.6rem",margin:"0.8rem 0"}}>
+                  <button className={aiTuUsted==="tu"?"btn-pub":"btn-out"} onClick={()=>setAiTuUsted("tu")}>{t.ai_tu}</button>
+                  <button className={aiTuUsted==="usted"?"btn-pub":"btn-out"} onClick={()=>setAiTuUsted("usted")}>{t.ai_usted}</button>
+                </div>
+              </>
+            :null}
+            <div className="fld"><label className="lbl">{t.ai_ask_name_h}</label><input className="inp" value={aiNameDraft} onChange={e=>setAiNameDraft(e.target.value)}/></div>
+            <button className="btn-pub" style={{width:"100%"}} onClick={()=>{
+              setF(p=>({...p,assistantActive:true,assistantTuUsted:asksTuUsted?aiTuUsted:null,assistantName:aiNameDraft||f.name}));
+              setShowAiSetup(false);
+              setShowAiPanel(true);
+            }}>{t.ai_setup_start}</button>
           </div>
         </div>
       )}
@@ -4222,7 +4310,7 @@ ${capituloActual}
       )}
       {topBar}
       <div className="wr-grid">
-        <div className={"wr-work"+(f.assistantActive?" wr-work-split":"")}>
+        <div className={"wr-work"+(hasAiRight?" wr-work-split":"")}>
         <div>
           <div className="frow" style={{marginBottom:"0.9rem"}}>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_title}</label><ConfirmedInput value={f.title} onCommit={v=>up("title",v)} needsConfirm={!!f.published} confirmMsg={t.ed_confirm_title}/></div>
@@ -4245,7 +4333,7 @@ ${capituloActual}
           </div>
 
           <div className="mob-offers-strip">
-            <span className={`mob-offer-chip ${f.assistantActive?"on navy":""}`} onClick={()=>document.getElementById("lm-offer-ai")?.scrollIntoView({behavior:"smooth"})}>✦ {t.mob_strip_ai}</span>
+            <span className={`mob-offer-chip ${hasAiRight?"on navy":""}`} onClick={()=>document.getElementById("lm-offer-ai")?.scrollIntoView({behavior:"smooth"})}>✦ {t.mob_strip_ai}</span>
             <span className={`mob-offer-chip ${photosBought>0?"on gold":""}`} onClick={()=>document.getElementById("lm-offer-photos")?.scrollIntoView({behavior:"smooth"})}>📷 {t.mob_strip_photos}</span>
             <span className={`mob-offer-chip ${pdfBought?"on gold":""}`} onClick={()=>document.getElementById("lm-offer-pdf")?.scrollIntoView({behavior:"smooth"})}>📄 {t.mob_strip_pdf}</span>
           </div>
@@ -4359,7 +4447,7 @@ ${capituloActual}
 
         </div>
 
-        {f.assistantActive&&(
+        {hasAiRight&&(
           <div className="wr-ai-col">
             {showAiPanel
               ? <AssistantPanel open={showAiPanel} onClose={()=>{if("speechSynthesis" in window)window.speechSynthesis.cancel();setSpeaking(false);setShowAiPanel(false);if(paragraphCheckRef.current.timer)clearTimeout(paragraphCheckRef.current.timer);setActiveOfferId(null);}} t={t}
@@ -4373,7 +4461,10 @@ ${capituloActual}
               : <button className="ai-open-btn" style={{width:"100%",marginTop:"5.1rem" /* posición inicial junto al título; al bajar, se queda fijo bajo la cabecera (CSS .ai-open-btn, 01/10) */,padding:"0.55rem 0.75rem",
                     fontFamily:"var(--body)",fontSize:"0.96rem",lineHeight:"1.2",boxSizing:"border-box",
                     background:"#2a6a2a",border:"1px solid #2a6a2a",borderRadius:"2px",
-                    color:"#fff",cursor:"pointer"}} onClick={()=>setShowAiPanel(true)}>
+                    color:"#fff",cursor:"pointer"}} onClick={()=>{
+                    if(f.assistantActive) setShowAiPanel(true);
+                    else { setAiTuUsted(null); setAiNameDraft(f.name||""); setShowAiSetup(true); }
+                  }}>
                   ✦ {t.ai_open_panel}
                 </button>}
           </div>
@@ -4395,9 +4486,9 @@ ${capituloActual}
           <div id="lm-offer-ai" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--navy)",borderRadius:"2px"}}>
             <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--navy)",fontWeight:"600",marginBottom:"0.2rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.ai_sub_label}</div>
             <div style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginBottom:"0.4rem"}}>{t.ai_hours_note}</div>
-            {!f.assistantActive
+            {!hasAiRight
               ? <button className="pm-unlock" style={{borderColor:"var(--navy)",color:"var(--navy)"}} onClick={()=>{setAiTuUsted(null);setAiNameDraft(f.name||"");setAiCharge(5);setAiTermsOk(false);setShowAiOverlay(true);}}>{t.ai_activate_btn}</button>
-              : <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#2a6a2a"}}>{t.ai_active_msg} <b>{f.assistantName}</b></div>}
+              : <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#2a6a2a"}}>{f.assistantActive?<>{t.ai_active_msg} <b>{f.assistantName}</b></>:t.ai_active_short}</div>}
             <div style={{marginTop:"0.4rem"}}>
               <span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setShowAssistantFaq(true)}>
                 {lang==="EN"?"What can the Assistant help with? (FAQ)":"¿En qué puede ayudarte el Asistente? (FAQ)"}
