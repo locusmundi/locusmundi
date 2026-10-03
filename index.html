@@ -1570,11 +1570,20 @@ function Library({autos,openAuto,t}) {
 // qué parte ("cabecera" o el número de tramo) y a qué idioma; el texto lo lee el servidor.
 // Diseño: LOCUS_MUNDI_DISENO_TRADUCIR.md v2, apartado 9.
 const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Un error interno del servidor (500) o un fallo de red se reintenta una vez, tras una pausa,
+// antes de avisar al lector (03/10/2026: un 401 aislado de Supabase). No se reintentan las
+// respuestas con sentido propio (fusible, no disponible, error de traducción ya reintentado).
 async function callTraducir(historia_id, idioma, parte){
-  const res=await fetch("/api/traducir",{
+  const pedir=()=>fetch("/api/traducir",{
     method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({historia_id, idioma, parte})
   });
+  let res;
+  try{ res=await pedir(); }catch(e){ res=null; }
+  if(!res || res.status===500){
+    await new Promise(r=>setTimeout(r,800));
+    res=await pedir();
+  }
   const d=await res.json().catch(()=>({}));
   if(!res.ok || d.error){
     const e=new Error(d.error||"ERROR");
