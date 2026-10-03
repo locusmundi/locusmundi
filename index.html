@@ -598,16 +598,24 @@ function renderInline(str){
 // pareja de comillas rectas o curvas de un párrafo se muestra como «…». Solo en la lectura; el
 // texto guardado no cambia. No se toca: un párrafo que ya tiene «» (sus comillas inglesas son
 // el segundo nivel), un párrafo con comillas desparejadas (p. ej. un diálogo que sigue en el
-// párrafo siguiente), las traducciones ni los demás idiomas. Portugués: pendiente de distinguir
-// Portugal («») y Brasil (“”) en el selector de idioma.
-const ANGLE_QUOTE_LANGS = ["ES","GL","CA"];
+// párrafo siguiente).
+// Ampliado el 03/10/2026 (decisión B de Javier, Continuidad "03/10/2026 (lectura nueva)"): la regla vale
+// para el original y para la traducción, con las comillas propias de cada idioma. Chino, japonés,
+// árabe e hindi no se tocan (se dejan como las escribió el Autor o las devolvió la IA).
+const QUOTE_STYLES = {
+  ES:["«","»"], CA:["«","»"], GL:["«","»"], "PT-PT":["«","»"], IT:["«","»"], RU:["«","»"],
+  FR:["«\u202F","\u202F»"],          // francés: espacio fino inseparable por dentro
+  EN:["“","”"], "PT-BR":["“","”"],
+  DE:["„","“"],
+};
 function toAngleQuotes(str, lang){
-  if(!lang || !ANGLE_QUOTE_LANGS.includes(lang)) return str;
-  if(str.includes("«")) return str;
+  const st = lang && QUOTE_STYLES[lang];
+  if(!st) return str;
+  if(str.includes("«") || str.includes("„")) return str;
   const n=(str.match(/["“”]/g)||[]).length;
   if(n===0 || n%2) return str;
   let open=true;
-  return str.replace(/["“”]/g,()=>{ const q=open?"«":"»"; open=!open; return q; });
+  return str.replace(/["“”]/g,()=>{ const q=open?st[0]:st[1]; open=!open; return q; });
 }
 function renderStoryBody(text, fotos=[], lang=null) {
   return (text||"").split("\n\n").map((raw,i)=>{
@@ -665,7 +673,8 @@ const LOGO_FIG_NEG = document.getElementById('logo-fig-neg').src;
 
 const LANGS_UI = [
   {code:"ES",label:"Español"},{code:"EN",label:"English"},{code:"FR",label:"Français"},
-  {code:"DE",label:"Deutsch"},{code:"IT",label:"Italiano"},{code:"PT",label:"Português"},
+  {code:"DE",label:"Deutsch"},{code:"IT",label:"Italiano"},
+  {code:"PT-PT",label:"Português (Portugal)"},{code:"PT-BR",label:"Português (Brasil)"},
   {code:"ZH",label:"中文"},{code:"AR",label:"العربية"},{code:"JA",label:"日本語"},
   {code:"RU",label:"Русский"},{code:"HI",label:"हिन्दी"},{code:"GL",label:"Galego"},{code:"CA",label:"Català"},
 ];
@@ -762,6 +771,9 @@ const T = {
     by_author:"Por",read_in_original:"Leer en",or_translate:"o traducir y leer en otro idioma",
     translate_and_read:"Traducir y leer",change_lang:"cambiar idioma",
     read_lang_error:"No se ha podido traducir el texto. Inténtalo de nuevo o léelo en el idioma original.",
+    tr_wait:"Traduciendo…",tr_more:"Traduciendo la continuación…",
+    tr_part_error:"No se ha podido traducir esta parte. Inténtalo de nuevo.",tr_retry:"Reintentar",
+    tr_fuse:"Por hoy se ha alcanzado el límite de traducciones nuevas. Mañana podrás seguir leyendo en este idioma. Mientras tanto, puedes usar la traducción de tu navegador o leer el original.",
     translate:"Traducir",
     report_link:"Denunciar contenido inapropiado",
     report_h:"Denunciar contenido inapropiado",
@@ -1052,6 +1064,9 @@ const T = {
     by_author:"By",read_in_original:"Read in",or_translate:"or translate and read in another language",
     translate_and_read:"Translate and read",change_lang:"change language",
     read_lang_error:"Couldn't translate the text. Try again, or read it in the original language.",
+    tr_wait:"Translating…",tr_more:"Translating the next part…",
+    tr_part_error:"This part could not be translated. Please try again.",tr_retry:"Try again",
+    tr_fuse:"Today's limit for new translations has been reached. You can continue reading in this language tomorrow. In the meantime, you can use your browser's translation or read the original.",
     report_link:"Report inappropriate content",
     report_h:"Report inappropriate content",
     report_sub:"Describe the issue and we'll send your report to Locus Mundi, with this work's reference included.",
@@ -1288,19 +1303,18 @@ const T = {
 };
 
 // Llamada única a api/asistente.js (pieza 3, 29/09/2026). Cada petición
-// indica su operación: "traduccion" (gratis, sin cuenta), "dictado",
-// "revision" y "conversacion" (con tinta: exigen sesión). Devuelve
+// indica su operación: "dictado", "revision" y "conversacion" (con tinta:
+// exigen sesión). La traducción para lectores va aparte, a api/traducir.js
+// (03/10/2026). Devuelve
 // {text, tinta, ultimaCarga}. Los errores llevan su código en e.code
 // (SIN_TINTA, SIN_SESION, TEXTO_DEMASIADO_LARGO...).
 async function callAI({ operacion, system, userMsg, history, idioma }) {
   const body = { operacion, userMsg };
-  if (system) body.system = system;   // el servidor lo ignora en traducción y dictado
+  if (system) body.system = system;   // el servidor lo ignora en el dictado
   if (history) body.history = history;
   if (idioma) body.idioma = idioma;
-  if (operacion !== "traduccion") {
-    const { data } = await supa.auth.getSession();
-    body.token = data.session ? data.session.access_token : null;
-  }
+  const { data } = await supa.auth.getSession();
+  body.token = data.session ? data.session.access_token : null;
   const res = await fetch("/api/asistente", {
     method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify(body)
@@ -1552,30 +1566,122 @@ function Library({autos,openAuto,t}) {
   );
 }
 
+// Traducción para lectores (03/10/2026): api/traducir.js. El navegador solo dice qué libro,
+// qué parte ("cabecera" o el número de tramo) y a qué idioma; el texto lo lee el servidor.
+// Diseño: LOCUS_MUNDI_DISENO_TRADUCIR.md v2, apartado 9.
+const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+async function callTraducir(historia_id, idioma, parte){
+  const res=await fetch("/api/traducir",{
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({historia_id, idioma, parte})
+  });
+  const d=await res.json().catch(()=>({}));
+  if(!res.ok || d.error){
+    const e=new Error(d.error||"ERROR");
+    e.code=d.error||"ERROR";
+    if(typeof d.tramos==="number") e.tramos=d.tramos;
+    throw e;
+  }
+  return d;
+}
+
 function Read({auto,setView,t}) {
   const originalLang=auto&&LANGS_UI.find(l=>l.code===auto.lang);
   const otherLangs=auto?LANGS_UI.filter(l=>l.code!==auto.lang):LANGS_UI;
+  // Solo los libros de Supabase se traducen; las muestras de SAMPLE (id numérico), no,
+  // hasta que pasen a Supabase (Fase B2, punto 2; decisión A del 03/10/2026).
+  const canTranslate=!!auto && UUID_RE.test(String(auto.id||""));
   const [entered,setEntered]=useState(false);
   const [tl,setTl]=useState(otherLangs[0]?.code||"EN");
-  const [tr,setTr]=useState("");
   const [readLangCode,setReadLangCode]=useState(auto?auto.lang:"ES");
   const [doing,setDoing]=useState(false);
   const [errMsg,setErrMsg]=useState("");
   const [showReport,setShowReport]=useState(false);
+  // Lectura traducida. trHead (título, subtítulo y pies) no nulo = se está leyendo una traducción.
+  const [trHead,setTrHead]=useState(null);
+  const [trParts,setTrParts]=useState([]);   // tramos traducidos recibidos, en orden
+  const [trShown,setTrShown]=useState(0);    // cuántos se muestran (nunca más de uno por delante)
+  const [trTotal,setTrTotal]=useState(0);    // tramos del libro, según la última respuesta
+  const [trWaiting,setTrWaiting]=useState(false); // el lector ha llegado al final de lo mostrado
+  const [trErr,setTrErr]=useState("");       // "" | "part" | "fuse"
+  const genRef=useRef(0);          // cada lectura traducida tiene su número; lo de otra se ignora
+  const inFlightRef=useRef(null);  // número de la lectura que tiene una petición en curso
+  const sentinelRef=useRef(null);
+  const nearEndRef=useRef(()=>{});
+
+  const resetTranslation=()=>{
+    genRef.current++;
+    inFlightRef.current=null;
+    setTrHead(null);setTrParts([]);setTrShown(0);setTrTotal(0);setTrWaiting(false);setTrErr("");
+  };
+
+  // Pide el siguiente tramo. Se mantiene uno preparado por delante del que se lee.
+  const fetchNext=async(gen, idioma, n)=>{
+    if(inFlightRef.current===gen) return;
+    inFlightRef.current=gen;
+    try{
+      const d=await callTraducir(auto.id, idioma, n);
+      if(gen!==genRef.current) return;
+      setTrTotal(d.tramos);
+      setTrParts(p=>p.length===n?[...p,d.texto]:p);
+    }catch(e){
+      if(gen!==genRef.current) return;
+      // El libro ha encogido mientras se leía: lo que hay ya es el final.
+      if(e.code==="NO_DISPONIBLE" && typeof e.tramos==="number" && n>=e.tramos){ setTrTotal(e.tramos); }
+      else setTrErr(e.code==="FUSIBLE"?"fuse":"part");
+    }finally{
+      if(inFlightRef.current===gen) inFlightRef.current=null;
+    }
+  };
+
+  useEffect(()=>{
+    if(!trHead || trErr) return;
+    const gen=genRef.current;
+    if(trWaiting && trParts.length>trShown){ setTrShown(trShown+1); setTrWaiting(false); return; }
+    if(trWaiting && trParts.length>=trTotal){ setTrWaiting(false); return; }
+    if(trParts.length<trTotal && trParts.length<=trShown) fetchNext(gen, readLangCode, trParts.length);
+  },[trHead,trParts,trShown,trTotal,trWaiting,trErr]);
+
+  // Al acercarse el lector al final de lo mostrado: se muestra el tramo preparado o se espera.
+  nearEndRef.current=()=>{
+    if(!trHead || trWaiting || trShown>=trTotal) return;
+    if(trParts.length>trShown) setTrShown(trShown+1);
+    else setTrWaiting(true);
+  };
+  useEffect(()=>{
+    const el=sentinelRef.current;
+    if(!el || !trHead || !("IntersectionObserver" in window)) return;
+    const io=new IntersectionObserver(es=>{ if(es.some(x=>x.isIntersecting)) nearEndRef.current(); },{rootMargin:"0px 0px 900px 0px"});
+    io.observe(el);
+    return ()=>io.disconnect();
+  },[trHead,trShown,trParts.length,trTotal]);
+
   if(!auto){setView("library");return null;}
 
-  const readOriginal=()=>{setTr("");setReadLangCode(auto.lang);setEntered(true);};
+  const readOriginal=()=>{resetTranslation();setReadLangCode(auto.lang);setEntered(true);window.scrollTo(0,0);};
   const readTranslated=async()=>{
+    resetTranslation();
+    const gen=genRef.current;
+    const idioma=tl;
     setDoing(true);setErrMsg("");
-    const ln=LANGS_UI.find(l=>l.code===tl)?.label||tl;
     try{
-      const d=await callAI({operacion:"traduccion",idioma:ln,userMsg:auto.text,
-        system:`Eres un traductor literario. Traduce este texto autobiográfico al ${ln} preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia del ${ln} —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Las líneas entre corchetes, como [FOTO 2], son marcas técnicas: cópialas exactamente igual, sin traducirlas ni cambiarlas. Solo la traducción.`});
-      setTr(d.text);setReadLangCode(tl);setEntered(true);
-    }catch(e){setErrMsg(t.read_lang_error);}
-    setDoing(false);
+      const [head,first]=await Promise.all([
+        callTraducir(auto.id, idioma, "cabecera"),
+        callTraducir(auto.id, idioma, 0)
+      ]);
+      if(gen!==genRef.current) return;
+      setReadLangCode(idioma);
+      setTrHead({titulo:head.titulo, subtitulo:head.subtitulo||"", pies:head.pies||{}});
+      setTrParts([first.texto]);setTrShown(1);setTrTotal(first.tramos);
+      setEntered(true);window.scrollTo(0,0);
+    }catch(e){
+      if(gen===genRef.current) setErrMsg(e.code==="FUSIBLE"?t.tr_fuse:t.read_lang_error);
+    }finally{
+      if(gen===genRef.current) setDoing(false);
+    }
   };
-  const backToLangChoice=()=>{setEntered(false);setTr("");setErrMsg("");};
+  const backToLangChoice=()=>{resetTranslation();setEntered(false);setErrMsg("");};
+  const retryPart=()=>{ setTrErr(""); };
 
   const tagsBlock=(
     <div className="tags">
@@ -1591,43 +1697,70 @@ function Read({auto,setView,t}) {
   );
 
   // Portada entera (sin recortar), título, subtítulo y Autor: igual en la ficha y al leer.
-  const coverAndTitle=(langLabel,extra)=>(<>
+  // En la lectura traducida, título y subtítulo vienen de la cabecera traducida.
+  const coverAndTitle=(langLabel,extra,head)=>{
+    const title=head ? (head.titulo||auto.title||auto.name) : (auto.title||auto.name);
+    const subtitle=head ? head.subtitulo : auto.subtitle;
+    return (<>
       {auto.cover
-        ? <img src={auto.cover} alt={auto.title||auto.name} className="r-cover"/>
+        ? <img src={auto.cover} alt={title} className="r-cover"/>
         : <div style={{fontSize:"1.8rem",marginBottom:"0.45rem"}}>{auto.flag}</div>}
       <div className="r-orig">{auto.country} · {langLabel}{extra}</div>
-      <h1 className="r-name">{auto.title||auto.name}</h1>
-      {auto.subtitle&&<div className="r-sub">{auto.subtitle}</div>}
+      <h1 className="r-name">{title}</h1>
+      {subtitle&&<div className="r-sub">{subtitle}</div>}
       <div className="r-meta">{t.by_author} {auto.name}</div>
-  </>);
+    </>);
+  };
+
+  const spinnerText=(txt)=>(<span style={{display:"flex",alignItems:"center",gap:"0.4rem"}}><span className="sp"/>{txt}</span>);
 
   if(!entered) return (
     <div className="read-wrap fu">
       <button className="back" onClick={()=>setView("library")}>{t.back}</button>
-      {coverAndTitle(originalLang?.label||auto.lang,null)}
+      {coverAndTitle(originalLang?.label||auto.lang,null,null)}
       <div style={{marginTop:"1.6rem"}}>
         <div className="tr-tit">{t.read_in}</div>
         <button className="btn-pub" style={{width:"100%",marginBottom:"0.9rem"}} onClick={readOriginal}>
           {t.read_in_original} {originalLang?.label||auto.lang}
         </button>
-        <div className="tr-tit">{t.or_translate}</div>
-        <div className="tr-row">
-          <select className="sel" value={tl} onChange={e=>setTl(e.target.value)}>{otherLangs.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
-          <button className="btn-sm" onClick={readTranslated} disabled={doing}>{doing?<span style={{display:"flex",alignItems:"center",gap:"0.4rem"}}><span className="sp"/>…</span>:t.translate_and_read}</button>
-        </div>
+        {canTranslate&&(<>
+          <div className="tr-tit">{t.or_translate}</div>
+          <div className="tr-row">
+            <select className="sel" value={tl} onChange={e=>setTl(e.target.value)}>{otherLangs.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
+            <button className="btn-sm" onClick={readTranslated} disabled={doing}>{doing?spinnerText(t.tr_wait):t.translate_and_read}</button>
+          </div>
+        </>)}
         {errMsg&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginTop:"0.6rem"}}>{errMsg}</p>}
       </div>
     </div>
   );
 
+  const translated=!!trHead;
   const shownLang=LANGS_UI.find(l=>l.code===readLangCode);
+  // Pies de foto traducidos (por id de foto); si faltara alguno, el original.
+  const fotosLectura=translated
+    ? (auto.fotos||[]).map(fo=>({...fo, pie_foto:(trHead.pies&&typeof trHead.pies[fo.id]==="string")?trHead.pies[fo.id]:fo.pie_foto}))
+    : (auto.fotos||[]);
+  const bodyText=translated ? trParts.slice(0,trShown).join("\n\n") : auto.text;
+  const msgStyle={fontFamily:"var(--body)",fontSize:"0.9rem",color:"var(--muted)",textAlign:"center",margin:"1.6rem 0"};
   return (<>
     <div className="read-wrap fu">
       <button className="back" onClick={()=>setView("library")}>{t.back}</button>
-      {coverAndTitle(shownLang?.label||readLangCode, tr&&<> · <span onClick={backToLangChoice} style={{cursor:"pointer",textDecoration:"underline"}}>{t.change_lang}</span></>)}
-      <div className="r-body">{renderStoryBody(tr||auto.text, auto.fotos||[], tr?null:auto.lang)}</div>
+      {coverAndTitle(shownLang?.label||readLangCode, translated&&<> · <span onClick={backToLangChoice} style={{cursor:"pointer",textDecoration:"underline"}}>{t.change_lang}</span></>, trHead)}
+      <div className="r-body">{renderStoryBody(bodyText, fotosLectura, readLangCode)}</div>
+      {translated&&(<>
+        <div ref={sentinelRef} style={{height:"1px"}}/>
+        {trErr==="part"&&(
+          <div style={msgStyle}>
+            <p style={{color:"#b23b3b",margin:"0 0 0.7rem"}}>{t.tr_part_error}</p>
+            <button className="btn-sm" onClick={retryPart}>{t.tr_retry}</button>
+          </div>
+        )}
+        {trErr==="fuse"&&<p style={msgStyle}>{t.tr_fuse}</p>}
+        {!trErr&&trShown<trTotal&&trWaiting&&<div style={{...msgStyle,display:"flex",justifyContent:"center"}}>{spinnerText(t.tr_more)}</div>}
+      </>)}
       {/* Etiquetas retiradas de la lectura (29/09): siguen guardadas y sirven para buscar en la Biblioteca. */}
-      {!tr&&auto.fullUrl&&(
+      {!translated&&auto.fullUrl&&(
         <div style={{margin:"1.8rem 0",padding:"1.2rem 1.5rem",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"3px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"1rem"}}>
           <span style={{fontFamily:"var(--body)",fontSize:"1rem",color:"var(--ink)"}}>Esta historia incluye fotos e índice de capítulos.</span>
           <a href={auto.fullUrl} target="_blank" className="read-full" style={{textDecoration:"none"}}>📖 Leer historia completa</a>
@@ -2914,6 +3047,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
         autor_id: autorIdRef.current,
         titulo: f.title || "",
         contenido,
+        idioma_original: String(f.lang || "ES").toUpperCase(), // una sola fuente de verdad (03/10/2026)
         portada_url: coverImg || null,
         estado_publicacion: estado,
         ...(justPublished ? { fecha_publicacion: new Date().toISOString() } : {})
@@ -3756,7 +3890,7 @@ ${capituloActual}
     setJustDictated(false);
   };
 
-  const binaryLangs=["ES","CA","GL","FR","IT","PT","DE"];
+  const binaryLangs=["ES","CA","GL","FR","IT","PT-PT","PT-BR","PT","DE"]; // "PT": libros antiguos sin país
   const asksTuUsted = binaryLangs.includes(f.lang);
 
 
@@ -4659,7 +4793,8 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
                         <option value="it-IT">Italiano</option>
                         <option value="nl-NL">Nederlands</option>
                         <option value="pl-PL">Polski</option>
-                        <option value="pt-PT">Português</option>
+                        <option value="pt-PT">Português (Portugal)</option>
+                        <option value="pt-BR">Português (Brasil)</option>
                         <option value="ro-RO">Română</option>
                         <option value="ar-SA">العربية (árabe)</option>
                         <option value="zh-CN">中文 (chino)</option>
