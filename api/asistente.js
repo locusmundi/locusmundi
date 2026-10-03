@@ -1,4 +1,11 @@
 // api/asistente.js — Locus Mundi
+// Versión 4 · 03/10/2026 · Diseño de la traducción, apartado 12, paso 7
+// (LOCUS_MUNDI_DISENO_TRADUCIR.md v2; Continuidad, sesión "03/10/2026 (lectura nueva)").
+// Cambio respecto a la v3: se retira la operación "traduccion" (gratis, sin cuenta y con
+// el texto enviado por el navegador: cualquiera podía usarla como traductor de cualquier
+// texto). La traducción para lectores la hace ahora api/traducir.js, que lee el texto de
+// Supabase. Una petición con operacion "traduccion" recibe OPERACION_DESCONOCIDA.
+// Nada más cambia.
 // Versión 3 · 30/09/2026 · Paso 5b del plan del Esquema del libro
 // (LOCUS_MUNDI_PLAN_ESQUEMA_v3.md; diseño en LOCUS_MUNDI_ESQUEMA_DEL_LIBRO_v5.md).
 // Cambio respecto a la v2: las instrucciones fijas de traducción y dictado piden
@@ -7,14 +14,13 @@
 // Versión 2 · 29/09/2026 · Pieza 3 (ver Continuidad, sesión 29/09/2026, punto 9).
 // Sustituye a la versión que aceptaba cualquier petición sin sesión ni saldo.
 //
-// Cada petición indica su "operacion":
-//   traduccion   → gratis, sin cuenta. Instrucciones fijas aquí. Límite de tamaño.
+// Cada petición indica su "operacion" (todas de pago):
 //   dictado      → tinta. Flash-Lite. Instrucciones fijas aquí.
 //   revision     → tinta. Flash-Lite. Instrucciones compuestas en la web.
 //   conversacion → tinta. Flash. Instrucciones compuestas en la web.
 // (moderacion se añadirá después, en api/moderar.js o aquí.)
 //
-// Las de pago exigen sesión de Supabase y tinta > 0. Tras cada respuesta
+// Exigen sesión de Supabase y tinta > 0. Tras cada respuesta
 // se resta el coste real, calculado con usageMetadata de Gemini.
 //
 // Variables de entorno (Vercel): GEMINI_API_KEY, SUPABASE_URL,
@@ -23,7 +29,6 @@
 // ─── Constantes (todo lo que puede cambiar, en un solo sitio) ───────────
 
 const MODELOS = {
-  traduccion:   'gemini-3.5-flash',       // la de hoy; la sustituirá api/traducir.js
   dictado:      'gemini-3.5-flash-lite',
   revision:     'gemini-3.5-flash-lite',
   conversacion: 'gemini-3.5-flash'
@@ -31,6 +36,7 @@ const MODELOS = {
 
 // Dólares por millón de tokens (precio oficial de Google). Los tokens de
 // "pensamiento" se cobran como salida.
+// OJO: duplicado en api/traducir.js; si cambian los precios, cambiarlos en los dos.
 const PRECIOS_USD = {
   'gemini-3.5-flash':      { entrada: 1.50, salida: 9.00 },
   'gemini-3.5-flash-lite': { entrada: 0.30, salida: 2.50 }
@@ -40,21 +46,12 @@ const PRECIOS_USD = {
 // que de menos. Revisar de vez en cuando.
 const DOLAR_A_EURO = 0.90;
 
-// Traducción gratuita: tamaño máximo del texto (caracteres).
-const MAX_TRADUCCION = 250000;
-
-// Operaciones de pago: tamaño máximo de todo lo enviado (caracteres),
+// Tamaño máximo de todo lo enviado (caracteres),
 // para que una petición no pueda vaciar la tinta de golpe por error.
 const MAX_PAGO = 400000;
 const MAX_TURNOS_HISTORIAL = 40;
 
-const OPERACIONES_PAGO = ['dictado', 'revision', 'conversacion'];
-
 // ─── Instrucciones fijas ────────────────────────────────────────────────
-
-function instruccionesTraduccion(idioma) {
-  return `Eres un traductor literario. Traduce este texto autobiográfico al ${idioma} preservando la voz personal. Adapta también la puntuación del diálogo y las comillas a la convención propia del ${idioma} —no conserves el guion de diálogo ni las comillas angulares del original si esa no es la convención habitual en el idioma de destino—. Las líneas entre corchetes, como [FOTO 2], son marcas técnicas: cópialas exactamente igual, sin traducirlas ni cambiarlas. Las líneas que empiezan por el signo ¶ (capítulo) o § (apartado) son títulos: conserva ese signo exactamente al principio de la línea, con la línea separada del resto como en el original, y traduce solo el texto que lo sigue. Solo la traducción.`;
-}
 
 function instruccionesDictado(idiomaInterfaz) {
   if (idiomaInterfaz === 'EN') {
@@ -186,6 +183,7 @@ module.exports = async function handler(req, res) {
   try {
     const { operacion, token, system, userMsg, history, idioma } = req.body || {};
 
+    // "traduccion" ya no existe aquí (v4): cae en OPERACION_DESCONOCIDA.
     if (!MODELOS[operacion]) {
       res.status(400).json({ error: 'OPERACION_DESCONOCIDA' });
       return;
@@ -197,23 +195,7 @@ module.exports = async function handler(req, res) {
 
     const modelo = MODELOS[operacion];
 
-    // ── Traducción para lectores: gratis, sin cuenta ──
-    if (operacion === 'traduccion') {
-      const idiomaLimpio = String(idioma || '').replace(/[\r\n]/g, ' ').trim().slice(0, 40);
-      if (!idiomaLimpio) {
-        res.status(400).json({ error: 'Falta idioma' });
-        return;
-      }
-      if (userMsg.length > MAX_TRADUCCION) {
-        res.status(413).json({ error: 'TEXTO_DEMASIADO_LARGO' });
-        return;
-      }
-      const { texto } = await llamarGemini(modelo, instruccionesTraduccion(idiomaLimpio), [], userMsg);
-      res.status(200).json({ text: texto });
-      return;
-    }
-
-    // ── Operaciones de pago: sesión y tinta ──
+    // ── Sesión y tinta ──
     const autorId = await autorDeLaSesion(token);
     if (!autorId) {
       res.status(401).json({ error: 'SIN_SESION' });
