@@ -92,6 +92,10 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .sec-h{font-family:var(--serif);font-size:2rem;font-weight:400;color:var(--ink);
   margin-bottom:2.2rem;border-bottom:1px solid var(--border);padding-bottom:0.9rem}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1.4rem}
+/* Inicio: los 3 libros más recientes en una fila (04/10/2026); tableta, dos; móvil, uno */
+.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:960px){.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.grid-3{grid-template-columns:1fr}}
 .card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;
   padding:1.4rem;cursor:pointer;transition:transform .2s,box-shadow .2s;display:flex;flex-direction:column;position:relative}
 .card:hover{transform:translateY(-3px);box-shadow:0 8px 26px var(--shadow)}
@@ -757,10 +761,10 @@ const T = {
     slogan:"Recuerda · Cuenta · Publica · Comparte",
     hero_sub:"Tu vida importa y merece ser preservada.",
     free_forever:"Gratis para siempre.",
-    btn_write:"Escribe tu historia",btn_explore:"Explorar la biblioteca",
-    recent_lbl:"Historias recientes",recent_h:"Voces del mundo",see_all:"Ver toda la biblioteca",
+    btn_write:"Escribe tu historia",btn_explore:"Explorar la Biblioteca",
+    recent_lbl:"Historias recientes",recent_h:"Voces del mundo",see_all:"Ver toda la Biblioteca",
     lib_incentive:"Tu historia importa y no está en venta. Escribe y lee gratis en cualquier idioma del mundo.",
-    lib_total_suffix:"historias publicadas",
+    lib_total_suffix:"historias publicadas",lib_archive_lbl:"Archivo global",
     cta_h1:"No hace falta ser escritor.",cta_h2:"Solo tener una vida que contar.",
     cta_body:"¿A quién no le gustaría mantener una última conversación con sus abuelos sobre el mundo que conocieron? Locus Mundi te invita a mantener esa conversación en el futuro con tus nietos.",
     cta_btn:"Empezar ahora — es gratis",
@@ -786,9 +790,9 @@ const T = {
     collab_a_sub:"Cuéntale a tus contactos que existimos, e invítales a hacer lo mismo con los suyos.",
     collab_copy_btn:"Ver y copiar texto para compartir",collab_copy_btn2:"Copiar",
     collab_copied:"✓ Copiado",collab_copy_manual:"No se pudo copiar automáticamente: selecciona el texto de arriba y cópialo a mano.",
-    share_after_publish_h:"Compártelo con quien quieras",
-    share_after_publish_sub:"Tu historia ya está publicada. Aquí tienes un mensaje con el enlace: puedes cambiarlo a tu gusto, copiarlo y enviarlo por correo o por WhatsApp.",
-    share_msg:"Hola. He publicado la historia de mi vida en Locus Mundi. Puedes leerla aquí: {link}. Un abrazo.",
+    share_after_publish_h:"Compártela con quien quieras.",
+    share_after_publish_sub:"Aquí tienes un mensaje con el enlace: puedes cambiarlo a tu gusto, copiarlo y enviarlo por correo o por WhatsApp.",
+    share_msg:"Hola. He publicado la historia de mi vida en Locus Mundi. Puedes leerla aquí:\n{link}\nUn abrazo.",
     share_copy_msg:"Copiar mensaje",share_my_book:"Compartir mi libro",
     link_opening:"Abriendo el libro…",link_missing:"Este libro no está disponible en este momento.",
     share_copy_btn:"Ver y copiar texto para compartir",
@@ -1067,10 +1071,10 @@ const T = {
     slogan:"Remember · Tell · Publish · Share",
     hero_sub:"Your life matters and deserves to be preserved.",
     free_forever:"Free forever.",
-    btn_write:"Write your story",btn_explore:"Explore the library",
-    recent_lbl:"Recent stories",recent_h:"Voices of the world",see_all:"See the full library",
+    btn_write:"Write your story",btn_explore:"Explore the Library",
+    recent_lbl:"Recent stories",recent_h:"Voices of the world",see_all:"See the whole Library",
     lib_incentive:"Your story matters, and it's not for sale. Write and read for free, in any language of the world.",
-    lib_total_suffix:"stories published",
+    lib_total_suffix:"stories published",lib_archive_lbl:"Global archive",
     cta_h1:"You don't need to be a writer.",cta_h2:"Just have a life to tell.",
     cta_body:"Who wouldn't want one last conversation with their grandparents about the world they knew? Locus Mundi invites you to have that conversation in the future with your grandchildren.",
     cta_btn:"Start now — it's free",
@@ -1096,9 +1100,9 @@ const T = {
     collab_a_sub:"Tell your contacts we exist, and invite them to do the same with theirs.",
     collab_copy_btn:"View and copy message to share",collab_copy_btn2:"Copy",
     collab_copied:"✓ Copied",collab_copy_manual:"Couldn't copy automatically: select the text above and copy it manually.",
-    share_after_publish_h:"Share it with anyone you'd like",
-    share_after_publish_sub:"Your story is now published. Here's a message with the link: you can change it as you like, copy it and send it by email or WhatsApp.",
-    share_msg:"Hi. I've published the story of my life on Locus Mundi. You can read it here: {link}. With love.",
+    share_after_publish_h:"Share it with anyone you like.",
+    share_after_publish_sub:"Here's a message with the link: you can change it as you like, copy it and send it by email or WhatsApp.",
+    share_msg:"Hi. I've published the story of my life on Locus Mundi. You can read it here:\n{link}\nWith love.",
     share_copy_msg:"Copy message",share_my_book:"Share my book",
     link_opening:"Opening the book…",link_missing:"This book isn't available at the moment.",
     share_copy_btn:"View and copy message to share",
@@ -1540,7 +1544,9 @@ function AutoCard({a,onClick,t}) {
   );
 }
 
-function Header({view,setView,lang,setLang,t,fsStep,setFsStep,fsSteps}) {
+function Header({view,setView:setViewRaw,lang,setLang,t,fsStep,setFsStep,fsSteps}) {
+  // Pulsar el botón de la página en la que ya se está también sube arriba (04/10/2026).
+  const setView=(v)=>{ if(v===view) window.scrollTo(0,0); setViewRaw(v); };
   return (
     <>
       <div className="notice">{t.archive}</div>
@@ -1569,7 +1575,12 @@ function Header({view,setView,lang,setLang,t,fsStep,setFsStep,fsSteps}) {
 }
 
 function Home({autos,openAuto,setView,t}) {
-  const sorted = [...autos].sort((a,b)=>(typeof a.id==="number"&&typeof b.id==="number")?a.id-b.id:0);
+  // Solo los 3 publicados más recientes (04/10/2026): los reales por fecha de publicación (la última vez
+  // que pasaron a publicados), de más reciente a más antiguo; si hay menos de 3, se completan con las
+  // muestras en su orden fijo. Las cifras de arriba siguen contando todos.
+  const reales = autos.filter(a=>typeof a.id!=="number").sort((a,b)=>String(b.fecha||"").localeCompare(String(a.fecha||"")));
+  const muestras = autos.filter(a=>typeof a.id==="number").sort((a,b)=>a.id-b.id);
+  const recientes = [...reales,...muestras].slice(0,3);
   return (
     <div>
       <section className="hero">
@@ -1593,7 +1604,10 @@ function Home({autos,openAuto,setView,t}) {
       <section className="sec">
         <div className="sec-lbl">{t.recent_lbl}</div>
         <div className="sec-h">{t.recent_h}</div>
-        <div className="grid">{sorted.map(a=><AutoCard key={a.id} a={a} onClick={()=>openAuto(a)} t={t}/>)}</div>
+        <div className="grid grid-3">{recientes.map(a=><AutoCard key={a.id} a={a} onClick={()=>openAuto(a)} t={t}/>)}</div>
+        <div style={{textAlign:"center",marginTop:"1.8rem"}}>
+          <button className="btn-navy-fill" onClick={()=>setView("library")}>{t.see_all}</button>
+        </div>
       </section>
       <section className="sec faq-sec">
         <div className="sec-lbl">{t.faq_lbl}</div>
@@ -1627,7 +1641,7 @@ function Library({autos,openAuto,t}) {
   const filt=sorted.filter(a=>{const s=q.toLowerCase();return !s||a.name.toLowerCase().includes(s)||a.country.toLowerCase().includes(s)||a.text.toLowerCase().includes(s)||a.tags.some(tg=>tg.toLowerCase().includes(s));});
   return (
     <section className="sec">
-      <div className="sec-lbl">Archivo global</div>
+      <div className="sec-lbl">{t.lib_archive_lbl}</div>
       <div className="sec-h">{t.recent_h}</div>
       {totalPub!==null&&<p style={{fontFamily:"var(--body)",fontWeight:600,color:"var(--navy)",marginTop:"-0.4rem",marginBottom:"0.6rem"}}>{totalPub} {t.lib_total_suffix}</p>}
       <p style={{fontFamily:"var(--body)",fontStyle:"italic",fontSize:"0.92rem",color:"var(--muted)",marginTop:"-0.5rem",marginBottom:"1.2rem"}}>{t.lib_incentive}</p>
@@ -2526,6 +2540,8 @@ const EDITOR_FAQ_ES = [
    a:"Selecciónalo y pulsa «Cursiva». Mientras escribes lo verás entre guiones bajos, _así_ —como en la edición manuscrita clásica, donde la cursiva se indicaba subrayando—; en el libro publicado aparecerá en cursiva."},
   {q:"¿Y si me equivoco?",
    a:"«↺ Deshacer» recupera la versión anterior del texto, hasta veinte pasos atrás. Sirve también para deshacer lo que hagas desde el Esquema."},
+  {q:"¿Por qué se subrayan en rojo palabras bien escritas?",
+   a:"El corrector de faltas en la ventana de texto lo pone tu navegador. Si marca como errores palabras correctas de tu idioma, activa ese idioma en los ajustes de idioma de tu navegador."},
   {q:"¿Cómo añado fotografías o uso el Asistente?",
    a:"Cada uno tiene su propia guía: «¿Cómo añadir tus fotografías?», junto a la compra de fotos, y «¿En qué puede ayudarte el Asistente?», en su ventana."}
 ];
@@ -2546,6 +2562,8 @@ const EDITOR_FAQ_EN = [
    a:"Select it and press \u201cItalics\u201d. While you write you'll see it between underscores, _like this_ \u2014as in classic manuscript editing, where italics were marked by underlining\u2014; in the published book it will appear in italics."},
   {q:"What if I make a mistake?",
    a:"\u201c\u21ba Undo\u201d brings back the previous version of the text, up to twenty steps back. It also undoes what you do from the Outline."},
+  {q:"Why are correctly spelt words underlined in red?",
+   a:"The spell checker in the text window is your browser's. If it marks correct words in your language as mistakes, turn that language on in your browser's language settings."},
   {q:"How do I add photos or use the Assistant?",
    a:"Each has its own guide: \u201cHow do I add my photos?\u201d, next to the photo purchase, and \u201cWhat can the Assistant help with?\u201d, in its window."}
 ];
@@ -4769,7 +4787,15 @@ ${capituloActual}
         </div>
 
         <div style={{paddingTop:"1rem",borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"0.6rem"}}>
-          <p className="wr-sub" style={{margin:0,fontSize:"0.8rem"}}>{t.ed_autosave} <span style={{color:"var(--navy)",textDecoration:"underline",cursor:"pointer",marginLeft:"0.4rem"}} onClick={()=>setShowEditorFaq(true)}>{t.ed_faq_link}</span></p>
+          <div>
+            <p className="wr-sub" style={{margin:0,fontSize:"0.8rem"}}>{t.ed_autosave} <span style={{color:"var(--navy)",textDecoration:"underline",cursor:"pointer",marginLeft:"0.4rem"}} onClick={()=>setShowEditorFaq(true)}>{t.ed_faq_link}</span></p>
+            {/* "Compartir" y "Despublicar" bajo "Autoguardado activo", solo con el libro publicado (04/10/2026);
+                "Compartir", como la guía del editor; "Despublicar", discreto. "Eliminar" se queda al final. */}
+            {f.published&&<p className="wr-sub" style={{margin:"0.45rem 0 0",fontSize:"0.8rem",display:"flex",flexWrap:"wrap",alignItems:"baseline",gap:"0.4rem 1.2rem"}}>
+              <span style={{color:"var(--navy)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>openShare("editor")}>{t.share_my_book}</span>
+              <span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setUnpubStep("confirm")}>{t.unpub_link}</span>
+            </p>}
+          </div>
           <button className="btn-out" style={{width:"auto",padding:"0.65rem 1.6rem"}} onClick={()=>setShowSaveExit(true)}>{t.ed_save_exit}</button>
         </div>
 
@@ -4814,8 +4840,6 @@ ${capituloActual}
         </div>
 
         <div style={{display:"flex",justifyContent:"center",gap:"1.2rem",flexWrap:"wrap"}}>
-          {f.published&&<span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setUnpubStep("confirm")}>{t.unpub_link}</span>}
-          {f.published&&<span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>openShare("editor")}>{t.share_my_book}</span>}
           <span style={{fontFamily:"var(--body)",fontSize:"0.72rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setWStep("privacy")}>{t.privacy_link}</span>
         </div>
       </div>
@@ -5069,6 +5093,7 @@ function App() {
       subtitle: c.subtitle || "",
       cover: row.portada_url || null,
       fotos: fotos || [],
+      fecha: row.fecha_publicacion || null, // orden del Inicio (04/10/2026)
       numero: row.numero_autor ?? null, // escrito solo por el disparador desde `autores` (03/10/2026)
       preview: storyExcerpt(c.text),
       text: c.text || "",
@@ -5097,8 +5122,11 @@ function App() {
       }
     })();
   };
-  useEffect(()=>{ loadLibrary(); },[]);
-  useEffect(()=>{ if(view==="library") loadLibrary(); },[view]);
+  // Se lee al entrar en el Inicio o en la Biblioteca (también al abrir la web, que empieza en el Inicio),
+  // para que un libro recién publicado o retitulado se vea sin recargar (04/10/2026).
+  useEffect(()=>{ if(view==="home"||view==="library") loadLibrary(); },[view]);
+  // Cada cambio de página empieza arriba (04/10/2026).
+  useEffect(()=>{ window.scrollTo(0,0); },[view]);
   // Enlace para compartir (04/10/2026, tarde): ?libro=<id de la historia> abre ese libro en la lectura.
   // Solo se piden libros publicados y no marcados (y así lo exige también la regla de Supabase).
   const [libroParam]=useState(()=>{ try{ return new URLSearchParams(window.location.search).get("libro"); }catch(e){ return null; } });
@@ -5107,10 +5135,12 @@ function App() {
     if(!libroParam) return;
     (async () => {
       let auto=null;
-      if(/^[0-9a-f-]{36}$/i.test(libroParam)){
+      // Se busca el identificador dentro de lo que llegue, aunque traiga pegado un punto u otro signo (04/10/2026).
+      const m=String(libroParam).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+      if(m){
         const { data: row } = await supa.from("historias")
           .select("id, titulo, contenido, idioma_original, fecha_publicacion, portada_url, numero_autor")
-          .eq("id", libroParam).eq("estado_publicacion","publicado").eq("marcado_borrado", false).maybeSingle();
+          .eq("id", m[0].toLowerCase()).eq("estado_publicacion","publicado").eq("marcado_borrado", false).maybeSingle();
         if(row){
           const { data: fotosRows } = await supa.from("fotos")
             .select("id, historia_id, url, pie_foto, orden").eq("historia_id", row.id);
@@ -5172,7 +5202,7 @@ function App() {
           {view==="library"&&<Library autos={autos} openAuto={open} t={t}/>}
           {view==="read"&&<Read auto={sel} setView={setView} t={t}/>}
         </>}
-      {view==="write"&&<Write setView={setView} onPublish={a=>{setAutos(p=>[...p,a]);}} onUnpublish={id=>setAutos(p=>p.filter(x=>x.id!==id))} t={t} lang={lang} onLegal={()=>setShowLegal("condiciones")} recoveryMode={recoveryMode} onRecoveryDone={()=>setRecoveryMode(false)}/>}
+      {view==="write"&&<Write setView={setView} onPublish={a=>{setAutos(p=>[...p.filter(x=>x.id!==a.id),{...a,fecha:new Date().toISOString()}]);}} onUnpublish={id=>setAutos(p=>p.filter(x=>x.id!==id))} t={t} lang={lang} onLegal={()=>setShowLegal("condiciones")} recoveryMode={recoveryMode} onRecoveryDone={()=>setRecoveryMode(false)}/>}
       <Footer t={t} onContact={()=>setShowContact(true)} onLegal={setShowLegal} onCollab={()=>setShowCollab(true)} onFaq={()=>setShowFaq(true)} onGift={()=>setShowGift(true)}/>
       {showGift&&<GiftModal onClose={()=>setShowGift(false)} t={t}/>}
       {showContact&&<ContactModal onClose={()=>setShowContact(false)} t={t}/>}
