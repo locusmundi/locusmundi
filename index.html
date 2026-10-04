@@ -617,6 +617,29 @@ function toAngleQuotes(str, lang){
   let open=true;
   return str.replace(/["“”]/g,()=>{ const q=open?st[0]:st[1]; open=!open; return q; });
 }
+// Francés (04/10/2026): espacio fino inseparable SIEMPRE dentro de « », también cuando las
+// comillas ya venían escritas (por el Autor o por la traducción con IA), para que la línea no
+// se parta nunca tras « ni antes de ». Ver Diseño de traducir v3, apartado 13.
+function frenchQuoteSpaces(str){
+  return str.replace(/«[\s\u00A0\u202F]*/g,"«\u202F").replace(/[\s\u00A0\u202F]*»/g,"\u202F»");
+}
+// Marca [FOTO n] (y variantes de la traducción): misma regla que renderStoryBody.
+const FOTO_MARK_RE = /^\[\s*([^\]\d\s][^\]\d]*?)\s*(\d+)\s*\]$/;
+// Extracto de las tarjetas de la Biblioteca (04/10/2026; Continuidad, sesiones "03/10/2026 (tarde)",
+// punto 5, y "03/10/2026 (interfaz)", punto 5). Sin ¶, §, [FOTO n] ni guiones bajos o asteriscos
+// de la cursiva; empieza por el primer párrafo de prosa; si hay que cortar, se corta en un espacio
+// y termina en "…". Si la prosa entera cabe, se muestra entera, sin "…".
+function storyExcerpt(text, max=88){
+  const prose = (text||"").split("\n\n").map(p=>p.trim()).filter(p=>p &&
+    !p.startsWith(CHAPTER_SIGN) && !p.startsWith(SECTION_SIGN) && !FOTO_MARK_RE.test(p));
+  let s = prose.join(" ").replace(/\s+/g," ").trim();
+  s = s.replace(/(^|[^\p{L}\p{N}_*])([_*])([^_*\n]+?)\2(?=$|[^\p{L}\p{N}_*])/gu,(m,a,b,c)=>a+c);
+  if(s.length<=max) return s;
+  let cut = s.slice(0,max);
+  const sp = cut.lastIndexOf(" ");
+  if(sp>max*0.5) cut = cut.slice(0,sp);
+  return cut.replace(/[\s,;:.\-–—«“"'(]+$/,"")+"…";
+}
 function renderStoryBody(text, fotos=[], lang=null) {
   return (text||"").split("\n\n").map((raw,i)=>{
     const p = raw.replace(/—/g,"–");
@@ -624,7 +647,7 @@ function renderStoryBody(text, fotos=[], lang=null) {
     // Marcador [FOTO n]. Tolerante a propósito: si la traducción por IA cambiara la palabra
     // (p. ej. [PHOTO 2], [FOTOGRAFÍA 2]), basta con corchetes + palabra + número final.
     // Exige una palabra delante del número, para no confundir una línea como "[1990]".
-    const fm = trimmed.match(/^\[\s*([^\]\d\s][^\]\d]*?)\s*(\d+)\s*\]$/);
+    const fm = trimmed.match(FOTO_MARK_RE);
     const fmFoto = fm && fotos.find(x=>String(x.orden)===fm[2]);
     if(fm && !(fmFoto && fmFoto.url) && /^(foto|photo)/i.test(fm[1])) return null; // [FOTO n] sin foto real detrás: no se muestra nada al lector
     if(fmFoto && fmFoto.url){
@@ -655,7 +678,8 @@ function renderStoryBody(text, fotos=[], lang=null) {
       const body = trimmed.slice(SECTION_SIGN.length).trim();
       return <h3 key={i} style={{fontFamily:"var(--serif)",fontSize:"1.15rem",color:"var(--navy)",margin:"2rem 0 0.8rem",paddingBottom:"0.4rem",borderBottom:"1px solid var(--border)"}}>{body}</h3>;
     }
-    return <p key={i}>{renderInline(toAngleQuotes(p, lang))}</p>;
+    const q = toAngleQuotes(p, lang);
+    return <p key={i}>{renderInline(lang==="FR" ? frenchQuoteSpaces(q) : q)}</p>;
   });
 }
 // librerías). Se usa para la respuesta de seguridad: nunca se guarda en
@@ -816,6 +840,17 @@ const T = {
     wiz_cond_tag:"Antes de empezar a escribir",wiz_cond_h:"Condiciones de Publicación",
     wiz_cond_sub:"Léelas con calma — son cortas.",wiz_cond_start_btn:"Empezar a escribir",
     ed_change_cover:"Cambiar portada",
+    // Subida de interfaz (Continuidad, sesión "03/10/2026 (interfaz)", punto 5)
+    ed_upload_cover:"Subir imagen de portada",
+    ed_photo_menu_h:"Colocar en el punto del cursor:",
+    ed_photo_menu_empty:"No tienes fotos subidas sin colocar. Súbelas más abajo, en «Fotos añadidas».",
+    ed_photo_need_buy:"Para añadir fotografías a tu libro, primero tienes que adquirirlas aquí.",
+    ed_ai_btn:"✦ Asistente",
+    ed_ai_btn_msg:"Un asistente con IA que te acompaña mientras escribes: te lee, sugiere correcciones y te ayuda a ordenar tus recuerdos. Aquí puedes ver en qué te ayuda y activarlo.",
+    ed_book_lang:"Idioma del libro",
+    ed_book_lang_note:"Es el idioma en que escribes. Cambiarlo no traduce tu texto.",
+    addon_pdf_unpub:"Podrás crear el archivo PDF de tu libro cuando lo publiques.",
+    privacy_home_btn:"Ir al inicio",
     ed_blocks_h:"Orden del libro — sube, baja, renombra o borra. Si no divides, todo vive en el Capítulo 1.",
     ed_add_chapter:"+ Capítulo",ed_add_apartado:"+ Apartado",
     ed_chapter_word:"capítulo",ed_apartado_word:"apartado",ed_untitled:"sin título",
@@ -890,7 +925,7 @@ const T = {
     privacy_delete_warn:"Esto borra tu historia para siempre, con todas sus fotografías, también las que hayas pagado, e incluido tu propio archivo. No hay vuelta atrás, ni siquiera para ti. La tinta del Asistente que te quede se conserva en tu cuenta. Si solo quieres que no se lea, usa \"Despublicar mi historia\" en vez de esto.",
     privacy_delete_error:"No se ha podido eliminar tu historia. No se ha borrado nada. Inténtalo de nuevo dentro de un momento.",
     save_error_banner:"No se ha podido guardar tu trabajo. Lo seguimos intentando; no cierres esta página hasta que desaparezca este aviso.",
-    photos_add_error:"No se han podido añadir las fotos. Inténtalo de nuevo dentro de un momento.",
+    photos_add_error:"Ha habido un problema al preparar tus fotos y puede que no aparezcan todas. No vuelvas a pagarlas: escríbenos a contactlocusmundi@gmail.com y lo resolvemos.",
     ai_setup_h:"Prepara tu Asistente para este libro",ai_setup_start:"Empezar",ai_active_short:"✓ Asistente activo",
     privacy_delete_phrase:"quiero borrar mi historia para siempre",
     privacy_delete_phrase_lbl:"Escribe exactamente esta frase para continuar:",
@@ -1109,6 +1144,16 @@ const T = {
     wiz_cond_tag:"Before you start writing",wiz_cond_h:"Publishing Terms",
     wiz_cond_sub:"Take your time — they're short.",wiz_cond_start_btn:"Start writing",
     ed_change_cover:"Change cover",
+    ed_upload_cover:"Upload cover image",
+    ed_photo_menu_h:"Place at the cursor:",
+    ed_photo_menu_empty:"You have no uploaded photos left to place. Upload them further down, under «Added photos».",
+    ed_photo_need_buy:"To add photos to your book, you first need to get them here.",
+    ed_ai_btn:"✦ Assistant",
+    ed_ai_btn_msg:"An AI assistant that keeps you company while you write: it reads your writing, suggests corrections and helps you organise your memories. Here you can see how it helps and activate it.",
+    ed_book_lang:"Book language",
+    ed_book_lang_note:"This is the language you write in. Changing it does not translate your text.",
+    addon_pdf_unpub:"You'll be able to create the PDF of your book once you publish it.",
+    privacy_home_btn:"Go to the home page",
     ed_blocks_h:"Book order — move up, down, rename or delete. If you don't split it, everything lives in Chapter 1.",
     ed_add_chapter:"+ Chapter",ed_add_apartado:"+ Section",
     ed_chapter_word:"chapter",ed_apartado_word:"section",ed_untitled:"untitled",
@@ -1182,7 +1227,7 @@ const T = {
     privacy_delete_warn:"This deletes your story forever, with all its photographs, including any you paid for, and your own file too. There's no going back, not even for you. Any Assistant ink you have left stays in your account. If you just want it unread, use \"Unpublish my story\" instead.",
     privacy_delete_error:"Your story could not be deleted. Nothing has been removed. Please try again in a moment.",
     save_error_banner:"Your work could not be saved. We're still trying; please don't close this page until this notice disappears.",
-    photos_add_error:"The photos could not be added. Please try again in a moment.",
+    photos_add_error:"There was a problem setting up your photos and some may be missing. Please don't pay for them again: write to us at contactlocusmundi@gmail.com and we'll sort it out.",
     ai_setup_h:"Set up your Assistant for this book",ai_setup_start:"Start",ai_active_short:"✓ Assistant active",
     privacy_delete_phrase:"I want to delete my story forever",
     privacy_delete_phrase_lbl:"Type this exact phrase to continue:",
@@ -1442,7 +1487,9 @@ function FaqItem({q,a}) {
 }
 
 function AutoCard({a,onClick,t}) {
-  const num=String(a.id).padStart(4,"0");
+  // Muestras de SAMPLE: su propio número (id 1–4). Libros reales: historias.numero_autor (04/10/2026).
+  const raw = ("numero" in a) ? a.numero : a.id;
+  const num = raw==null ? "—" : String(raw).padStart(4,"0");
   return (
     <div className={"card fu"+(a.founder?" card-founder":"")} onClick={onClick}>
       {a.founder&&<div className="founder-ribbon">Autor fundador</div>}
@@ -2970,6 +3017,12 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   });
   const [fotosDb,setFotosDb]=useState([]); // filas reales de la tabla `fotos` (no viven en contenido/f)
   const fotoSaveTimers=useRef({}); // debounce del pie de foto, por id
+  // Número de Autor y marca de Autor Fundador (04/10/2026): salen siempre de `autores.numero_autor`.
+  // La copia antigua del libro (contenido.authorNumber / founder) no se lee ni se vuelve a guardar:
+  // era la causa de que "Mía" mostrara el 2 en vez del 3. Criterio provisional de fundador: Nº <= 100
+  // (el definitivo, "los 100 primeros + los 10 primeros de cada país", queda para la Fase B2).
+  const [numAutor,setNumAutor]=useState(null);
+  const esFundador = numAutor!=null && numAutor<=100;
   // Guardado robusto (03/10/2026): si crear o guardar la historia falla, se avisa en una
   // franja visible y se reintenta solo; nunca se aparenta guardar lo que no se ha guardado.
   const [saveError,setSaveError]=useState(false);
@@ -2989,8 +3042,9 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       if(!user){ loadedRef.current=true; return; }
       autorIdRef.current = user.id;
       // Tinta del Asistente (solo lectura: el navegador no puede cambiarla).
-      supa.from("autores").select("tinta_euros, tinta_ultima_carga").eq("id", user.id).maybeSingle()
-        .then(({data:a})=>{ if(a) setTinta({tinta:Number(a.tinta_euros)||0, ultimaCarga:Number(a.tinta_ultima_carga)||0}); });
+      // Número de Autor (04/10/2026): siempre el de `autores`, nunca la copia guardada en el libro.
+      supa.from("autores").select("tinta_euros, tinta_ultima_carga, numero_autor").eq("id", user.id).maybeSingle()
+        .then(({data:a})=>{ if(a){ setTinta({tinta:Number(a.tinta_euros)||0, ultimaCarga:Number(a.tinta_ultima_carga)||0}); setNumAutor(a.numero_autor ?? null); } });
       const { data, error } = await supa.from("historias")
         .select("id, titulo, contenido, portada_url")
         .eq("autor_id", user.id).eq("marcado_borrado", false).limit(1).maybeSingle();
@@ -3051,7 +3105,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       const wasPublished = wasPublishedRef.current;
       const justPublished = f.published && !wasPublished;
       const justUnpublished = !f.published && wasPublished;
-      const { coverImg, ...contenido } = f;
+      const { coverImg, authorNumber, founder, ...contenido } = f; // el número no se guarda en el libro (04/10/2026)
       const payload = {
         autor_id: autorIdRef.current,
         titulo: f.title || "",
@@ -3265,8 +3319,24 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   };
   const [showPhotoMenu,setShowPhotoMenu]=useState(false);
   const photoInsertPosRef=useRef(0);
+  // "+ Fotografía" sin fotos compradas y "✦ Asistente" sin derecho (04/10/2026): bajan a su caja
+  // de oferta, la resaltan y muestran un mensaje dentro de ella durante unos segundos.
+  const [offerHint,setOfferHint]=useState(null); // {id, msg}
+  const offerHintTimerRef=useRef(null);
+  const goToOffer=(id,msg)=>{
+    setShowPhotoMenu(false);
+    setOfferHint({id,msg});
+    clearTimeout(offerHintTimerRef.current);
+    offerHintTimerRef.current=setTimeout(()=>setOfferHint(null),12000);
+    setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:"smooth",block:"center"}),0);
+  };
+  const offerBoxStyle=(id,color)=>offerHint&&offerHint.id===id
+    ? {boxShadow:`0 0 0 3px ${color}`,transition:"box-shadow 0.3s"} : {transition:"box-shadow 0.3s"};
+  const offerHintMsg=(id,color)=>offerHint&&offerHint.id===id
+    ? <div role="status" style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"var(--ink)",background:"var(--bg3)",borderLeft:`3px solid ${color}`,padding:"0.5rem 0.7rem",marginBottom:"0.6rem",lineHeight:1.5}}>{offerHint.msg}</div>
+    : null;
   const openPhotoMenu=()=>{
-    if(photosBought===0) return;
+    if(photosBought===0){ goToOffer("lm-offer-photos", t.ed_photo_need_buy); return; }
     photoInsertPosRef.current = taRef.current ? taRef.current.selectionStart : f.text.length;
     setShowPhotoMenu(v=>!v);
   };
@@ -3909,7 +3979,7 @@ ${capituloActual}
       const pid=Date.now();
       onPublish({id:pid,name:f.name,born:parseInt(f.born)||0,country:f.country||"—",
         flag:"✍️",lang:f.lang,title:f.title||f.name,subtitle:f.subtitle||"",
-        cover:f.coverImg||null,fotos:fotosDb.filter(x=>x.url),preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"],
+        cover:f.coverImg||null,fotos:fotosDb.filter(x=>x.url),numero:numAutor,preview:storyExcerpt(f.text),text:f.text,tags:["nueva historia"],
         city:f.pubCity||"",profession:f.pubProfession||"",concept:f.pubConcept||""});
       setF(p=>({...p,published:true,publishedId:pid}));
       setPub(true);
@@ -3925,14 +3995,12 @@ ${capituloActual}
   // en Supabase (columna `numero_autor` de `autores`) mediante el trigger de alta
   // en el momento del registro. Aquí solo lo leemos para mostrarlo. ----
   useEffect(()=>{
-    if(wStep==="numero"&&!f.authorNumber){
+    if(wStep==="numero"&&numAutor==null){
       (async () => {
         const { data: { user } } = await supa.auth.getUser();
         if(!user) return;
         const { data, error } = await supa.from("autores").select("numero_autor").eq("id", user.id).single();
-        if(!error && data){
-          setF(p=>({...p,authorNumber:data.numero_autor,founder:data.numero_autor<=100}));
-        }
+        if(!error && data) setNumAutor(data.numero_autor ?? null);
       })();
     }
   },[wStep]);
@@ -4147,7 +4215,7 @@ ${capituloActual}
     lastUnpublishedRef.current={
       id:f.publishedId,name:f.name,born:parseInt(f.born)||0,country:f.country||"—",
       flag:"✍️",lang:f.lang,title:f.title||f.name,subtitle:f.subtitle||"",
-      cover:f.coverImg||null,fotos:fotosDb.filter(x=>x.url),preview:f.text.slice(0,88)+"...",text:f.text,tags:["nueva historia"],
+      cover:f.coverImg||null,fotos:fotosDb.filter(x=>x.url),numero:numAutor,preview:storyExcerpt(f.text),text:f.text,tags:["nueva historia"],
       city:f.pubCity||"",profession:f.pubProfession||"",concept:f.pubConcept||""
     };
     onUnpublish(f.publishedId);
@@ -4262,9 +4330,9 @@ ${capituloActual}
       {topBar}
       {narrowCard(<>
         <div style={{textAlign:"center",padding:"1rem 0"}}>
-          <div style={{fontFamily:"var(--serif)",fontSize:"3rem",color:"var(--navy)",lineHeight:1}}>Nº {f.authorNumber||"—"}</div>
-          <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",letterSpacing:"0.15em",textTransform:"uppercase",color:"var(--muted)",marginTop:"0.3rem"}}>{t.wiz_number_lbl} {f.authorNumber||"—"} {"de Locus Mundi"}</div>
-          {f.founder&&<div style={{marginTop:"1rem",display:"inline-flex",alignItems:"center",gap:"0.4rem",background:"rgba(196,147,42,0.12)",border:"1px solid var(--gold)",color:"var(--gold)",fontFamily:"var(--body)",fontSize:"0.78rem",letterSpacing:"0.08em",padding:"0.4rem 0.9rem",borderRadius:"20px"}}>{t.wiz_founder}</div>}
+          <div style={{fontFamily:"var(--serif)",fontSize:"3rem",color:"var(--navy)",lineHeight:1}}>Nº {numAutor||"—"}</div>
+          <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",letterSpacing:"0.15em",textTransform:"uppercase",color:"var(--muted)",marginTop:"0.3rem"}}>{t.wiz_number_lbl} {numAutor||"—"} {"de Locus Mundi"}</div>
+          {esFundador&&<div style={{marginTop:"1rem",display:"inline-flex",alignItems:"center",gap:"0.4rem",background:"rgba(196,147,42,0.12)",border:"1px solid var(--gold)",color:"var(--gold)",fontFamily:"var(--body)",fontSize:"0.78rem",letterSpacing:"0.08em",padding:"0.4rem 0.9rem",borderRadius:"20px"}}>{t.wiz_founder}</div>}
         </div>
         <button className="btn-pub" style={{width:"100%"}} onClick={()=>setWStep("condiciones")}>{t.wiz_continue}</button>
       </>)}
@@ -4276,7 +4344,7 @@ ${capituloActual}
     <div className="wr-wrap">
       {topBar}
       {narrowCard(<>
-        <button className="back" onClick={()=>{setDeleteStep(null);setDeletePhrase("");setWStep("editor");}}>{t.privacy_back_btn}</button>
+        {deleteStep!=="done"&&<button className="back" onClick={()=>{setDeleteStep(null);setDeletePhrase("");setWStep("editor");}}>{t.privacy_back_btn}</button>}
         <h2 className="wr-h">{t.privacy_h}</h2>
         {deleteStep===null&&(<>
           <div style={{background:"rgba(178,59,59,0.06)",border:"1px solid #b23b3b",borderRadius:"3px",padding:"0.9rem 1rem",marginBottom:"1.1rem"}}>
@@ -4300,7 +4368,9 @@ ${capituloActual}
         </>)}
         {deleteStep==="done"&&(<>
           <p className="ok-msg">{t.privacy_delete_done_h}</p>
-          <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={()=>{setDeleteStep(null);setDeletePhrase("");setWStep("datos");}}>{t.wiz_continue}</button>
+          {/* 04/10/2026: un solo botón, "Ir al inicio"; desde ahí el Autor decide si empieza otro libro
+              ("Escribe tu historia" vuelve a montar el editor y abre el primer paso). */}
+          <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={()=>{setDeleteStep(null);setDeletePhrase("");setWStep("datos");setView("home");}}>{t.privacy_home_btn}</button>
         </>)}
       </>)}
     </div>
@@ -4466,13 +4536,23 @@ ${capituloActual}
               {coverPreviewSrc()&&<img src={coverPreviewSrc()} alt="portada" style={{height:"52px",width:"38px",objectFit:"cover",borderRadius:"2px",border:"1px solid var(--border)",opacity:isCoverUploading()?0.5:1}}/>}
               {isCoverUploading()&&<span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</span>}
               <label style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
-                {t.ed_change_cover}
+                {(f.coverImg||coverPreviewSrc())?t.ed_change_cover:t.ed_upload_cover}
                 <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"cover"})}/>
               </label>
               {f.coverImg&&!isCoverUploading()&&<span style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--navy)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setFotoEditor({type:"cover"})}>{t.fe_edit}</span>}
             </div>
           </div>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_name}</label><ConfirmedInput value={f.name} onCommit={v=>up("name",v)} needsConfirm={!!f.published} confirmMsg={t.ed_confirm_name}/></div>
+          </div>
+          {/* Idioma del libro editable (04/10/2026; Continuidad "03/10/2026 (interfaz)", punto 5). Se guarda en
+              f.lang, y de ahí en historias.idioma_original al guardar: comillas, Biblioteca e idiomas de
+              traducción se ajustan solos. No traduce nada y no cambia el idioma del dictado. */}
+          <div className="frow" style={{marginBottom:"0.9rem",alignItems:"center"}}>
+            <div className="fld" style={{marginBottom:0}}>
+              <label className="lbl">{t.ed_book_lang}</label>
+              <select className="inp" value={f.lang} onChange={e=>up("lang",e.target.value)}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
+            </div>
+            <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",lineHeight:1.5,paddingTop:"1.2rem"}}>{t.ed_book_lang_note}</div>
           </div>
 
           <div className="mob-offers-strip">
@@ -4528,15 +4608,17 @@ ${capituloActual}
             <button type="button" className="toolbar-btn" onClick={()=>addBlock("chapter")}>{t.ed_add_chapter}</button>
             <button type="button" className="toolbar-btn" onClick={()=>addBlock("apartado")}>{t.ed_add_apartado}</button>
             <div style={{position:"relative",display:"inline-block"}}>
-              <button type="button" className="toolbar-btn" style={photosBought>0?{}:{opacity:0.4,cursor:"not-allowed"}} onClick={openPhotoMenu}>{t.ed_add_photo}</button>
+              <button type="button" className="toolbar-btn" onClick={openPhotoMenu}>{t.ed_add_photo}</button>
               {showPhotoMenu&&(
-                <div style={{position:"absolute",top:"100%",left:0,zIndex:5,marginTop:"0.3rem",background:"var(--bg1)",border:"1px solid var(--border)",borderRadius:"2px",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",minWidth:"160px",padding:"0.3rem 0"}}>
+                /* 04/10/2026: fondo azul marino de la casa (antes var(--bg1), que no existe: era transparente) */
+                <div style={{position:"absolute",top:"100%",left:0,zIndex:20,marginTop:"0.3rem",background:"var(--navy)",color:"#fff",border:"1px solid var(--navy)",borderRadius:"2px",boxShadow:"0 6px 20px rgba(0,0,0,0.35)",minWidth:"220px",maxWidth:"300px",padding:"0.35rem 0"}}>
+                  <div style={{padding:"0.35rem 0.8rem 0.4rem",fontFamily:"var(--body)",fontSize:"0.74rem",color:"rgba(255,255,255,0.75)",borderBottom:"1px solid rgba(255,255,255,0.2)",marginBottom:"0.2rem"}}>{t.ed_photo_menu_h}</div>
                   {fotosDb.filter(ph=>ph.url&&!isFotoPlaced(ph)).length===0
-                    ? <div style={{padding:"0.5rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)"}}>{lang==="EN"?"Empty folder":"Carpeta vacía"}</div>
+                    ? <div style={{padding:"0.5rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.8rem",color:"#fff",lineHeight:1.5}}>{t.ed_photo_menu_empty}</div>
                     : fotosDb.filter(ph=>ph.url&&!isFotoPlaced(ph)).map(ph=>(
-                        <div key={ph.id} style={{padding:"0.5rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.82rem",cursor:"pointer"}}
+                        <div key={ph.id} style={{padding:"0.5rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.86rem",color:"#fff",cursor:"pointer"}}
                           onClick={()=>insertFotoMarker(ph,photoInsertPosRef.current)}
-                          onMouseEnter={e=>e.currentTarget.style.background="var(--bg2)"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                          onMouseEnter={e=>e.currentTarget.style.background="#2E5A9A"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                           {t.photo_word.charAt(0).toUpperCase()+t.photo_word.slice(1)+" "+ph.orden}
                         </div>
                       ))}
@@ -4545,6 +4627,7 @@ ${capituloActual}
             </div>
             <button type="button" className="toolbar-btn" onClick={applyItalic}><i>{t.ed_italic}</i></button>
             <button type="button" className="toolbar-btn" onClick={undo}>{t.ed_undo}</button>
+            {tinta&&!hasAiRight&&<button type="button" className="toolbar-btn" onClick={()=>goToOffer("lm-offer-ai", t.ed_ai_btn_msg)}>{t.ed_ai_btn}</button>}
           </div>
           <div style={{display:"flex",gap:"0.4rem",marginBottom:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
             <input className="inp" type="text" enterKeyHint="search" style={{flex:"1 1 200px",minWidth:0}}
@@ -4605,8 +4688,11 @@ ${capituloActual}
                     fontFamily:"var(--body)",fontSize:"0.96rem",lineHeight:"1.2",boxSizing:"border-box",
                     background:"#2a6a2a",border:"1px solid #2a6a2a",borderRadius:"2px",
                     color:"#fff",cursor:"pointer"}} onClick={()=>{
-                    if(f.assistantActive) setShowAiPanel(true);
-                    else { setAiTuUsted(null); setAiNameDraft(f.name||""); setShowAiSetup(true); }
+                    // 04/10/2026: si el libro ha cambiado a un idioma con tú/usted y aún no hay tratamiento
+                    // elegido, se muestra otra vez "Prepara tu Asistente para este libro" (sin coste).
+                    const needsTreatment = asksTuUsted && !f.assistantTuUsted;
+                    if(f.assistantActive && !needsTreatment) setShowAiPanel(true);
+                    else { setAiTuUsted(null); setAiNameDraft(f.assistantName||f.name||""); setShowAiSetup(true); }
                   }}>
                   ✦ {t.ai_open_panel}
                 </button>}
@@ -4626,7 +4712,8 @@ ${capituloActual}
             <div className="pm-feat"><span className="pm-feat-t">{t.one_img}</span><span className="badge free">{t.free}</span></div>
             <div className="pm-feat"><span className="pm-feat-t">{t.permanent_archive}</span><span className="badge free">{t.free}</span></div>
           </div>
-          <div id="lm-offer-ai" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--navy)",borderRadius:"2px"}}>
+          <div id="lm-offer-ai" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--navy)",borderRadius:"2px",...offerBoxStyle("lm-offer-ai","var(--navy)")}}>
+            {offerHintMsg("lm-offer-ai","var(--navy)")}
             <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--navy)",fontWeight:"600",marginBottom:"0.2rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.ai_sub_label}</div>
             <div style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginBottom:"0.4rem"}}>{t.ai_hours_note}</div>
             {!hasAiRight
@@ -4638,7 +4725,8 @@ ${capituloActual}
               </span>
             </div>
           </div>
-          <div id="lm-offer-photos" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
+          <div id="lm-offer-photos" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px",...offerBoxStyle("lm-offer-photos","var(--gold)")}}>
+            {offerHintMsg("lm-offer-photos","var(--gold)")}
             <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_photos_h}</div>
             <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_photos_sub}</span><span className={`badge ${photosBought>0?"on":"prem"}`}>{photosBought>0?`${photosBought} ${t.photo_word}s`:`€1/${t.photo_word}`}</span></div>
             <button className="pm-unlock" onClick={()=>setShowPhotosM(true)}>{photosBought>0?t.addon_photos_add_more:t.addon_photos_btn}</button>
@@ -4651,7 +4739,9 @@ ${capituloActual}
           <div id="lm-offer-pdf" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
             <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_pdf_h}</div>
             <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_pdf_sub}</span><span className={`badge ${pdfBought?"on":"prem"}`}>{pdfBought?`DIN ${pdfBought}`:"€5"}</span></div>
-            {!pdfBought&&<button className="pm-unlock" onClick={()=>setShowPdfM(true)}>{t.addon_pdf_btn}</button>}
+            {!pdfBought&&(f.published
+              ? <button className="pm-unlock" onClick={()=>setShowPdfM(true)}>{t.addon_pdf_btn}</button>
+              : <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--muted)",fontStyle:"italic"}}>{t.addon_pdf_unpub}</div>)}
           </div>
         </div>
 
@@ -4899,7 +4989,7 @@ function App() {
   const loadLibrary=()=>{
     (async () => {
       const { data, error } = await supa.from("historias")
-        .select("id, titulo, contenido, idioma_original, fecha_publicacion, portada_url")
+        .select("id, titulo, contenido, idioma_original, fecha_publicacion, portada_url, numero_autor")
         .eq("estado_publicacion","publicado")
         .eq("marcado_borrado", false)
         .order("fecha_publicacion",{ascending:false});
@@ -4923,7 +5013,8 @@ function App() {
             subtitle: c.subtitle || "",
             cover: row.portada_url || null,
             fotos: fotosByHistoria[row.id] || [],
-            preview: (c.text||"").slice(0,88)+"...",
+            numero: row.numero_autor ?? null, // escrito solo por el disparador desde `autores` (03/10/2026)
+            preview: storyExcerpt(c.text),
             text: c.text || "",
             tags: ["memoria"],
             city: c.pubCity || "", profession: c.pubProfession || "", concept: c.pubConcept || ""
