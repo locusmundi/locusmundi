@@ -3364,6 +3364,17 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     else setFotosDb(p=>p.map(x=>x.id===target.fotoId?{...x,url}:x));
   };
   const [showPhotoMenu,setShowPhotoMenu]=useState(false);
+  // 05/10/2026: el cuadro de "+ Fotografía" se cierra al pulsar fuera de él o con la tecla Esc.
+  const photoMenuWrapRef=useRef(null);
+  useEffect(()=>{
+    if(!showPhotoMenu) return;
+    const fuera=(e)=>{ if(photoMenuWrapRef.current&&!photoMenuWrapRef.current.contains(e.target)) setShowPhotoMenu(false); };
+    const esc=(e)=>{ if(e.key==="Escape") setShowPhotoMenu(false); };
+    document.addEventListener("mousedown",fuera);
+    document.addEventListener("touchstart",fuera);
+    document.addEventListener("keydown",esc);
+    return ()=>{ document.removeEventListener("mousedown",fuera); document.removeEventListener("touchstart",fuera); document.removeEventListener("keydown",esc); };
+  },[showPhotoMenu]);
   const photoInsertPosRef=useRef(0);
   // "+ Fotografía" sin fotos compradas y "✦ Asistente" sin derecho (04/10/2026): bajan a su caja
   // de oferta, la resaltan y muestran un mensaje dentro de ella durante unos segundos.
@@ -4255,7 +4266,11 @@ ${capituloActual}
   };
   const applyItalic=()=>{
     const ta=taRef.current; if(!ta) return;
-    const {selectionStart:s,selectionEnd:eIdx}=ta;
+    let {selectionStart:s,selectionEnd:eIdx}=ta;
+    // 05/10/2026: los espacios y saltos de línea de los bordes de la selección (el doble clic de
+    // Windows coge la palabra y el espacio de detrás) quedan fuera de los guiones: "_Cuando_ ".
+    while(s<eIdx&&/\s/.test(f.text[s])) s++;
+    while(eIdx>s&&/\s/.test(f.text[eIdx-1])) eIdx--;
     if(s===eIdx) return;
     pushHistory();
     const nv=f.text.slice(0,s)+"_"+f.text.slice(s,eIdx)+"_"+f.text.slice(eIdx);
@@ -4693,7 +4708,7 @@ ${capituloActual}
           <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
             <button type="button" className="toolbar-btn" onClick={()=>addBlock("chapter")}>{t.ed_add_chapter}</button>
             <button type="button" className="toolbar-btn" onClick={()=>addBlock("apartado")}>{t.ed_add_apartado}</button>
-            <div style={{position:"relative",display:"inline-block"}}>
+            <div ref={photoMenuWrapRef} style={{position:"relative",display:"inline-block"}}>
               <button type="button" className="toolbar-btn" onClick={openPhotoMenu}>{t.ed_add_photo}</button>
               {showPhotoMenu&&(
                 /* 04/10/2026: fondo azul marino de la casa (antes var(--bg1), que no existe: era transparente) */
