@@ -1,27 +1,39 @@
 // api/foto-editor.js — Editor de fotos con IA (Locus Mundi, pieza 5)
-// Versión 2 · 03/10/2026 · Sustituye a la versión 1 (01/10/2026).
-// Cambio respecto a la v1: no se trabaja nunca sobre una historia marcada para
-// borrar ("Eliminar mi historia"). (1) resolverObjetivo responde "no encontrada"
-// si la historia de la foto o de la portada está marcada; (2) puedeEditarPortada
-// solo cuenta las historias vivas del Autor. Motivo: con el índice parcial (una
-// sola historia viva por Autor, 03/10/2026) puede convivir 30 días la historia
-// eliminada con la nueva. Ver Continuidad, sesión "03/10/2026". Nada más cambia.
-// Versión 1 · 01/10/2026 · Diseño: Continuidad, sesión "01/10/2026 (noche)",
-// puntos 1, 4, 5 y 6; decisiones del 29/09 (punto 4: 4 ediciones, portada).
+// Versión 3 · 05/10/2026 · Sustituye a la versión 2 (03/10/2026).
+// Cambios respecto a la v2 (diseño: Continuidad, sesión "05/10/2026 (fotos)"):
+//   (1) Original recuperable. Antes de sobrescribir por primera vez una foto o la
+//       portada (al aceptar una edición o guardar un tono) se guarda una copia en
+//       {base}-original.jpg y se anota en fotos.original_url /
+//       historias.portada_original_url. Si la copia no se puede hacer, no se
+//       sobrescribe nada.
+//   (2) La IA trabaja siempre sobre el original: "proponer" envía la copia si
+//       existe; si no, la imagen actual (que entonces es el original).
+//   (3) Operación nueva "volverOriginal": repone la copia, vacía la columna y borra
+//       la copia y la propuesta. No toca contadores.
+//   (4) "proponer" devuelve también baseUrl (la imagen que recibió la IA), para que
+//       el navegador componga "Colorear" (luz del original + color de la IA).
+// Compatible con el index.html anterior: las operaciones y respuestas de la v2 no
+// cambian; solo se añaden campos y una operación.
+// Supabase (05/10/2026): columnas fotos.original_url e historias.portada_original_url;
+// los disparadores fotos_contadores e historias_contador_portada impiden que el
+// navegador las escriba y las vacían si el Autor cambia o quita la imagen.
+// Versión 2 · 03/10/2026 · No se trabaja sobre historias marcadas para borrar.
+// Versión 1 · 01/10/2026 · Diseño: Continuidad, sesión "01/10/2026 (noche)".
 //
 // Operaciones (POST, JSON):
-//   proponer     {token, objetivo, fotoId|historiaId, restaurar, colorear}
-//   aceptar      {token, objetivo, fotoId|historiaId, imagen}  (JPG ya convertido en el navegador)
-//   descartar    {token, objetivo, fotoId|historiaId}
-//   guardarTono  {token, objetivo, fotoId|historiaId, imagen}  (B/N o sepia hecho en el navegador)
+//   proponer       {token, objetivo, fotoId|historiaId, restaurar, colorear}
+//   aceptar        {token, objetivo, fotoId|historiaId, imagen}  (JPG ya convertido en el navegador)
+//   descartar      {token, objetivo, fotoId|historiaId}
+//   guardarTono    {token, objetivo, fotoId|historiaId, imagen}  (B/N o sepia hecho en el navegador)
+//   volverOriginal {token, objetivo, fotoId|historiaId}
 // objetivo = "foto" (con fotoId) o "portada" (con historiaId).
 //
-// Todo se escribe con la clave de servicio: los disparadores fotos_contadores e
-// historias_contador_portada dejan pasar el cambio sin gastar el cambio de imagen.
-// Por eso este servidor lleva él mismo la cuenta de ediciones (no lo hace el disparador).
+// Todo se escribe con la clave de servicio: los disparadores dejan pasar el cambio
+// sin gastar el cambio de imagen. Por eso este servidor lleva él mismo la cuenta de
+// ediciones y la columna del original (no lo hace el disparador).
 
 const LIMITE_EDICIONES = 4; // único sitio donde vive el 4
-const MODELO = "gemini-3.1-flash-image-preview"; // Nano Banana 2 (ver nota en la entrega)
+const MODELO = "gemini-3.1-flash-image-preview"; // Nano Banana 2
 const TAMANO_IMAGEN = "2K";
 const BUCKET = "fotos";
 const MAX_JPG_BYTES = 3 * 1024 * 1024; // un JPG de 1.600 px pesa mucho menos
@@ -30,7 +42,8 @@ const SUPA_URL = process.env.SUPABASE_URL;
 const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
-// ---------- Instrucciones para Nano Banana (aprobadas el 29/09 y el 01/10) ----------
+// ---------- Instrucciones para Nano Banana (aprobadas el 29/09 y el 01/10; sin cambios) ----------
+// Con "Colorear" solo, el navegador usa únicamente el color de la propuesta (05/10/2026).
 const PROMPT_FIJO =
   'This is a real photograph of real people, part of a family memoir archive. Do not alter facial features, apparent age, expression, build, hairstyle or clothing. Do not beautify, rejuvenate, smooth the skin or correct "imperfections". Do not add or remove people, objects or background elements. Do not change the framing or proportions. When in doubt, preserve. Fidelity takes priority over aesthetics.';
 const PROMPT_RESTAURAR =
@@ -124,39 +137,44 @@ function urlPublica(ruta) {
 
 // ---------- Objetivo: foto o portada, con comprobación de propiedad ----------
 // Rutas idénticas a fotoStoragePath del index.html: {autor}/{historia}/foto-{id}.jpg o cover.jpg
-// v2: una historia marcada para borrar se trata como inexistente (no se edita,
-// no se gasta IA ni se guardan imágenes que la purga va a borrar).
+// Copia del original (v3): {base}-original.jpg, en la misma carpeta (la purga v2 la borra).
+// v2: una historia marcada para borrar se trata como inexistente.
 async function resolverObjetivo(body, autorId) {
   if (body.objetivo === "portada") {
     if (!ID_VALIDO.test(String(body.historiaId || ""))) return null;
-    const h = (await leer("historias", `id=eq.${body.historiaId}`, "id,autor_id,portada_url,portada_ediciones_ia,marcado_borrado"))[0];
+    const h = (await leer("historias", `id=eq.${body.historiaId}`,
+      "id,autor_id,portada_url,portada_ediciones_ia,portada_original_url,marcado_borrado"))[0];
     if (!h || h.autor_id !== autorId || h.marcado_borrado === true) return null;
     return {
       tipo: "portada",
       url: h.portada_url,
+      original: h.portada_original_url || null,
       ediciones: h.portada_ediciones_ia || 0,
       base: `${autorId}/${h.id}/cover`,
       tabla: "historias",
       filtro: `id=eq.${h.id}`,
       colUrl: "portada_url",
       colEdiciones: "portada_ediciones_ia",
+      colOriginal: "portada_original_url",
     };
   }
   if (body.objetivo === "foto") {
     if (!ID_VALIDO.test(String(body.fotoId || ""))) return null;
-    const f = (await leer("fotos", `id=eq.${body.fotoId}`, "id,historia_id,url,ediciones_ia"))[0];
+    const f = (await leer("fotos", `id=eq.${body.fotoId}`, "id,historia_id,url,ediciones_ia,original_url"))[0];
     if (!f) return null;
     const h = (await leer("historias", `id=eq.${f.historia_id}`, "id,autor_id,marcado_borrado"))[0];
     if (!h || h.autor_id !== autorId || h.marcado_borrado === true) return null;
     return {
       tipo: "foto",
       url: f.url,
+      original: f.original_url || null,
       ediciones: f.ediciones_ia || 0,
       base: `${autorId}/${h.id}/foto-${f.id}`,
       tabla: "fotos",
       filtro: `id=eq.${f.id}`,
       colUrl: "url",
       colEdiciones: "ediciones_ia",
+      colOriginal: "original_url",
     };
   }
   return null;
@@ -184,6 +202,30 @@ function leerJpg(imagen) {
   return buf;
 }
 
+// v3: la imagen de partida de la IA es la copia del original si existe; si no
+// (foto nunca editada, o copia perdida), la imagen actual.
+async function imagenDePartida(obj) {
+  if (obj.original) {
+    const ruta = `${obj.base}-original.jpg`;
+    const img = await descargar(ruta);
+    if (img) return { img, url: urlPublica(ruta) };
+  }
+  const img = await descargar(`${obj.base}.jpg`);
+  return img ? { img, url: obj.url } : null;
+}
+
+// v3: antes de la primera sobrescritura, copia la imagen actual a {base}-original.jpg.
+// Devuelve la URL de la copia (o la existente). Lanza error si no puede: así nunca
+// se sobrescribe una foto sin haber guardado antes su original.
+async function asegurarOriginal(obj) {
+  if (obj.original) return obj.original;
+  const actual = await descargar(`${obj.base}.jpg`);
+  if (!actual) throw new Error("ORIGINAL_SIN_ARCHIVO");
+  const ruta = `${obj.base}-original.jpg`;
+  await subir(ruta, actual.buffer, actual.tipo || "image/jpeg");
+  return urlPublica(ruta);
+}
+
 // ---------- Operaciones ----------
 async function proponer(body, obj, autorId, res) {
   const restaurar = !!body.restaurar;
@@ -197,9 +239,10 @@ async function proponer(body, obj, autorId, res) {
     return res.status(403).json({ error: "PORTADA_NO_INCLUIDA" });
   }
 
-  // La imagen actual la descarga el servidor: el navegador no puede colar otra a la IA.
-  const original = await descargar(`${obj.base}.jpg`);
-  if (!original) return res.status(404).json({ error: "SIN_IMAGEN" });
+  // La imagen la descarga el servidor: el navegador no puede colar otra a la IA.
+  const partida = await imagenDePartida(obj);
+  if (!partida) return res.status(404).json({ error: "SIN_IMAGEN" });
+  const original = partida.img;
 
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
     method: "POST",
@@ -235,6 +278,7 @@ async function proponer(body, obj, autorId, res) {
 
   return res.status(200).json({
     propuestaUrl: urlPublica(rutaPropuesta),
+    baseUrl: partida.url, // v3: imagen que recibió la IA (para componer "Colorear")
     ediciones: nuevas,
     limite: LIMITE_EDICIONES,
     restantes: LIMITE_EDICIONES - nuevas,
@@ -245,17 +289,32 @@ async function guardarImagen(body, obj, res, borrarPropuesta) {
   if (!obj.url) return res.status(400).json({ error: "SIN_IMAGEN" });
   const jpg = leerJpg(body.imagen);
   if (!jpg) return res.status(400).json({ error: "IMAGEN_NO_VALIDA" });
+  const originalUrl = await asegurarOriginal(obj); // v3: antes de sobrescribir
   const ruta = `${obj.base}.jpg`;
   await subir(ruta, jpg, "image/jpeg");
   const url = urlPublica(ruta);
-  await actualizar(obj.tabla, obj.filtro, { [obj.colUrl]: url }); // service_role: no gasta el cambio
+  // service_role: no gasta el cambio de imagen; anota la copia del original
+  await actualizar(obj.tabla, obj.filtro, { [obj.colUrl]: url, [obj.colOriginal]: originalUrl });
   if (borrarPropuesta) await borrar([`${obj.base}-propuesta`]);
-  return res.status(200).json({ url });
+  return res.status(200).json({ url, tieneOriginal: true });
 }
 
 async function descartar(obj, res) {
   await borrar([`${obj.base}-propuesta`]); // la edición queda gastada (29/09, punto 4b)
   return res.status(200).json({ ok: true });
+}
+
+// v3: repone la copia del original. No toca contadores.
+async function volverOriginal(obj, res) {
+  if (!obj.original) return res.status(400).json({ error: "SIN_ORIGINAL" });
+  const copia = await descargar(`${obj.base}-original.jpg`);
+  if (!copia) return res.status(404).json({ error: "SIN_ORIGINAL" });
+  const ruta = `${obj.base}.jpg`;
+  await subir(ruta, copia.buffer, copia.tipo || "image/jpeg");
+  const url = urlPublica(ruta);
+  await actualizar(obj.tabla, obj.filtro, { [obj.colUrl]: url, [obj.colOriginal]: null });
+  await borrar([`${obj.base}-original.jpg`, `${obj.base}-propuesta`]);
+  return res.status(200).json({ url, tieneOriginal: false });
 }
 
 // ---------- Entrada ----------
@@ -275,6 +334,7 @@ module.exports = async function handler(req, res) {
       case "aceptar": return await guardarImagen(body, obj, res, true);
       case "guardarTono": return await guardarImagen(body, obj, res, false);
       case "descartar": return await descartar(obj, res);
+      case "volverOriginal": return await volverOriginal(obj, res);
       default: return res.status(400).json({ error: "OPERACION_DESCONOCIDA" });
     }
   } catch (e) {
