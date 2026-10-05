@@ -4124,7 +4124,9 @@ ${capituloActual}
           : err==="language-not-supported" ? "lang" : "other";
         setDictNotice(k);
       } else if(!err && !dictUserStopRef.current){
-        setDictNotice("silence");
+        // 05/10/2026, noche: Chrome puede apagar el micrófono sin error tras un silencio. Si no se
+        // había dicho nada, el aviso correcto es "No te he oído", no "lo que habías dicho se conserva".
+        setDictNotice(hadText?"silence":"nospeech");
       }
       finishDictation();
     };
