@@ -1,4 +1,10 @@
 // api/asistente.js — Locus Mundi
+// Versión 5 · 05/10/2026 · Pendientes del Asistente v6, §4 (Continuidad, sesión
+// "05/10/2026 (Asistente)"). Cambio respecto a la v4: la instrucción del dictado es una
+// sola, en inglés, y dice en qué idioma está el texto. El navegador envía en "idioma" el
+// idioma en que se ha escuchado (etiqueta como "ca-ES"); se siguen aceptando "ES" y "EN"
+// del index.html anterior. Una etiqueta que no tenga forma de idioma se ignora (no se
+// copia nunca a la instrucción). Se pide además no tocar tildes. Nada más cambia.
 // Versión 4 · 03/10/2026 · Diseño de la traducción, apartado 12, paso 7
 // (LOCUS_MUNDI_DISENO_TRADUCIR.md v2; Continuidad, sesión "03/10/2026 (lectura nueva)").
 // Cambio respecto a la v3: se retira la operación "traduccion" (gratis, sin cuenta y con
@@ -53,11 +59,39 @@ const MAX_TURNOS_HISTORIAL = 40;
 
 // ─── Instrucciones fijas ────────────────────────────────────────────────
 
-function instruccionesDictado(idiomaInterfaz) {
-  if (idiomaInterfaz === 'EN') {
-    return 'Fix ONLY capitalization and punctuation in the following literal speech transcript. Do not change, add, remove, reorder or rephrase a single word. If a line starts with the sign ¶ or §, keep that sign exactly as it is. Return only the corrected text, nothing else.';
+// Nombre (en inglés) de cada idioma de dictado. Las etiquetas vienen del selector 🌐 del
+// editor o del idioma del libro. Las que no estén aquí se nombran "the original language".
+const IDIOMAS_DICTADO = {
+  es: 'Spanish', en: 'English', ca: 'Catalan', gl: 'Galician', eu: 'Basque',
+  fr: 'French', de: 'German', it: 'Italian', nl: 'Dutch', pl: 'Polish', ro: 'Romanian',
+  'pt-PT': 'European Portuguese (Portugal)', 'pt-BR': 'Brazilian Portuguese', pt: 'Portuguese',
+  ar: 'Arabic', zh: 'Chinese', ko: 'Korean', hi: 'Hindi', ja: 'Japanese', ru: 'Russian'
+};
+
+// "ca-ES" → "Catalan"; "pt-BR" → "Brazilian Portuguese"; "ES"/"EN" (index.html anterior)
+// → "Spanish"/"English". Solo se aceptan etiquetas con forma de idioma.
+function nombreIdioma(idioma) {
+  const s = String(idioma || '').trim();
+  if (s === 'EN') return 'English';
+  if (s === 'ES' || !s) return 'Spanish';
+  if (!/^[A-Za-z]{2,3}(-[A-Za-z]{2,4})?$/.test(s)) return null;
+  const [base, region] = s.split('-');
+  const b = base.toLowerCase();
+  if (b === 'pt' && region) {
+    const r = region.toUpperCase();
+    if (IDIOMAS_DICTADO['pt-' + r]) return IDIOMAS_DICTADO['pt-' + r];
   }
-  return 'Corrige ÚNICAMENTE las mayúsculas y los signos de puntuación del siguiente texto, transcrito literalmente de un dictado por voz. No cambies, añadas, quites, reordenes ni reformules ni una sola palabra. Si una línea empieza por el signo ¶ o §, conserva ese signo exactamente igual. Devuelve solo el texto corregido, sin nada más.';
+  return IDIOMAS_DICTADO[b] || null;
+}
+
+function instruccionesDictado(idioma) {
+  const nombre = nombreIdioma(idioma);
+  const lengua = nombre || 'the original language';
+  return `The following text is a literal transcript of speech in ${lengua}. ` +
+    `Fix ONLY capitalization and punctuation, following the rules of ${lengua}. ` +
+    'Do not change, add, remove, reorder, translate or rephrase a single word, and do not add or remove accents. ' +
+    'If a line starts with the sign ¶ or §, keep that sign exactly as it is. ' +
+    'Return only the corrected text, nothing else.';
 }
 
 // ─── Supabase (por su API REST, sin librerías) ──────────────────────────
