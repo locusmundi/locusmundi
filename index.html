@@ -717,10 +717,13 @@ function dictationLangFor(f, uiLang){
   return (f&&f.dictationLang) || DICT_TAG[String((f&&f.lang)||"").toUpperCase()] || (uiLang==="EN"?"en-US":"es-ES");
 }
 // Red de seguridad del dictado (05/10/2026, §4.A), sin IA: la versión puntuada solo vale si tiene
-// exactamente las mismas palabras que lo dictado. No cuentan mayúsculas ni puntuación; sí las
-// tildes ("el" ≠ "él"). Además, los mismos signos ¶ y §. Más estricta que correctionIsFaithful.
+// exactamente las mismas palabras que lo dictado. No cuentan mayúsculas, puntuación ni tildes
+// (05/10, noche: el navegador escribe a veces "que" por "qué", y poner la tilde es ortografía,
+// como una coma); sí cuentan ñ y ç, letras propias (año ≠ ano). Además, los mismos ¶ y §.
 function dictationIsLiteral(original, corrected){
-  const words=s=>String(s||"").normalize("NFC").toLowerCase().replace(/[^\p{L}\p{M}\p{N}\s]/gu," ").split(/\s+/).filter(Boolean);
+  const fold=c=>"ñç".includes(c)?c:c.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  const words=s=>Array.from(String(s||"").normalize("NFC").toLowerCase()).map(fold).join("")
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu," ").split(/\s+/).filter(Boolean);
   const signs=(s,c)=>(String(s||"").split(c).length-1);
   const a=words(original), b=words(corrected);
   if(!b.length || a.length!==b.length) return false;
