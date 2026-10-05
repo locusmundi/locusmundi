@@ -1,4 +1,9 @@
 // api/asistente.js — Locus Mundi
+// Versión 6 · 05/10/2026, noche · Cambio respecto a la v5: la instrucción del dictado ya no
+// prohíbe tocar las tildes; permite corregirlas según la ortografía, sin cambiar ninguna letra
+// ni palabra (la IA ponía bien "qué" y la prohibición era contraproducente; la red de seguridad
+// del index.html deja de contar las tildes). Nada más cambia. Ver Continuidad, sesión
+// "05/10/2026 (Asistente)".
 // Versión 5 · 05/10/2026 · Pendientes del Asistente v6, §4 (Continuidad, sesión
 // "05/10/2026 (Asistente)"). Cambio respecto a la v4: la instrucción del dictado es una
 // sola, en inglés, y dice en qué idioma está el texto. El navegador envía en "idioma" el
@@ -89,7 +94,7 @@ function instruccionesDictado(idioma) {
   const lengua = nombre || 'the original language';
   return `The following text is a literal transcript of speech in ${lengua}. ` +
     `Fix ONLY capitalization and punctuation, following the rules of ${lengua}. ` +
-    'Do not change, add, remove, reorder, translate or rephrase a single word, and do not add or remove accents. ' +
+    'You may correct accent marks where the spelling requires it, but do not change, add, remove, reorder, translate or rephrase a single word. ' +
     'If a line starts with the sign ¶ or §, keep that sign exactly as it is. ' +
     'Return only the corrected text, nothing else.';
 }
