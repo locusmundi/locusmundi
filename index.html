@@ -710,6 +710,26 @@ const LANGS_UI = [
 // Idioma del libro (04/10/2026, tarde): etiqueta para el navegador (corrector) y nombre en el idioma de la interfaz.
 const LANG_TAG = {ES:"es",EN:"en",FR:"fr",DE:"de",IT:"it","PT-PT":"pt-PT","PT-BR":"pt-BR",PT:"pt",ZH:"zh",AR:"ar",JA:"ja",RU:"ru",HI:"hi",GL:"gl",CA:"ca"};
 function bookLangTag(code){ return LANG_TAG[String(code||"ES").toUpperCase()]||"es"; }
+// Dictado (05/10/2026, Pendientes del Asistente §4.C): por defecto se escucha en el idioma del libro.
+const DICT_TAG = {ES:"es-ES",EN:"en-US",FR:"fr-FR",DE:"de-DE",IT:"it-IT","PT-PT":"pt-PT","PT-BR":"pt-BR",PT:"pt-PT",
+  ZH:"zh-CN",AR:"ar-SA",JA:"ja-JP",RU:"ru-RU",HI:"hi-IN",GL:"gl-ES",CA:"ca-ES"};
+function dictationLangFor(f, uiLang){
+  return (f&&f.dictationLang) || DICT_TAG[String((f&&f.lang)||"").toUpperCase()] || (uiLang==="EN"?"en-US":"es-ES");
+}
+// Red de seguridad del dictado (05/10/2026, §4.A), sin IA: la versión puntuada solo vale si tiene
+// exactamente las mismas palabras que lo dictado. No cuentan mayúsculas ni puntuación; sí las
+// tildes ("el" ≠ "él"). Además, los mismos signos ¶ y §. Más estricta que correctionIsFaithful.
+function dictationIsLiteral(original, corrected){
+  const words=s=>String(s||"").normalize("NFC").toLowerCase().replace(/[^\p{L}\p{M}\p{N}\s]/gu," ").split(/\s+/).filter(Boolean);
+  const signs=(s,c)=>(String(s||"").split(c).length-1);
+  const a=words(original), b=words(corrected);
+  if(!b.length || a.length!==b.length) return false;
+  for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return false;
+  return signs(original,"¶")===signs(corrected,"¶") && signs(original,"§")===signs(corrected,"§");
+}
+// Globos de ayuda (05/10/2026): cada uno sale la primera vez que se usa su botón en cada visita,
+// hasta que el Autor pulsa "No volver a mostrar" (guardado en este navegador).
+const GLOBOS_VISTOS = new Set();
 function langNameIn(code, ui){
   const tag=bookLangTag(code);
   try{
@@ -960,7 +980,7 @@ const T = {
     privacy_delete_done_h:"Tu historia se ha eliminado por completo.",
     privacy_back_btn:"← Volver a mi libro",
     ai_h:"Asistente IA",ai_sub:"La IA se adapta a tu voz y tu idioma. Escribe abajo tus dudas o consultas.",
-    ai_open_panel:"Abrir el Asistente",ai_listen:"Escucha y habla",ai_stop_listen:"Detener",ai_dict_processing:"Escribiendo lo que has dicho…",
+    ai_open_panel:"Abrir el Asistente",ai_listen:"Escucha y habla",ai_stop_listen:"Detener",ai_dict_processing:"Escribiendo lo que has dicho…",ai_dict_n_literal:"Hemos dejado el dictado tal como se oyó, sin puntuar, para no cambiarte ninguna palabra.",ai_dict_n_perm:"El navegador no deja usar el micrófono. Permítelo en el candado de la barra de direcciones y vuelve a pulsar «Escucha y habla».",ai_dict_n_mic:"No se detecta ningún micrófono. Comprueba que esté conectado.",ai_dict_n_nospeech:"No te he oído. Vuelve a pulsar «Escucha y habla» y habla cerca del micrófono.",ai_dict_n_net:"Se ha cortado la conexión del dictado. Lo que habías dicho se conserva; vuelve a pulsar «Escucha y habla» para seguir.",ai_dict_n_lang:"Tu navegador no puede dictar en este idioma. Elige otro en 🌐 o escribe directamente.",ai_dict_n_silence:"El dictado se ha detenido tras un silencio. Lo que habías dicho se conserva; pulsa «Escucha y habla» para seguir.",ai_dict_n_other:"El dictado se ha interrumpido. Lo que habías dicho se conserva; vuelve a pulsar «Escucha y habla».",ai_ink_none_note:"Se ha agotado la tinta del Asistente. Recárgalo para seguir usándolo; lo que has escrito está a salvo.",ai_ink_low_note:"Queda poca tinta del Asistente.",dict_default_opt:"Idioma del libro",dict_select_title:"Idioma de dictado (por defecto, el del libro)",globo_dismiss:"No volver a mostrar",globo_close:"Cerrar",
     ai_usage_h:"Uso de IA",ai_usage_ok:"Queda tinta de sobra",ai_usage_mid:"La tinta se está acabando",
     ai_usage_low:"Queda muy poca tinta",ai_usage_none:"Se ha agotado la tinta",
     ai_recharge_btn:"Recargar el Asistente",
@@ -1270,7 +1290,7 @@ const T = {
     privacy_delete_done_h:"Your story has been completely deleted.",
     privacy_back_btn:"← Back to my book",
     ai_h:"AI Assistant",ai_sub:"The AI adapts to your voice and your language. Type your questions or queries below.",
-    ai_open_panel:"Open the Assistant",ai_listen:"Listen and speak",ai_stop_listen:"Stop",ai_dict_processing:"Writing down what you said…",
+    ai_open_panel:"Open the Assistant",ai_listen:"Listen and speak",ai_stop_listen:"Stop",ai_dict_processing:"Writing down what you said…",ai_dict_n_literal:"We've left the dictation exactly as it was heard, without punctuation, so as not to change any of your words.",ai_dict_n_perm:"Your browser isn't allowing the microphone. Allow it from the padlock in the address bar and press “Listen and speak” again.",ai_dict_n_mic:"No microphone detected. Check that it's connected.",ai_dict_n_nospeech:"I didn't hear you. Press “Listen and speak” again and speak close to the microphone.",ai_dict_n_net:"The dictation connection was lost. What you had said is kept; press “Listen and speak” again to continue.",ai_dict_n_lang:"Your browser can't take dictation in this language. Choose another in 🌐 or type directly.",ai_dict_n_silence:"Dictation stopped after a silence. What you had said is kept; press “Listen and speak” to continue.",ai_dict_n_other:"Dictation was interrupted. What you had said is kept; press “Listen and speak” again.",ai_ink_none_note:"The Assistant has run out of ink. Top it up to keep using it; what you've written is safe.",ai_ink_low_note:"The Assistant is running low on ink.",dict_default_opt:"Book language",dict_select_title:"Dictation language (by default, the book's)",globo_dismiss:"Don't show again",globo_close:"Close",
     ai_usage_h:"AI usage",ai_usage_ok:"Plenty of ink left",ai_usage_mid:"Ink is running low",
     ai_usage_low:"Very little ink left",ai_usage_none:"Out of ink",
     ai_recharge_btn:"Top up the Assistant",
@@ -3390,6 +3410,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     // bloque_id ya no se escribe (Esquema del libro v5, paso 7): nadie lo leía y la estructura
     // del libro se lee ahora directamente del texto.
     setShowPhotoMenu(false);
+    showGlobo("photo");
   };
   const removePhoto=async(fotoId)=>{
     const n=await imagenesCargadas(fotoId);
@@ -3549,6 +3570,13 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [showAssistantFaq,setShowAssistantFaq]=useState(false);
   const [showPhotosFaq,setShowPhotosFaq]=useState(false);
   const [showEditorFaq,setShowEditorFaq]=useState(false);
+  const [globo,setGlobo]=useState(null); // "italic" | "chapter" | "section" | "photo"
+  const showGlobo=(k)=>{
+    try{ if(window.localStorage.getItem("lm_globo_off_"+k)) return; }catch(e){}
+    if(GLOBOS_VISTOS.has(k)) return;
+    GLOBOS_VISTOS.add(k); setGlobo(k);
+  };
+  const globoNever=(k)=>{ try{ window.localStorage.setItem("lm_globo_off_"+k,"1"); }catch(e){} setGlobo(null); };
   // Las fotos compradas son los huecos que existen en la tabla `fotos` (lo único que
   // sobrevive a recargar la página); antes era un contador en memoria que volvía a 0.
   const photosBought=fotosDb.length;const [pdfBought,setPdfBought]=useState(null);
@@ -3573,6 +3601,11 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const [chatLoading,setChatLoading]=useState(false);
   const [listening,setListening]=useState(false);
   const [dictProcessing,setDictProcessing]=useState(false);
+  // 05/10/2026 (§1 y §4): aviso bajo la caja "Tú" e idioma en que se ha escuchado.
+  const [dictNotice,setDictNotice]=useState(null);
+  const dictLangRef=useRef("es-ES");
+  const dictErrRef=useRef(null);
+  const dictUserStopRef=useRef(false);
   const recognitionRef=useRef(null);
   const dictationBufferRef=useRef("");
   const dictationPrecedingRef=useRef("");
@@ -3769,12 +3802,23 @@ sin más. Tus únicas funciones activas sobre el texto son:
   ORTOTIPOGRÁFICA OFRECIDA (más abajo).
 - Sugerir que desarrolle, reformule o simplifique una escena, sin escribir
   tú esa alternativa.
-- Responder preguntas técnicas dentro de tus funciones conocidas de la
-  plataforma (cómo crear un capítulo, etc.). EXCEPCIÓN: si el Autor
-  pregunta cómo insertar, mover o colocar una foto, no se lo expliques
-  tú — dile que consulte «¿Cómo añadir tus fotografías?», el enlace
-  que hay junto al botón de comprar fotos, porque ese mecanismo puede cambiar y no debe haber dos sitios
-  con instrucciones distintas.
+- No expliques el funcionamiento de la plataforma. Si el Autor pregunta
+  cómo se usa algo, dile en una sola frase qué guía consultar y dónde
+  está, porque el mecanismo puede cambiar y no debe haber dos sitios con
+  instrucciones distintas:
+  · fotos (subir, colocar, mover, cambiar, editar o mejorar con IA):
+    «¿Cómo añadir tus fotografías?» (en inglés, "How do I add my
+    photos?"), el enlace junto a la compra de fotos;
+  · el editor (capítulos, apartados, Esquema del libro, buscador,
+    cursiva, portada, publicar, compartir): «¿Cómo funciona el editor de
+    textos?» ("How does the text editor work?"), el enlace junto a
+    «Autoguardado activo» ("Autosave on.");
+  · el propio Asistente (qué hace, tinta, dictado, voz): «¿En qué puede
+    ayudarte el Asistente?» ("What can the Assistant help with?"), el
+    enlace de esta misma ventana;
+  · precios, cuenta o privacidad: las «Preguntas frecuentes» de la web
+    ("FAQ").
+  Cita la guía con su título en el idioma en que te escribe el Autor.
 - Apreciar brevemente lo ya escrito.
 - Vigilar los títulos escritos a mano. Los capítulos y apartados solo
   cuentan como tales si se crean con los botones "+ Capítulo" /
@@ -4041,7 +4085,12 @@ ${capituloActual}
       recognitionRef.current=null;
     }
     const rec=new SR();
-    rec.lang=f.dictationLang||(lang==="EN"?"en-US":"es-ES");
+    const dl=dictationLangFor(f, lang); // §4.C: por defecto, el idioma del libro
+    rec.lang=dl;
+    dictLangRef.current=dl;
+    dictErrRef.current=null;
+    dictUserStopRef.current=false;
+    setDictNotice(null);
     rec.continuous=true;
     rec.interimResults=false;
     rec.maxAlternatives=1;
@@ -4059,8 +4108,24 @@ ${capituloActual}
         setChatInput(prev=>(prev?prev+" ":"")+finalText.trim());
       }
     };
-    rec.onend=()=>{ setListening(false); finishDictation(); };
-    rec.onerror=()=>setListening(false);
+    // §1 (05/10/2026): el micrófono nunca se apaga sin decir por qué. Lo dictado se conserva.
+    rec.onend=()=>{
+      setListening(false);
+      const err=dictErrRef.current;
+      const hadText=!!dictationBufferRef.current.trim();
+      if(err && err!=="aborted"){
+        const k = (err==="not-allowed"||err==="service-not-allowed") ? "perm"
+          : err==="audio-capture" ? "mic"
+          : err==="no-speech" ? (hadText?"silence":"nospeech")
+          : err==="network" ? "net"
+          : err==="language-not-supported" ? "lang" : "other";
+        setDictNotice(k);
+      } else if(!err && !dictUserStopRef.current){
+        setDictNotice("silence");
+      }
+      finishDictation();
+    };
+    rec.onerror=(e)=>{ dictErrRef.current=(e&&e.error)||"other"; setListening(false); };
     recognitionRef.current=rec;
     setListening(true);
     rec.start();
@@ -4070,12 +4135,16 @@ ${capituloActual}
     if(raw.trim()){
       const preceding=dictationPrecedingRef.current;
       dictationBufferRef.current="";
-      const sysCorr=lang==="EN"
-        ? "Fix ONLY capitalization and punctuation in the following literal speech transcript. Do not change, add, remove, reorder or rephrase a single word. Return only the corrected text, nothing else."
-        : "Corrige ÚNICAMENTE las mayúsculas y los signos de puntuación del siguiente texto, transcrito literalmente de un dictado por voz. No cambies, añadas, quites, reordenes ni reformules ni una sola palabra. Devuelve solo el texto corregido, sin nada más.";
-      callAI({operacion:"dictado",idioma:lang,system:sysCorr,userMsg:raw}).then(d=>{
+      setDictProcessing(true);
+      // §4.B (05/10/2026): se envía el idioma en que se ha escuchado; la instrucción está en el
+      // servidor (api/asistente.js v5). §4.A: si la versión puntuada cambia alguna palabra, se
+      // descarta y queda el texto tal como se oyó, con un aviso.
+      callAI({operacion:"dictado",idioma:dictLangRef.current,userMsg:raw}).then(d=>{
         applyTinta(d);
-        const clean=(d.text||raw).trim();
+        const fixed=(d.text||"").trim();
+        const ok=!!fixed && dictationIsLiteral(raw, fixed);
+        const clean=ok?fixed:raw.trim();
+        if(!ok) setDictNotice(n=>n||"literal");
         setChatInput(preceding?preceding+" "+clean:clean);
       }).catch(()=>{ /* si falla la corrección, se deja el texto bruto tal cual */ })
         .finally(()=>setDictProcessing(false));
@@ -4085,6 +4154,7 @@ ${capituloActual}
   };
   const stopListening=()=>{
     if(recognitionRef.current){
+      dictUserStopRef.current=true;
       setDictProcessing(true);
       try{ recognitionRef.current.stop(); }catch(e){}
     }
@@ -4190,6 +4260,7 @@ ${capituloActual}
     if(type==="chapter") nv=renumberChaptersText(nv);
     pushHistory();
     up("text",nv);
+    showGlobo(type==="chapter"?"chapter":"section");
   };
 
   // ---- Cursiva simple sobre el texto seleccionado (marcado _así_, compatible con el campo de
@@ -4355,6 +4426,7 @@ ${capituloActual}
     pushHistory();
     const nv=f.text.slice(0,s)+"_"+f.text.slice(s,eIdx)+"_"+f.text.slice(eIdx);
     up("text",nv);
+    showGlobo("italic");
   };
   const undo=()=>{
     const h=historyRef.current;
@@ -4810,6 +4882,34 @@ ${capituloActual}
             <button type="button" className="toolbar-btn" onClick={undo}>{t.ed_undo}</button>
             {tinta&&!hasAiRight&&<button type="button" className="toolbar-btn" onClick={()=>goToOffer("lm-offer-ai", t.ed_ai_btn_msg)}>{t.ed_ai_btn}</button>}
           </div>
+          {globo&&(()=>{
+            const EN=lang==="EN";
+            const q=(x)=>EN?"\u201c"+x+"\u201d":"«"+x+"»";
+            const edLink={label:t.ed_faq_link,open:()=>setShowEditorFaq(true)};
+            const phLink={label:EN?"How do I add my photos?":"¿Cómo añadir tus fotografías?",open:()=>setShowPhotosFaq(true)};
+            const mark="["+t.photo_word.toUpperCase()+" n]";
+            const G={
+              italic:{pre:EN?"In the text box, italics appear between underscores, _like this_. In the published book they will appear in italics, without the underscores. More details in "
+                             :"En la caja de texto, la cursiva se ve entre guiones bajos, _así_. En el libro publicado aparecerá en cursiva, sin los guiones. Más detalles en ",link:edLink},
+              chapter:{pre:EN?"The sign ¶ marks the start of a chapter. Only you see it while you write: in the published book the chapter title will appear, without the sign. More details in "
+                              :"El signo ¶ marca el comienzo de un capítulo. Solo lo ves tú mientras escribes: en el libro publicado aparecerá el título del capítulo, sin el signo. Más detalles en ",link:edLink},
+              section:{pre:EN?"The sign § marks the start of a section. Only you see it while you write: in the published book the section title will appear, without the sign. More details in "
+                              :"El signo § marca el comienzo de un apartado. Solo lo ves tú mientras escribes: en el libro publicado aparecerá el título del apartado, sin el signo. Más detalles en ",link:edLink},
+              photo:{pre:EN?"The mark "+mark+" shows where the photo will go. In the published book, the photo with its caption will appear in its place. To move or remove it, see "
+                            :"La marca "+mark+" indica dónde irá la foto. En el libro publicado, en su lugar aparecerá la foto con su pie. Para moverla o quitarla, consulta ",link:phLink}
+            }[globo];
+            if(!G) return null;
+            return (
+              <div role="note" style={{position:"relative",margin:"0 0 0.6rem",padding:"0.6rem 2rem 0.6rem 0.8rem",maxWidth:"36rem",background:"var(--bg2)",border:"1px solid var(--navy)",borderRadius:"2px",fontFamily:"var(--body)",fontSize:"0.84rem",lineHeight:1.5,color:"var(--ink)"}}>
+                <button type="button" aria-label={t.globo_close} title={t.globo_close} onClick={()=>setGlobo(null)}
+                  style={{position:"absolute",top:"0.3rem",right:"0.4rem",background:"none",border:"none",fontSize:"1rem",color:"var(--muted)",cursor:"pointer",lineHeight:1}}>✕</button>
+                {G.pre}<span style={{color:"var(--navy)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>{setGlobo(null);G.link.open();}}>{q(G.link.label)}</span>.
+                <div style={{marginTop:"0.4rem"}}>
+                  <button type="button" className="toolbar-btn" style={{fontSize:"0.78rem"}} onClick={()=>globoNever(globo)}>{t.globo_dismiss}</button>
+                </div>
+              </div>
+            );
+          })()}
           <div style={{display:"flex",gap:"0.4rem",marginBottom:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
             <input className="inp" type="text" enterKeyHint="search" style={{flex:"1 1 200px",minWidth:0}}
               placeholder={t.ed_search_ph} value={searchQ} onChange={e=>onSearchChange(e.target.value)}
@@ -4861,11 +4961,12 @@ ${capituloActual}
                   speak={speak} speaking={speaking} setSpeaking={setSpeaking} aiUsage={aiUsage} rechargeMsg={rechargeMsg} setRechargeMsg={setRechargeMsg}
                   lang={lang} f={f} up={up} chatMsgs={chatMsgs} setChatMsgs={setChatMsgs}
                   chatInput={chatInput} setChatInput={setChatInput} chatInputFromAssistant={chatInputFromAssistant} setChatInputFromAssistant={setChatInputFromAssistant} chatLoading={chatLoading}
-                  sendChatMessage={sendChatMessage} listening={listening} dictProcessing={dictProcessing} justDictated={justDictated} startListening={startListening}
+                  sendChatMessage={sendChatMessage} listening={listening} dictProcessing={dictProcessing} justDictated={justDictated} setJustDictated={setJustDictated} dictNotice={dictNotice} setDictNotice={setDictNotice} startListening={startListening}
                   stopListening={stopListening} addChatToStory={addChatToStory}
                   activeOfferId={activeOfferId} acceptCorrection={acceptCorrection} declineCorrection={declineCorrection}
                   correctionTarget={correctionTarget} replaceParagraphInStory={replaceParagraphInStory}/>
-              : <button className="ai-open-btn" style={{width:"100%",marginTop:"5.1rem" /* posición inicial junto al título; al bajar, se queda fijo bajo la cabecera (CSS .ai-open-btn, 01/10) */,padding:"0.55rem 0.75rem",
+              : <div className="ai-open-btn" style={{marginTop:"5.1rem" /* posición inicial junto al título; al bajar, se queda fijo bajo la cabecera (CSS .ai-open-btn, 01/10); 05/10: con el aviso de tinta debajo */}}>
+                <button style={{width:"100%",padding:"0.55rem 0.75rem",
                     fontFamily:"var(--body)",fontSize:"0.96rem",lineHeight:"1.2",boxSizing:"border-box",
                     background:"#2a6a2a",border:"1px solid #2a6a2a",borderRadius:"2px",
                     color:"#fff",cursor:"pointer"}} onClick={()=>{
@@ -4876,7 +4977,14 @@ ${capituloActual}
                     else { setAiTuUsted(null); setAiNameDraft(f.assistantName||f.name||""); setShowAiSetup(true); }
                   }}>
                   ✦ {t.ai_open_panel}
-                </button>}
+                </button>
+                {/* §10 (05/10/2026): aviso de tinta con el panel cerrado (mismo umbral que la barra). */}
+                {aiUsage<20 && (
+                  <p role="status" style={{margin:"0.35rem 0 0",fontFamily:"var(--body)",fontSize:"0.78rem",lineHeight:1.45,color:aiUsage<=0?"#b23b3b":"#8a5a00",background:"var(--bg)",padding:"0.1rem 0"}}>
+                    {aiUsage<=0?t.ai_ink_none_note:t.ai_ink_low_note}
+                  </p>
+                )}
+              </div>}
           </div>
         )}
         </div>
@@ -4948,7 +5056,7 @@ const editIconStyle={background:"none",border:"none",color:"var(--muted)",cursor
 const arrowStyle={background:"none",border:"none",color:"var(--navy)",cursor:"pointer",fontSize:"0.68rem",lineHeight:1,padding:"1px 4px"};
 
 function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,rechargeMsg,setRechargeMsg,
-  lang,f,up,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,dictProcessing,justDictated,startListening,stopListening,addChatToStory,
+  lang,f,up,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,dictProcessing,justDictated,setJustDictated,dictNotice,setDictNotice,startListening,stopListening,addChatToStory,
   activeOfferId,acceptCorrection,declineCorrection,correctionTarget,replaceParagraphInStory}) {
   if(!open) return null;
   const [rechargeOpen,setRechargeOpen]=useState(false);const [rechargeAmt,setRechargeAmt]=useState(5);const [rechargeOk,setRechargeOk]=useState(false);
@@ -5048,8 +5156,9 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
               <div style={{fontFamily:"var(--body)",fontSize:"0.7rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.08em",margin:"0.7rem 0 0.3rem"}}>{lang==="EN"?"You":"Tú"}</div>
               <textarea className="inp" style={{height:"190px",resize:"none",fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.5}} value={chatInput}
                 placeholder={lang==="EN"?"Write here...":"Escribe aquí..."}
-                onChange={e=>{setChatInput(e.target.value);setChatInputFromAssistant(false);setJustDictated(false);}}/>
+                onChange={e=>{setChatInput(e.target.value);setChatInputFromAssistant(false);setJustDictated(false);setDictNotice(null);}}/>
               {dictProcessing && <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",fontStyle:"italic",margin:"0.3rem 0 0"}}>{t.ai_dict_processing}</div>}
+              {dictNotice && !dictProcessing && <div role="status" style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"#8a5a00",lineHeight:1.45,margin:"0.3rem 0 0"}}>{t["ai_dict_n_"+dictNotice]}</div>}
               <div style={{display:"flex",flexDirection:"column",gap:"0.4rem",marginTop:"0.5rem"}}>
                 <div style={{display:"flex",gap:"0.4rem",flexWrap:"wrap"}}>
                   {!correctionTarget && /* con una corrección en la caja, solo tiene sentido "Sustituir" (01/10) */
@@ -5070,8 +5179,10 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
                       </button>
                       <select className="inp" style={{padding:"0.3rem 0.4rem",fontFamily:"var(--body)",fontSize:"0.8rem",maxWidth:"9.5rem",flex:"0 0 auto"}}
                         value={f.dictationLang||""} onChange={e=>up("dictationLang",e.target.value)}
-                        title={lang==="EN"?"Dictation language (if not Spanish/English)":"Idioma de dictado (si no es castellano/inglés)"}>
-                        <option value="">🌐 {lang==="EN"?"Dictation":"Dictado"}</option>
+                        title={t.dict_select_title}>
+                        <option value="">🌐 {t.dict_default_opt}</option>
+                        <option value="es-ES">Español</option>
+                        <option value="en-US">English</option>
                         <option value="ca-ES">Català</option>
                         <option value="de-DE">Deutsch</option>
                         <option value="eu-ES">Euskara</option>
