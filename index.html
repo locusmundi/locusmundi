@@ -905,18 +905,20 @@ const T = {
     fe_edit:"Editar",fe_title_photo:"Editar foto",fe_title_cover:"Editar portada",
     fe_tone_h:"Tono",fe_tone_note:"Gratis y sin límite.",
     fe_tone_original:"Como está",fe_tone_bn:"Blanco y negro",fe_tone_sepia:"Sepia",fe_tone_save:"Guardar tono",
-    fe_tone_confirm_bn:"La foto quedará en blanco y negro y no podrás volver al color original. ¿Continuar?",
-    fe_tone_confirm_sepia:"La foto quedará en sepia y no podrás volver al color original. ¿Continuar?",
     fe_ai_h:"Mejorar con IA",
     fe_restore:"Restaurar",fe_restore_note:"Arregla rayas, manchas y desvaído, y corrige la luz.",
-    fe_colorize:"Colorear",fe_colorize_note:"Para fotos en blanco y negro, sepia o con el color muy perdido.",
+    fe_colorize:"Colorear",fe_colorize_note:"Para fotos en blanco y negro, sepia o con el color muy perdido. La IA propone el color; la imagen, incluidas las caras, sigue siendo la tuya.",
+    fe_both:"Restaurar y colorear",fe_both_note:"Restaura la foto y además le da color.",
+    fe_redraw_warning:"La restauración con IA no retoca tu foto: la vuelve a dibujar. Puede cambiar rasgos de las caras o quitar objetos. Compárala con calma antes de aceptarla. Siempre podrás volver al original.",
+    fe_back:"Volver al original",fe_back_note:"Recupera la foto tal como la subiste. Es gratis.",
+    fe_back_confirm:"Se perderán los cambios de IA y de tono. ¿Continuar?",
     fe_download:"Descargar",
     fe_propose:"Preparar propuesta",
     fe_left_photo:"Te quedan {n} de {max} ediciones con IA para esta foto.",
     fe_left_cover:"Te quedan {n} de {max} ediciones con IA para la portada.",
     fe_each_costs:"Cada propuesta gasta una edición, la aceptes o no.",
     fe_waiting:"Preparando la propuesta… puede tardar hasta un minuto.",
-    fe_review:"Revísala con calma, sobre todo los rostros. Si algo no te convence, descártala: tu foto original no se toca hasta que aceptes.",
+    fe_review:"Revísala con calma, sobre todo los rostros. Si no te convence, descártala. Si la aceptas, siempre podrás volver al original.",
     fe_before:"Antes",fe_after:"Después",fe_accept:"Aceptar",fe_discard:"Descartar",
     fe_close_discard:"Si cierras, se descartará la propuesta.",
     fe_exhausted_photo:"Has usado las {max} ediciones con IA de esta foto. Puedes seguir cambiando el tono.",
@@ -1213,18 +1215,20 @@ const T = {
     fe_edit:"Edit",fe_title_photo:"Edit photo",fe_title_cover:"Edit cover",
     fe_tone_h:"Tone",fe_tone_note:"Free and unlimited.",
     fe_tone_original:"As it is",fe_tone_bn:"Black and white",fe_tone_sepia:"Sepia",fe_tone_save:"Save tone",
-    fe_tone_confirm_bn:"The photo will be black and white and you won't be able to go back to the original colour. Continue?",
-    fe_tone_confirm_sepia:"The photo will be sepia and you won't be able to go back to the original colour. Continue?",
     fe_ai_h:"Improve with AI",
     fe_restore:"Restore",fe_restore_note:"Repairs scratches, stains and fading, and corrects the light.",
-    fe_colorize:"Colourise",fe_colorize_note:"For black-and-white or sepia photos, or ones whose colour has badly faded.",
+    fe_colorize:"Colourise",fe_colorize_note:"For black-and-white or sepia photos, or ones whose colour has badly faded. The AI suggests the colour; the image, faces included, is still yours.",
+    fe_both:"Restore and colourise",fe_both_note:"Restores the photo and also adds colour.",
+    fe_redraw_warning:"AI restoration doesn't retouch your photo: it redraws it. It may change facial features or remove objects. Compare it carefully before accepting it. You can always go back to the original.",
+    fe_back:"Go back to the original",fe_back_note:"Recovers the photo exactly as you uploaded it. It's free.",
+    fe_back_confirm:"The AI and tone changes will be lost. Continue?",
     fe_download:"Download",
     fe_propose:"Prepare a proposal",
     fe_left_photo:"You have {n} of {max} AI edits left for this photo.",
     fe_left_cover:"You have {n} of {max} AI edits left for the cover.",
     fe_each_costs:"Each proposal uses one edit, whether you accept it or not.",
     fe_waiting:"Preparing the proposal… this can take up to a minute.",
-    fe_review:"Take your time to check it, especially the faces. If anything doesn't convince you, discard it: your original photo isn't touched until you accept.",
+    fe_review:"Take your time to check it, especially the faces. If it doesn't convince you, discard it. If you accept it, you can always go back to the original.",
     fe_before:"Before",fe_after:"After",fe_accept:"Accept",fe_discard:"Discard",
     fe_close_discard:"If you close, the proposal will be discarded.",
     fe_exhausted_photo:"You've used the {max} AI edits for this photo. You can still change the tone.",
@@ -2038,7 +2042,11 @@ function CropRotateModal({file,t,onCancel,onConfirm}) {
 // api/foto-editor.js (sesión "01/10/2026 (noche, cierre)"): guarda con la clave de
 // servicio, así que nada de lo que se guarda aquí gasta el cambio de imagen.
 // - Tono (B/N, sepia): lo hace el navegador y lo guarda el servidor. Gratis.
-// - IA (restaurar, colorear): una propuesta cada vez; cada una gasta una edición.
+// - IA, tres opciones (05/10/2026): "Colorear" (la IA propone el color y el navegador
+//   lo compone sobre la luz del original: las caras no cambian), "Restaurar" y
+//   "Restaurar y colorear" (la IA redibuja; con aviso). Siempre desde el original
+//   guardado; una propuesta cada vez; cada una gasta una edición.
+// - Original recuperable: "Volver al original" (servidor, gratis).
 // - Al aceptar, el navegador deja la propuesta como las demás fotos: proporción del
 //   original, 1.600 px como máximo y JPG.
 const FOTO_EDITOR_LIMITE=4; // solo para mostrar el contador; el que manda es el del servidor
@@ -2054,25 +2062,6 @@ function feCargarImagen(url){
     img.onerror=()=>reject(new Error("IMAGEN"));
     img.src=url+(url.includes("?")?"&":"?")+"lmfe="+Date.now();
   });
-}
-
-// ¿Es gris puro (un escaneo en blanco y negro)? Solo esto se detecta, porque se
-// distingue sin error. Una foto en color muy desvaída y una sepia se parecen demasiado
-// (prueba con la foto reservada, 02/10): por eso "Colorear" se ofrece siempre y el aviso
-// del tono sale en todas las fotos que no sean gris puro.
-function feEsGrisPuro(img){
-  const lado=120, k=Math.min(1,lado/Math.max(img.naturalWidth,img.naturalHeight));
-  const w=Math.max(1,Math.round(img.naturalWidth*k)), h=Math.max(1,Math.round(img.naturalHeight*k));
-  const c=document.createElement("canvas"); c.width=w; c.height=h;
-  const ctx=c.getContext("2d"); ctx.drawImage(img,0,0,w,h);
-  const d=ctx.getImageData(0,0,w,h).data;
-  let n=0,conColor=0;
-  for(let i=0;i<d.length;i+=4){
-    const r=d[i],g=d[i+1],b=d[i+2];
-    if(Math.max(r,g,b)-Math.min(r,g,b)>8) conColor++;
-    n++;
-  }
-  return conColor/n<0.01;
 }
 
 // Descarga el archivo guardado tal cual (sin volver a comprimirlo). El atributo
@@ -2124,6 +2113,69 @@ function feTerminarPropuesta(prop,anchoOrig,altoOrig){
   return c.toDataURL("image/jpeg",0.86);
 }
 
+// "Colorear" (05/10/2026): luz y sombra (L de Lab) del original, color (a, b) de la
+// propuesta de la IA, y un ajuste clásico suave y adaptativo de la luz: niveles que
+// acercan los extremos a 2–98 solo en la medida en que faltan, y una nitidez leve.
+// Nada de esto puede mover ni inventar un rasgo. La propuesta conserva la proporción
+// y la posición del original (prueba real del 05/10: < 2 px), así que basta con
+// escalarla (con el mismo recorte mínimo que feTerminarPropuesta si cambiara).
+const FE_LIN=(()=>{const t=new Float32Array(256);for(let i=0;i<256;i++){const c=i/255;t[i]=c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);}return t;})();
+function feComponerColor(base,prop){
+  let w=base.naturalWidth,h=base.naturalHeight; const max=1600;
+  if(Math.max(w,h)>max){ const k=max/Math.max(w,h); w=Math.round(w*k); h=Math.round(h*k); }
+  w=Math.max(1,w); h=Math.max(1,h);
+  const c=document.createElement("canvas"); c.width=w; c.height=h;
+  const ctx=c.getContext("2d");
+  ctx.drawImage(base,0,0,w,h);
+  const B=ctx.getImageData(0,0,w,h);
+  const objetivo=base.naturalWidth/base.naturalHeight, actual=prop.naturalWidth/prop.naturalHeight;
+  let sx=0,sy=0,sw=prop.naturalWidth,sh=prop.naturalHeight;
+  if(Math.abs(actual-objetivo)/objetivo>0.01){
+    if(actual>objetivo){ sw=sh*objetivo; sx=(prop.naturalWidth-sw)/2; }
+    else{ sh=sw/objetivo; sy=(prop.naturalHeight-sh)/2; }
+  }
+  ctx.clearRect(0,0,w,h);
+  ctx.drawImage(prop,sx,sy,sw,sh,0,0,w,h);
+  const P=ctx.getImageData(0,0,w,h);
+  const n=w*h, L=new Float32Array(n), A=new Float32Array(n), Bb=new Float32Array(n);
+  const f=(t)=>t>0.008856?Math.cbrt(t):7.787*t+16/116;
+  const lab=(d,i,soloL)=>{
+    const r=FE_LIN[d[i]],g=FE_LIN[d[i+1]],b=FE_LIN[d[i+2]];
+    const X=(0.4124*r+0.3576*g+0.1805*b)/0.95047, Y=0.2126*r+0.7152*g+0.0722*b, Z=(0.0193*r+0.1192*g+0.9505*b)/1.08883;
+    const fx=f(X),fy=f(Y),fz=f(Z);
+    return soloL?[116*fy-16]:[116*fy-16,500*(fx-fy),200*(fy-fz)];
+  };
+  const hist=new Uint32Array(1001);
+  for(let k=0,i=0;k<n;k++,i+=4){
+    const l=lab(B.data,i,true)[0]; L[k]=l;
+    hist[Math.max(0,Math.min(1000,Math.round(l*10)))]++;
+    const q=lab(P.data,i,false); A[k]=q[1]; Bb[k]=q[2];
+  }
+  const pct=(p)=>{let acc=0;const lim=n*p;for(let v=0;v<=1000;v++){acc+=hist[v];if(acc>=lim)return v/10;}return 100;};
+  const lo=pct(0.005), hi=pct(0.995), rango=hi-lo, fuerza=0.7;
+  if(rango>1){
+    const lo2=lo+(2-lo)*fuerza, hi2=hi+(98-hi)*fuerza, k=(hi2-lo2)/rango;
+    for(let i=0;i<n;i++) L[i]=Math.max(0,Math.min(100,lo2+(L[i]-lo)*k));
+  }
+  // Nitidez leve: máscara de enfoque 3×3 sobre la luz.
+  const S=new Float32Array(n);
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    let s=0,m=0;
+    for(let dy=-1;dy<=1;dy++){const yy=y+dy;if(yy<0||yy>=h)continue;for(let dx=-1;dx<=1;dx++){const xx=x+dx;if(xx<0||xx>=w)continue;s+=L[yy*w+xx];m++;}}
+    const i=y*w+x; S[i]=Math.max(0,Math.min(100,L[i]+0.4*(L[i]-s/m)));
+  }
+  const fi=(t)=>{const t3=t*t*t;return t3>0.008856?t3:(t-16/116)/7.787;};
+  const g=(v)=>{v=v<=0.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-0.055;return Math.max(0,Math.min(255,Math.round(v*255)));};
+  const o=B.data;
+  for(let k=0,i=0;k<n;k++,i+=4){
+    const fy=(S[k]+16)/116, fx=fy+A[k]/500, fz=fy-Bb[k]/200;
+    const X=fi(fx)*0.95047, Y=fi(fy), Z=fi(fz)*1.08883;
+    o[i]=g(3.2406*X-1.5372*Y-0.4986*Z); o[i+1]=g(-0.9689*X+1.8758*Y+0.0415*Z); o[i+2]=g(0.0557*X-0.2040*Y+1.0570*Z); o[i+3]=255;
+  }
+  ctx.putImageData(B,0,0);
+  return c.toDataURL("image/jpeg",0.86);
+}
+
 // Llamada única a api/foto-editor.js. Los errores llevan su código en e.code.
 async function fotoEditorApi(body){
   const { data } = await supa.auth.getSession();
@@ -2142,41 +2194,41 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
   const [url,setUrl]=useState(imageUrl);        // imagen guardada en este momento
   const [img,setImg]=useState(null);            // la misma, lista para el lienzo
   const [cargaFallida,setCargaFallida]=useState(false);
-  const [grisPuro,setGrisPuro]=useState(null);  // escaneo en blanco y negro: el tono no necesita aviso
   const [tono,setTono]=useState("original");
   const [tonoVista,setTonoVista]=useState(null); // JPG con el tono aplicado
-  const [restaurar,setRestaurar]=useState(false);
-  const [colorear,setColorear]=useState(false);
+  const [opcion,setOpcion]=useState(null);      // "colorear" | "restaurar" | "ambas" (05/10/2026)
+  const [tieneOriginal,setTieneOriginal]=useState(false); // hay copia del original: "Volver al original"
   const [ediciones,setEdiciones]=useState(null);
   const [limite,setLimite]=useState(FOTO_EDITOR_LIMITE);
-  const [propuesta,setPropuesta]=useState(null); // {url}
-  const [ocupado,setOcupado]=useState(null);     // "tono" | "proponer" | "aceptar" | "descartar"
+  const [propuesta,setPropuesta]=useState(null); // {url, antes, jpg?} (jpg: "Colorear" ya compuesto)
+  const [ocupado,setOcupado]=useState(null);     // "tono" | "proponer" | "aceptar" | "descartar" | "volver"
   const [aviso,setAviso]=useState(null);         // {texto, error}
 
   const fmt=(s)=>s.replace("{n}",String(Math.max(0,limite-(ediciones||0)))).replace("{max}",String(limite));
 
-  // Ediciones gastadas, leídas frescas de Supabase al abrir.
+  // Ediciones gastadas y copia del original, leídas frescas de Supabase al abrir.
   useEffect(()=>{
     let vivo=true;
     (async()=>{
       const q=esPortada
-        ? supa.from("historias").select("portada_ediciones_ia").eq("id",historiaId).maybeSingle()
-        : supa.from("fotos").select("ediciones_ia").eq("id",target.fotoId).maybeSingle();
+        ? supa.from("historias").select("portada_ediciones_ia,portada_original_url").eq("id",historiaId).maybeSingle()
+        : supa.from("fotos").select("ediciones_ia,original_url").eq("id",target.fotoId).maybeSingle();
       const {data}=await q;
-      if(vivo) setEdiciones(data?(esPortada?data.portada_ediciones_ia:data.ediciones_ia)||0:0);
+      if(!vivo) return;
+      setEdiciones(data?(esPortada?data.portada_ediciones_ia:data.ediciones_ia)||0:0);
+      setTieneOriginal(!!(data&&(esPortada?data.portada_original_url:data.original_url)));
     })();
     return ()=>{vivo=false;};
   },[]);
 
-  // Cada vez que cambia la imagen guardada: se carga para el lienzo y se mira si es monocroma.
+  // Cada vez que cambia la imagen guardada: se carga para el lienzo.
   useEffect(()=>{
     let vivo=true;
-    setImg(null); setGrisPuro(null); setTono("original"); setTonoVista(null); setCargaFallida(false);
+    setImg(null); setTono("original"); setTonoVista(null); setCargaFallida(false);
     if(!url){ setCargaFallida(true); return; }
     feCargarImagen(url).then(im=>{
       if(!vivo) return;
       setImg(im);
-      try{ setGrisPuro(feEsGrisPuro(im)); }catch(e){ console.error(e); setGrisPuro(false); }
     }).catch(e=>{ console.error(e); if(vivo) setCargaFallida(true); });
     return ()=>{vivo=false;};
   },[url]);
@@ -2197,22 +2249,30 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
 
   const guardarTono=async()=>{
     if(!tonoVista||ocupado) return;
-    if(grisPuro!==true && !window.confirm(tono==="sepia"?t.fe_tone_confirm_sepia:t.fe_tone_confirm_bn)) return;
     setOcupado("tono"); setAviso(null);
     try{
       const d=await fotoEditorApi({operacion:"guardarTono",...objetivo,imagen:tonoVista});
-      onSaved(target,d.url); setUrl(d.url);
+      onSaved(target,d.url); setUrl(d.url); setTieneOriginal(true);
     }catch(e){ console.error(e); setAviso({texto:mensajeError(e),error:true}); }
     finally{ setOcupado(null); }
   };
 
   const proponer=async()=>{
-    if(ocupado||(!restaurar&&!colorear)) return;
+    if(ocupado||!opcion) return;
     setOcupado("proponer"); setAviso(null);
     try{
+      const restaurar=opcion!=="colorear", colorear=opcion!=="restaurar";
       const d=await fotoEditorApi({operacion:"proponer",...objetivo,restaurar,colorear});
       setEdiciones(d.ediciones); if(d.limite) setLimite(d.limite);
-      setPropuesta({url:d.propuestaUrl});
+      const antes=d.baseUrl||url; // la imagen que recibió la IA: siempre el original
+      if(opcion==="colorear"){
+        // Solo el color de la IA, sobre la luz del original: las caras no cambian.
+        const [base,prop]=await Promise.all([feCargarImagen(antes),feCargarImagen(d.propuestaUrl)]);
+        const jpg=feComponerColor(base,prop);
+        setPropuesta({url:jpg,antes,jpg});
+      }else{
+        setPropuesta({url:d.propuestaUrl,antes});
+      }
     }catch(e){
       console.error(e);
       if(e.code==="SIN_EDICIONES"){
@@ -2228,11 +2288,14 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
     if(!propuesta||!img||ocupado) return;
     setOcupado("aceptar"); setAviso(null);
     try{
-      const prop=await feCargarImagen(propuesta.url);
-      const jpg=feTerminarPropuesta(prop,img.naturalWidth,img.naturalHeight);
+      let jpg=propuesta.jpg;
+      if(!jpg){
+        const prop=await feCargarImagen(propuesta.url);
+        jpg=feTerminarPropuesta(prop,img.naturalWidth,img.naturalHeight);
+      }
       const d=await fotoEditorApi({operacion:"aceptar",...objetivo,imagen:jpg});
       onSaved(target,d.url);
-      setPropuesta(null); setRestaurar(false); setColorear(false);
+      setPropuesta(null); setOpcion(null); setTieneOriginal(true);
       setUrl(d.url);
     }catch(e){ console.error(e); setAviso({texto:mensajeError(e),error:true}); }
     finally{ setOcupado(null); }
@@ -2243,6 +2306,18 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
     setOcupado("descartar"); setAviso(null);
     try{ await fotoEditorApi({operacion:"descartar",...objetivo}); }catch(e){ console.error(e); }
     setPropuesta(null); setOcupado(null);
+  };
+
+  // Volver al original (05/10/2026): gratis, no gasta el cambio de imagen ni ediciones.
+  const volverOriginal=async()=>{
+    if(!tieneOriginal||ocupado) return;
+    if(!window.confirm(t.fe_back_confirm)) return;
+    setOcupado("volver"); setAviso(null);
+    try{
+      const d=await fotoEditorApi({operacion:"volverOriginal",...objetivo});
+      onSaved(target,d.url); setUrl(d.url); setTieneOriginal(false);
+    }catch(e){ console.error(e); setAviso({texto:mensajeError(e),error:true}); }
+    finally{ setOcupado(null); }
   };
 
   const descargar=async()=>{
@@ -2274,7 +2349,7 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
         {propuesta ? (<>
           <p className="fe-note" style={{color:"var(--ink)"}}>{t.fe_review}</p>
           <div className="fe-compare">
-            <figure><figcaption>{t.fe_before}</figcaption><img src={url} alt={t.fe_before}/></figure>
+            <figure><figcaption>{t.fe_before}</figcaption><img src={propuesta.antes||url} alt={t.fe_before}/></figure>
             <figure><figcaption>{t.fe_after}</figcaption><img src={propuesta.url} alt={t.fe_after}/></figure>
           </div>
           {aviso&&<div className={"fe-msg"+(aviso.error?" err":"")} role="alert">{aviso.texto}</div>}
@@ -2289,6 +2364,10 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
           </div>}
           {cargaFallida&&<div className="fe-msg err" role="alert">{t.fe_load_error}</div>}
           {!img&&!cargaFallida&&<p className="fe-note" style={{textAlign:"center"}}>{t.fe_loading}</p>}
+          {tieneOriginal&&url&&<div style={{textAlign:"center",margin:"0 0 1rem"}}>
+            <button className="btn-out" type="button" style={{padding:"0.45rem 1.4rem",fontSize:"0.92rem"}} disabled={bloqueado} onClick={volverOriginal}>{ocupado==="volver"?t.fe_saving:t.fe_back}</button>
+            <div className="fe-note" style={{marginTop:"0.35rem"}}>{t.fe_back_note}</div>
+          </div>}
 
           <div className="fe-block">
             <div className="fe-block-h">{t.fe_tone_h}</div>
@@ -2310,18 +2389,17 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
             ) : agotadas ? (
               <div className="fe-msg">{esPortada?fmt(t.fe_exhausted_cover):fmt(t.fe_exhausted_photo)}</div>
             ) : (<>
-              <label className="fe-check">
-                <input type="checkbox" checked={restaurar} disabled={bloqueado||!img} onChange={e=>setRestaurar(e.target.checked)}/>
-                <span>{t.fe_restore}<br/><span className="fe-note">{t.fe_restore_note}</span></span>
-              </label>
-              <label className="fe-check">
-                <input type="checkbox" checked={colorear} disabled={bloqueado||!img} onChange={e=>setColorear(e.target.checked)}/>
-                <span>{t.fe_colorize}<br/><span className="fe-note">{t.fe_colorize_note}</span></span>
-              </label>
+              {[["colorear",t.fe_colorize,t.fe_colorize_note],["restaurar",t.fe_restore,t.fe_restore_note],["ambas",t.fe_both,t.fe_both_note]].map(([k,lbl,nota])=>(
+                <label key={k} className="fe-check">
+                  <input type="radio" name="fe-opcion" checked={opcion===k} disabled={bloqueado||!img} onChange={()=>setOpcion(k)}/>
+                  <span>{lbl}<br/><span className="fe-note">{nota}</span></span>
+                </label>
+              ))}
+              {(opcion==="restaurar"||opcion==="ambas")&&<div className="fe-msg" role="note">{t.fe_redraw_warning}</div>}
               <p className="fe-note" style={{margin:"0.4rem 0 0.2rem"}}>{t.fe_each_costs}</p>
               {ediciones!==null&&<p className="fe-note" style={{marginBottom:"0.7rem"}}>{fmt(esPortada?t.fe_left_cover:t.fe_left_photo)}</p>}
               {ocupado==="proponer"&&<div className="fe-msg" role="status">{t.fe_waiting}</div>}
-              <button className="btn-pub" type="button" disabled={bloqueado||!img||ediciones===null||(!restaurar&&!colorear)} onClick={proponer}>{t.fe_propose}</button>
+              <button className="btn-pub" type="button" disabled={bloqueado||!img||ediciones===null||!opcion} onClick={proponer}>{t.fe_propose}</button>
             </>)}
             {aviso&&<div className={"fe-msg"+(aviso.error?" err":"")} role="alert">{aviso.texto}</div>}
           </div>
@@ -2596,9 +2674,9 @@ const PHOTOS_FAQ_ES = [
   {q:"¿Puedo cambiar la imagen de una foto?",
    a:"Sí, una vez. Cada foto comprada es un espacio en tu libro: subes una imagen y, si te equivocas o cambias de idea, puedes sustituirla por otra una sola vez. La portada va aparte: puedes cambiarla siempre que quieras."},
   {q:"¿Puedo mejorar mis fotos?",
-   a:"Sí, con «Editar», junto a cada foto y a la portada. Puedes cambiar el tono a blanco y negro o sepia, gratis y sin límite. También puedes mejorarla con inteligencia artificial: «Restaurar» arregla rayas, manchas y desvaído y corrige la luz, y «Colorear» da color a fotos en blanco y negro, sepia o con el color muy perdido. Cada foto incluye 4 ediciones con IA. La portada tiene otras 4 si has añadido alguna foto a tu libro o has activado el Asistente."},
+   a:"Sí, con «Editar», junto a cada foto y a la portada. Puedes cambiar el tono a blanco y negro o sepia, gratis y sin límite. También puedes mejorarla con inteligencia artificial, de tres maneras: «Colorear» da color a fotos en blanco y negro, sepia o desvaídas sin tocar la imagen, y las caras siguen siendo las de tu foto; «Restaurar» arregla rayas, manchas y desvaído; «Restaurar y colorear» hace las dos cosas. Al restaurar, la IA vuelve a dibujar la foto y puede cambiar rasgos de las caras o quitar objetos. Cada foto incluye 4 ediciones con IA. La portada tiene otras 4 si has añadido alguna foto a tu libro o has activado el Asistente."},
   {q:"¿Y si no me gusta lo que propone la IA?",
-   a:"Verás el antes y el después, y tu foto no se toca hasta que aceptes. Revisa con calma los rostros. Cada propuesta gasta una edición, la aceptes o no. Editar una foto no gasta su cambio de imagen."},
+   a:"Verás el antes y el después, y tu foto no cambia hasta que aceptes. Revisa con calma los rostros. Si aceptas y después cambias de idea, «Volver al original» recupera la foto tal como la subiste, gratis. Cada propuesta gasta una edición, la aceptes o no. Editar una foto no cuenta como cambio de imagen: después podrás seguir sustituyéndola por otra imagen una vez."},
   {q:"¿Puedo guardar mis fotos editadas en mi ordenador?",
    a:"Sí: pulsa «Editar» y luego «Descargar». Es gratis."},
   {q:"¿Y si borro su marca sin querer?",
@@ -2618,9 +2696,9 @@ const PHOTOS_FAQ_EN = [
   {q:"Can I change a photo's image?",
    a:"Yes, once. Each photo you buy is a space in your book: you upload an image and, if you make a mistake or change your mind, you can replace it with another just once. The cover is separate: you can change it whenever you like."},
   {q:"Can I improve my photos?",
-   a:"Yes, with \u201cEdit\u201d, next to each photo and the cover. You can change the tone to black and white or sepia, free and as often as you like. You can also improve it with artificial intelligence: \u201cRestore\u201d repairs scratches, stains and fading and corrects the light, and \u201cColourise\u201d adds colour to black-and-white or sepia photos, or ones whose colour has badly faded. Each photo includes 4 AI edits. The cover has another 4 if you have added a photo to your book or activated the Assistant."},
+   a:"Yes, with \u201cEdit\u201d, next to each photo and the cover. You can change the tone to black and white or sepia, free and as often as you like. You can also improve it with artificial intelligence, in three ways: \u201cColourise\u201d adds colour to black-and-white, sepia or faded photos without touching the image, so the faces are still those in your photo; \u201cRestore\u201d repairs scratches, stains and fading; \u201cRestore and colourise\u201d does both. When restoring, the AI redraws the photo and may change facial features or remove objects. Each photo includes 4 AI edits. The cover has another 4 if you have added a photo to your book or activated the Assistant."},
   {q:"What if I don't like what the AI proposes?",
-   a:"You'll see the before and after, and your photo isn't touched until you accept. Take your time to check the faces. Each proposal uses one edit, whether you accept it or not. Editing a photo doesn't use up its image change."},
+   a:"You'll see the before and after, and your photo doesn't change until you accept. Take your time to check the faces. If you accept and later change your mind, \u201cGo back to the original\u201d recovers the photo exactly as you uploaded it, free of charge. Each proposal uses one edit, whether you accept it or not. Editing a photo doesn't count as an image change: afterwards you can still replace it with another image once."},
   {q:"Can I save my edited photos to my computer?",
    a:"Yes: press \u201cEdit\u201d and then \u201cDownload\u201d. It's free."},
   {q:"What if I delete its mark by accident?",
@@ -3257,7 +3335,9 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   };
   const deleteFotoFromStorage=(target)=>{
     if(!historiaIdRef.current||!autorIdRef.current) return;
-    supa.storage.from("fotos").remove([fotoStoragePath(target)]).catch(()=>{}); // best-effort
+    const ruta=fotoStoragePath(target), base=ruta.replace(/\.jpg$/,"");
+    // Con la foto se van su copia del original y una propuesta pendiente (05/10/2026).
+    supa.storage.from("fotos").remove([ruta,base+"-original.jpg",base+"-propuesta"]).catch(()=>{}); // best-effort
   };
 
   const coverPreviewSrc=()=> pendingPhoto?.type==="cover" ? pendingPhoto.previewUrl : f.coverImg;
