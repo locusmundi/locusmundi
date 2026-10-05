@@ -2644,7 +2644,7 @@ const EDITOR_FAQ_ES = [
   {q:"¿Por qué se subrayan en rojo palabras bien escritas?",
    a:"El corrector de faltas en la ventana de texto lo pone tu navegador. Si marca como errores palabras correctas de tu idioma, activa ese idioma en los ajustes de idioma de tu navegador."},
   {q:"¿Cómo añado fotografías o uso el Asistente?",
-   a:"Cada uno tiene su propia guía: «¿Cómo añadir tus fotografías?», junto a la compra de fotos, y «¿En qué puede ayudarte el Asistente?», en su ventana."}
+   a:"Cada uno tiene su propia guía: «¿Cómo añadir tus fotografías?», junto a la compra de fotos, y «¿En qué puede ayudarte el Asistente?», en el recuadro «Asistente editorial», más abajo en esta misma página."}
 ];
 const EDITOR_FAQ_EN = [
   {q:"Is what I write saved?",
@@ -2666,7 +2666,7 @@ const EDITOR_FAQ_EN = [
   {q:"Why are correctly spelt words underlined in red?",
    a:"The spell checker in the text window is your browser's. If it marks correct words in your language as mistakes, turn that language on in your browser's language settings."},
   {q:"How do I add photos or use the Assistant?",
-   a:"Each has its own guide: \u201cHow do I add my photos?\u201d, next to the photo purchase, and \u201cWhat can the Assistant help with?\u201d, in its window."}
+   a:"Each has its own guide: \u201cHow do I add my photos?\u201d, next to the photo purchase, and \u201cWhat can the Assistant help with?\u201d, in the \u201cEditorial assistant\u201d box, further down this page."}
 ];
 function PhotosFaqModal({onClose,lang}) {
   const items = lang==="EN" ? PHOTOS_FAQ_EN : PHOTOS_FAQ_ES;
@@ -3818,7 +3818,9 @@ sin más. Tus únicas funciones activas sobre el texto son:
     «Autoguardado activo» ("Autosave on.");
   · el propio Asistente (qué hace, tinta, dictado, voz): «¿En qué puede
     ayudarte el Asistente?» ("What can the Assistant help with?"), el
-    enlace de esta misma ventana;
+    enlace del recuadro «Asistente editorial», más abajo en la misma
+    página ("Editorial assistant" box, further down the page); NO está
+    en tu ventana;
   · precios, cuenta o privacidad: las «Preguntas frecuentes» de la web
     ("FAQ").
   Cita la guía con su título en el idioma en que te escribe el Autor.
