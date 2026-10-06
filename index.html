@@ -1076,10 +1076,9 @@ const T = {
     auth_recover_sub:"Te enviamos un enlace a tu correo. Ábrelo y podrás entrar directamente y elegir una contraseña nueva.",
     auth_recover_btn:"Enviar enlace",
     auth_check_email_h:"Revisa tu correo",
-    auth_check_email_sub:"Te hemos enviado un enlace de confirmación. Ábrelo desde tu correo para poder entrar por primera vez.",
+    auth_check_email_sub:"Te hemos enviado un enlace de confirmación. Ábrelo desde tu correo para poder entrar por primera vez. El enlace caduca en 24 horas.",
     auth_recover_sent_h:"Enlace enviado",
     auth_recover_sent_sub:"Si ese correo tiene una cuenta en Locus Mundi, te hemos enviado un enlace. Ábrelo desde tu correo para elegir una contraseña nueva.",
-    auth_recover_sim_btn:"Simular apertura del enlace",
     auth_set_new_password_h:"Elige una contraseña nueva",
     auth_new_password:"Nueva contraseña",auth_save_password_btn:"Guardar contraseña y entrar",
     auth_back:"← Volver",
@@ -1088,6 +1087,17 @@ const T = {
     auth_err_login:"Correo o contraseña incorrectos.",
     auth_err_notfound:"No existe ninguna cuenta con ese correo.",
     auth_err_fields:"Rellena todos los campos.",
+    // Subida pequeña de arreglos (06/10/2026): correo enviado, reenviar enlace, contraseñas y errores propios.
+    auth_sent_to:"Lo hemos enviado a:",auth_wrong_email:"¿No es tu correo? Vuelve atrás y corrígelo.",
+    auth_spam_note:"Si no lo ves en unos minutos, mira también en la carpeta de correo no deseado (spam).",
+    auth_resend_btn:"Reenviar enlace",auth_resend_ok:"Te hemos enviado otro enlace.",
+    auth_err_wait:"Espera un minuto antes de pedir otro enlace.",
+    auth_err_not_confirmed:"Todavía no has confirmado tu correo. El enlace que te enviamos caduca en 24 horas: si no lo encuentras o ya no funciona, pide otro aquí.",
+    auth_pw_min:"Mínimo 8 caracteres.",auth_err_pw_short:"La contraseña debe tener al menos 8 caracteres.",
+    auth_pw_show:"Mostrar contraseña",auth_pw_hide:"Ocultar contraseña",
+    auth_err_rate:"Ahora mismo no podemos enviar el correo. Inténtalo de nuevo dentro de un rato.",
+    auth_err_same_pw:"La contraseña nueva debe ser distinta de la anterior.",
+    auth_err_generic:"No se ha podido completar. Inténtalo de nuevo dentro de un rato.",
     auth_logout:"Cerrar sesión",auth_greeting:"Sesión iniciada como",
   },
   EN:{
@@ -1386,10 +1396,9 @@ const T = {
     auth_recover_sub:"We'll send a link to your email. Open it and you'll be able to sign in directly and choose a new password.",
     auth_recover_btn:"Send link",
     auth_check_email_h:"Check your email",
-    auth_check_email_sub:"We've sent you a confirmation link. Open it from your email to sign in for the first time.",
+    auth_check_email_sub:"We've sent you a confirmation link. Open it from your email to sign in for the first time. The link expires after 24 hours.",
     auth_recover_sent_h:"Link sent",
     auth_recover_sent_sub:"If that email has an account with Locus Mundi, we've sent a link. Open it from your email to choose a new password.",
-    auth_recover_sim_btn:"Simulate opening the link",
     auth_set_new_password_h:"Choose a new password",
     auth_new_password:"New password",auth_save_password_btn:"Save password and enter",
     auth_back:"← Back",
@@ -1398,6 +1407,16 @@ const T = {
     auth_err_login:"Incorrect email or password.",
     auth_err_notfound:"There's no account with that email.",
     auth_err_fields:"Please fill in every field.",
+    auth_sent_to:"We sent it to:",auth_wrong_email:"Not your email? Go back and correct it.",
+    auth_spam_note:"If you don't see it within a few minutes, check your junk (spam) folder too.",
+    auth_resend_btn:"Resend link",auth_resend_ok:"We've sent you another link.",
+    auth_err_wait:"Please wait a minute before requesting another link.",
+    auth_err_not_confirmed:"You haven't confirmed your email yet. The link we sent you expires after 24 hours: if you can't find it or it no longer works, request a new one here.",
+    auth_pw_min:"Minimum 8 characters.",auth_err_pw_short:"The password must be at least 8 characters long.",
+    auth_pw_show:"Show password",auth_pw_hide:"Hide password",
+    auth_err_rate:"We can't send the email right now. Please try again in a while.",
+    auth_err_same_pw:"The new password must be different from the old one.",
+    auth_err_generic:"We couldn't complete this. Please try again in a while.",
     auth_logout:"Sign out",auth_greeting:"Signed in as",
   }
 };
@@ -2929,6 +2948,25 @@ function ContactModal({onClose,t}) {
   );
 }
 
+// Campo de contraseña con "ojito" para ver lo escrito (06/10/2026).
+function PwInput({value,onChange,t}){
+  const [show,setShow]=useState(false);
+  const label=show?t.auth_pw_hide:t.auth_pw_show;
+  return (
+    <div style={{position:"relative"}}>
+      <input className="inp" type={show?"text":"password"} value={value} onChange={onChange} style={{paddingRight:"2.8rem"}}/>
+      <button type="button" aria-label={label} title={label} aria-pressed={show} onClick={()=>setShow(v=>!v)}
+        style={{position:"absolute",right:"0.35rem",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",padding:"0.35rem",color:"var(--muted)",display:"flex",alignItems:"center"}}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12z"/>
+          <circle cx="12" cy="12" r="3"/>
+          {show&&<line x1="3" y1="3" x2="21" y2="21"/>}
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
   // step: landing | signup | signup_check_email | login | recover | recover_sim | recover_reset
   const [step,setStep]=useState(recoveryMode?"recover_reset":"landing");
@@ -2936,14 +2974,31 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
   const [legalName,setLegalName]=useState("");
   const [secQ,setSecQ]=useState(SECQ[lang==="EN"?"EN":"ES"][0]);const [secA,setSecA]=useState("");
   const [err,setErr]=useState("");
+  const [info,setInfo]=useState("");          // aviso de éxito (p. ej., enlace reenviado)
+  const [showResend,setShowResend]=useState(false); // entrar sin haber confirmado
   const [busy,setBusy]=useState(false);
   const secList = SECQ[lang==="EN"?"EN":"ES"];
+  const PW_MIN = 8; // igual que "Minimum password length" en Supabase (06/10/2026)
+  const go = (s) => { setErr(""); setInfo(""); setShowResend(false); setStep(s); };
+  // Errores de Supabase Auth → mensajes propios, nunca su inglés (06/10/2026).
+  const authErrMsg = (error) => {
+    const code = String(error?.code||"");
+    const msg = String(error?.message||"").toLowerCase();
+    if(code==="email_not_confirmed"||msg.includes("not confirmed")) return t.auth_err_not_confirmed;
+    if(code==="weak_password"||msg.includes("password should be")) return t.auth_err_pw_short;
+    if(code==="same_password"||msg.includes("different from the old")) return t.auth_err_same_pw;
+    if(msg.includes("for security purposes")) return t.auth_err_wait; // espera entre envíos al mismo correo
+    if(code.includes("rate_limit")||error?.status===429||msg.includes("rate limit")) return t.auth_err_rate;
+    if(code==="user_already_exists"||msg.includes("already registered")) return t.auth_err_exists;
+    return t.auth_err_generic;
+  };
   const clean = (v) => v.trim().toLowerCase();
 
   const doSignup = async () => {
     setErr("");
     if(!email.trim()||!pw||!pw2||!legalName.trim()||!secA.trim()){setErr(t.auth_err_fields);return;}
     if(pw!==pw2){setErr(t.auth_err_mismatch);return;}
+    if(pw.length<PW_MIN){setErr(t.auth_err_pw_short);return;}
     setBusy(true);
     const secAHash = await sha256Hex(clean(secA));
     const { data: signUpData, error } = await supa.auth.signUp({
@@ -2952,10 +3007,11 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
       options: { data: { legalName: legalName.trim(), secQ, secAHash } }
     });
     setBusy(false);
-    if(error){
-      // Supabase devuelve un error genérico "User already registered" si el correo ya existe
-      setErr(error.message.toLowerCase().includes("already") ? t.auth_err_exists : error.message);
-      return;
+    if(error){ setErr(authErrMsg(error)); return; }
+    // Correo ya registrado: con la confirmación activada, Supabase no da error,
+    // sino un usuario sin identidades (y no envía correo). (06/10/2026)
+    if(signUpData && signUpData.user && Array.isArray(signUpData.user.identities) && signUpData.user.identities.length===0){
+      setErr(t.auth_err_exists); return;
     }
     if(signUpData && signUpData.user){
       fetch("/api/registro-lssi", {
@@ -2964,7 +3020,18 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
         body: JSON.stringify({ accion: "alta", autor_id: signUpData.user.id })
       }).catch(()=>{}); // si falla, no debe bloquear el alta del Autor
     }
-    setStep("signup_check_email");
+    setInfo(""); setStep("signup_check_email");
+  };
+
+  // Reenviar el enlace de confirmación del alta (06/10/2026).
+  const doResend = async () => {
+    setErr(""); setInfo("");
+    if(!email.trim()){setErr(t.auth_err_fields);return;}
+    setBusy(true);
+    const { error } = await supa.auth.resend({ type:"signup", email: email.trim() });
+    setBusy(false);
+    if(error){setErr(authErrMsg(error));return;}
+    setInfo(t.auth_resend_ok);
   };
 
   const doLogin = async () => {
@@ -2973,7 +3040,13 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
     setBusy(true);
     const { data, error } = await supa.auth.signInWithPassword({ email: email.trim(), password: pw });
     setBusy(false);
-    if(error){setErr(t.auth_err_login);return;}
+    if(error){
+      const m = authErrMsg(error);
+      if(m===t.auth_err_not_confirmed){ setErr(m); setShowResend(true); return; }
+      const code = String(error.code||""); const msg = String(error.message||"").toLowerCase();
+      setErr(code==="invalid_credentials"||msg.includes("invalid login") ? t.auth_err_login : m);
+      return;
+    }
     onAuthenticated(data.user.email);
   };
 
@@ -2988,7 +3061,7 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
       redirectTo: "https://locusmundi.vercel.app/"
     });
     setBusy(false);
-    if(error){setErr(error.message);return;}
+    if(error){setErr(authErrMsg(error));return;}
     setStep("recover_sim");
   };
 
@@ -2996,10 +3069,11 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
     setErr("");
     if(!pw||!pw2){setErr(t.auth_err_fields);return;}
     if(pw!==pw2){setErr(t.auth_err_mismatch);return;}
+    if(pw.length<PW_MIN){setErr(t.auth_err_pw_short);return;}
     setBusy(true);
     const { data, error } = await supa.auth.updateUser({ password: pw });
     setBusy(false);
-    if(error){setErr(error.message);return;}
+    if(error){setErr(authErrMsg(error));return;}
     onRecoveryDone&&onRecoveryDone();
     onAuthenticated(data.user.email);
   };
@@ -3016,8 +3090,8 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
       <p className="wr-sub" style={{textAlign:"center",maxWidth:"420px",margin:"0 auto 1.8rem"}}>{t.write_sub}</p>
       {card(
         <div style={{display:"flex",flexDirection:"column",gap:"0.9rem"}}>
-          <button className="btn-pub" onClick={()=>{setErr("");setStep("login");}}>{t.auth_have_account}</button>
-          <button className="btn-out" onClick={()=>{setErr("");setStep("signup");}}>{t.auth_first_time}</button>
+          <button className="btn-pub" onClick={()=>{go("login");}}>{t.auth_have_account}</button>
+          <button className="btn-out" onClick={()=>{go("signup");}}>{t.auth_first_time}</button>
         </div>
       )}
     </div>
@@ -3026,14 +3100,14 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
   if(step==="signup") return (
     <div className="wr-wrap">
       {card(<>
-        <button className="back" onClick={()=>{setErr("");setStep("landing");}}>{t.auth_back}</button>
+        <button className="back" onClick={()=>{go("landing");}}>{t.auth_back}</button>
         <h2 className="wr-h">{t.auth_signup_h}</h2>
         <p className="wr-sub">{t.auth_signup_sub}</p>
         <div className="fld"><label className="lbl">{t.auth_email}</label><input className="inp" type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
         <div className="fld"><label className="lbl">{t.auth_legal_name}</label><input className="inp" value={legalName} onChange={e=>setLegalName(e.target.value)}/></div>
         <p style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginTop:"-0.6rem",marginBottom:"1.1rem"}}>{t.auth_legal_name_note}</p>
-        <div className="fld"><label className="lbl">{t.auth_password}</label><input className="inp" type="password" value={pw} onChange={e=>setPw(e.target.value)}/></div>
-        <div className="fld"><label className="lbl">{t.auth_password_repeat}</label><input className="inp" type="password" value={pw2} onChange={e=>setPw2(e.target.value)}/></div>
+        <div className="fld"><label className="lbl">{t.auth_password}</label><PwInput t={t} value={pw} onChange={e=>setPw(e.target.value)}/><p style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginTop:"0.3rem",marginBottom:0}}>{t.auth_pw_min}</p></div>
+        <div className="fld"><label className="lbl">{t.auth_password_repeat}</label><PwInput t={t} value={pw2} onChange={e=>setPw2(e.target.value)}/></div>
         <div className="fld">
           <label className="lbl">{t.auth_security_q}</label>
           <select className="inp" value={secQ} onChange={e=>setSecQ(e.target.value)}>{secList.map(q=><option key={q} value={q}>{q}</option>)}</select>
@@ -3050,7 +3124,13 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
     <div className="wr-wrap">
       {card(<>
         <h2 className="wr-h">{t.auth_check_email_h}</h2>
-        <p className="wr-sub">{t.auth_check_email_sub}</p>
+        <p className="wr-sub" style={{marginBottom:"0.8rem"}}>{t.auth_check_email_sub}</p>
+        <p className="wr-sub" style={{marginBottom:"0.8rem"}}>{t.auth_sent_to} <b style={{color:"var(--ink)",wordBreak:"break-all"}}>{email.trim()}</b></p>
+        <p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"var(--muted)",lineHeight:1.6,marginBottom:"1.2rem"}}>{t.auth_spam_note}</p>
+        {err&&<p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"#b23b3b",marginBottom:"1rem"}}>{err}</p>}
+        {info&&<p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"var(--navy)",marginBottom:"1rem"}}>{info}</p>}
+        <button className="btn-pub" style={{width:"100%",marginBottom:"0.9rem"}} disabled={busy} onClick={doResend}>{t.auth_resend_btn}</button>
+        <p style={{textAlign:"center"}}><span style={{fontFamily:"var(--body)",fontSize:"0.84rem",color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>go("signup")}>{t.auth_wrong_email}</span></p>
       </>)}
     </div>
   );
@@ -3058,14 +3138,16 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
   if(step==="login") return (
     <div className="wr-wrap">
       {card(<>
-        <button className="back" onClick={()=>{setErr("");setStep("landing");}}>{t.auth_back}</button>
+        <button className="back" onClick={()=>{go("landing");}}>{t.auth_back}</button>
         <h2 className="wr-h">{t.auth_login_h}</h2>
         <p className="wr-sub">{t.auth_login_sub}</p>
         <div className="fld"><label className="lbl">{t.auth_email}</label><input className="inp" type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
-        <div className="fld"><label className="lbl">{t.auth_password}</label><input className="inp" type="password" value={pw} onChange={e=>setPw(e.target.value)}/></div>
+        <div className="fld"><label className="lbl">{t.auth_password}</label><PwInput t={t} value={pw} onChange={e=>setPw(e.target.value)}/></div>
         {err&&<p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"#b23b3b",marginBottom:"1rem"}}>{err}</p>}
+        {info&&<p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"var(--navy)",marginBottom:"1rem"}}>{info}</p>}
+        {showResend&&<button className="btn-out" style={{width:"100%",marginBottom:"0.9rem"}} disabled={busy} onClick={doResend}>{t.auth_resend_btn}</button>}
         <button className="btn-pub" style={{width:"100%",marginBottom:"0.9rem"}} disabled={busy} onClick={doLogin}>{t.auth_login_btn}</button>
-        <p style={{textAlign:"center"}}><span style={{fontFamily:"var(--body)",fontSize:"0.84rem",color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>{setErr("");setPw("");setStep("recover");}}>{t.auth_forgot}</span></p>
+        <p style={{textAlign:"center"}}><span style={{fontFamily:"var(--body)",fontSize:"0.84rem",color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>{setPw("");go("recover");}}>{t.auth_forgot}</span></p>
       </>)}
     </div>
   );
@@ -3073,7 +3155,7 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
   if(step==="recover") return (
     <div className="wr-wrap">
       {card(<>
-        <button className="back" onClick={()=>{setErr("");setStep("login");}}>{t.auth_back}</button>
+        <button className="back" onClick={()=>{go("login");}}>{t.auth_back}</button>
         <h2 className="wr-h">{t.auth_recover_h}</h2>
         <p className="wr-sub">{t.auth_recover_sub}</p>
         <div className="fld"><label className="lbl">{t.auth_email}</label><input className="inp" type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
@@ -3087,7 +3169,9 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
     <div className="wr-wrap">
       {card(<>
         <h2 className="wr-h">{t.auth_recover_sent_h}</h2>
-        <p className="wr-sub">{t.auth_recover_sent_sub}</p>
+        <p className="wr-sub" style={{marginBottom:"0.8rem"}}>{t.auth_recover_sent_sub}</p>
+        <p className="wr-sub" style={{marginBottom:"0.8rem"}}>{t.auth_sent_to} <b style={{color:"var(--ink)",wordBreak:"break-all"}}>{email.trim()}</b></p>
+        <p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"var(--muted)",lineHeight:1.6,marginBottom:0}}>{t.auth_spam_note}</p>
       </>)}
     </div>
   );
@@ -3096,8 +3180,8 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
     <div className="wr-wrap">
       {card(<>
         <h2 className="wr-h">{t.auth_set_new_password_h}</h2>
-        <div className="fld"><label className="lbl">{t.auth_new_password}</label><input className="inp" type="password" value={pw} onChange={e=>setPw(e.target.value)}/></div>
-        <div className="fld"><label className="lbl">{t.auth_password_repeat}</label><input className="inp" type="password" value={pw2} onChange={e=>setPw2(e.target.value)}/></div>
+        <div className="fld"><label className="lbl">{t.auth_new_password}</label><PwInput t={t} value={pw} onChange={e=>setPw(e.target.value)}/><p style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)",marginTop:"0.3rem",marginBottom:0}}>{t.auth_pw_min}</p></div>
+        <div className="fld"><label className="lbl">{t.auth_password_repeat}</label><PwInput t={t} value={pw2} onChange={e=>setPw2(e.target.value)}/></div>
         {err&&<p style={{fontFamily:"var(--body)",fontSize:"0.86rem",color:"#b23b3b",marginBottom:"1rem"}}>{err}</p>}
         <button className="btn-pub" style={{width:"100%"}} disabled={busy} onClick={doSetNewPassword}>{t.auth_save_password_btn}</button>
       </>)}
@@ -5378,7 +5462,8 @@ function App() {
   const [showGift,setShowGift]=useState(false);
   const [showSponsor,setShowSponsor]=useState(false);
   const [showFaq,setShowFaq]=useState(false);
-  const [cookieOk,setCookieOk]=useState(false);
+  // Aviso de cookies recordado en el navegador (06/10/2026).
+  const [cookieOk,setCookieOk]=useState(()=>{ try{ return window.localStorage.getItem("lm_cookies_ok")==="1"; }catch(e){ return false; } });
   const [fsStep,setFsStep]=useState(()=>{
     const saved=parseInt(localStorage.getItem("lm_read_fs"),10);
     return Number.isInteger(saved)&&saved>=0&&saved<APP_FS_STEPS.length?saved:1;
@@ -5423,7 +5508,7 @@ function App() {
       {showCollab&&<CollaborateModal onClose={()=>setShowCollab(false)} t={t} lang={lang} onSponsor={()=>setShowSponsor(true)}/>}
       {showSponsor&&<SponsorModal onClose={()=>setShowSponsor(false)} t={t}/>}
       {showFaq&&<FaqModal onClose={()=>setShowFaq(false)} t={t} lang={lang}/>}
-      {!cookieOk&&<div className="cookie-bar"><span className="cookie-msg">{t.cookie_msg}</span><button className="cookie-btn" onClick={()=>setCookieOk(true)}>{t.cookie_ok}</button></div>}
+      {!cookieOk&&<div className="cookie-bar"><span className="cookie-msg">{t.cookie_msg}</span><button className="cookie-btn" onClick={()=>{ setCookieOk(true); try{ window.localStorage.setItem("lm_cookies_ok","1"); }catch(e){} }}>{t.cookie_ok}</button></div>}
     </div>
   );
 }
