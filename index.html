@@ -2985,8 +2985,9 @@ function AuthGate({t,lang,onAuthenticated,recoveryMode,onRecoveryDone}) {
     const code = String(error?.code||"");
     const msg = String(error?.message||"").toLowerCase();
     if(code==="email_not_confirmed"||msg.includes("not confirmed")) return t.auth_err_not_confirmed;
-    if(code==="weak_password"||msg.includes("password should be")) return t.auth_err_pw_short;
+    // Primero "igual a la anterior": su mensaje también dice "password should be…" (06/10/2026).
     if(code==="same_password"||msg.includes("different from the old")) return t.auth_err_same_pw;
+    if(code==="weak_password"||msg.includes("password should be at least")) return t.auth_err_pw_short;
     if(msg.includes("for security purposes")) return t.auth_err_wait; // espera entre envíos al mismo correo
     if(code.includes("rate_limit")||error?.status===429||msg.includes("rate limit")) return t.auth_err_rate;
     if(code==="user_already_exists"||msg.includes("already registered")) return t.auth_err_exists;
