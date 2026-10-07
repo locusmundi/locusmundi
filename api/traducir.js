@@ -1,4 +1,17 @@
 // api/traducir.js — Locus Mundi
+// Versión 3 · 06/10/2026 · Sustituye a la versión 2 (commit 1daaf77).
+// Diseño: LOCUS_MUNDI_DISENO_MODERACION.md v6, §11.2, §11.4, §11.6 y §11.8 (dos versiones
+// de cada libro). Cambios de la v3:
+//  - Lee lo PUBLICADO de la tabla publicaciones (existir es estar publicado), no historias.
+//    Los pies salen de la lista de fotos de la copia publicada (contenido.fotos), no de la
+//    tabla fotos.
+//  - La división en tramos y las huellas vienen de api/_tramos.js, compartido con
+//    api/moderar.js (antes, aquí dentro). Mismas reglas y mismas huellas: la caché vale.
+//  - El fusible diario suma el gasto de la tabla registro_gasto (servicio "traduccion"),
+//    no las filas de traducciones_cache, que ahora se borran al subir un libro.
+//  - Se anota en registro_gasto TODO lo gastado, también cuando la traducción no cuadra y
+//    se descarta (en la v2 ese gasto no contaba para el fusible).
+//  - Las traducciones viejas NO las borra este archivo: lo hace api/moderar.js al subir.
 // Versión 2 · 03/10/2026 · Sustituye a la versión 1 (commit 21fcd2d).
 // Diseño: LOCUS_MUNDI_DISENO_TRADUCIR.md v2 (Continuidad, sesiones "03/10/2026 (tarde)"
 // y "03/10/2026 (lectura nueva)").
@@ -25,7 +38,10 @@
 // Variables de entorno (Vercel): GEMINI_API_KEY, SUPABASE_URL,
 // SUPABASE_SERVICE_ROLE_KEY (las mismas que api/asistente.js).
 
-const crypto = require('crypto');
+const {
+  dividirEnTramos, parrafosDe, esMarcaFoto, mismaEstructura,
+  cabeceraDe, huellaCabecera, huellaTramo
+} = require('./_tramos'); // compartido con api/moderar.js (v3)
 
 // ─── Constantes (todo lo que puede cambiar, en un solo sitio) ───────────
 
@@ -42,10 +58,6 @@ const DOLAR_A_EURO = 0.90;
 // Fusible: gasto máximo diario en traducciones NUEVAS (euros). Decisión de
 // Javier, 03/10/2026. Lo ya guardado en la caché se sirve siempre.
 const FUSIBLE_EUROS_DIA = 1.00;
-
-// Tope de cada tramo: lo que llegue antes.
-const MAX_CARACTERES = 20000;
-const MAX_PARRAFOS = 50;
 
 // Idiomas de destino: código → nombre para la instrucción.
 const IDIOMAS = {
@@ -75,85 +87,6 @@ function instruccionTramo(destino) {
 
 function instruccionCabecera(destino) {
   return `Traduce al ${destino} el título, el subtítulo y los pies de foto de una autobiografía publicada, que recibirás como un objeto JSON. Haz una traducción fiel, clara y natural, sin adornarla ni añadir nada. Mantén los nombres propios de personas y lugares como en el original. Devuelve exactamente el mismo objeto JSON, con las mismas claves (también las de "pies"), cambiando solo los textos por su traducción. Si un texto está vacío, déjalo vacío.`;
-}
-
-// ─── División en tramos (misma lectura que renderStoryBody) ─────────────
-
-function esTituloCapitulo(p) { return p.startsWith('¶'); }
-function esTituloApartado(p) { return p.startsWith('§'); }
-function esMarcaFoto(p) { return /^\[[^\]\n]*?\d+\s*\]$/.test(p); }
-function esProsa(p) { return !esTituloCapitulo(p) && !esTituloApartado(p) && !esMarcaFoto(p); }
-
-function parrafosDe(texto) {
-  return String(texto || '')
-    .replace(/\r\n?/g, '\n')
-    .split(/\n\s*\n/)
-    .map(p => p.trim())
-    .filter(Boolean);
-}
-
-function cabe(parrafos) {
-  const caracteres = parrafos.reduce((n, p) => n + p.length, 0) + 2 * Math.max(0, parrafos.length - 1);
-  const prosa = parrafos.filter(esProsa).length;
-  return caracteres <= MAX_CARACTERES && prosa <= MAX_PARRAFOS;
-}
-
-// Agrupa en bloques que empiezan cada vez que "empiezaBloque" es cierto.
-function agrupar(parrafos, empiezaBloque) {
-  const grupos = [];
-  let actual = [];
-  for (const p of parrafos) {
-    if (empiezaBloque(p) && actual.length) { grupos.push(actual); actual = []; }
-    actual.push(p);
-  }
-  if (actual.length) grupos.push(actual);
-  return grupos;
-}
-
-// Corta por párrafos, nunca a mitad de uno. Un párrafo que solo ya pasa
-// del tope va en un tramo propio.
-function trocear(parrafos) {
-  const trozos = [];
-  let actual = [];
-  for (const p of parrafos) {
-    if (actual.length && !cabe([...actual, p])) { trozos.push(actual); actual = []; }
-    actual.push(p);
-  }
-  if (actual.length) trozos.push(actual);
-  return trozos;
-}
-
-function dividirEnTramos(texto) {
-  const tramos = [];
-  for (const capitulo of agrupar(parrafosDe(texto), esTituloCapitulo)) {
-    if (cabe(capitulo)) { tramos.push(capitulo); continue; }
-    for (const apartado of agrupar(capitulo, esTituloApartado)) {
-      if (cabe(apartado)) tramos.push(apartado);
-      else tramos.push(...trocear(apartado));
-    }
-  }
-  return tramos.map(ps => ps.join('\n\n'));
-}
-
-// Para validar que la IA ha respetado la estructura.
-function estructura(texto) {
-  const ps = parrafosDe(texto);
-  const fotos = ps.filter(esMarcaFoto).map(p => p.match(/(\d+)\s*\]$/)[1]).sort().join(',');
-  return {
-    capitulos: ps.filter(esTituloCapitulo).length,
-    apartados: ps.filter(esTituloApartado).length,
-    fotos
-  };
-}
-
-function mismaEstructura(original, traducido) {
-  const a = estructura(original);
-  const b = estructura(traducido);
-  return a.capitulos === b.capitulos && a.apartados === b.apartados && a.fotos === b.fotos;
-}
-
-function huella(tipo, contenido) {
-  return crypto.createHash('sha256').update(tipo + '\n' + contenido, 'utf8').digest('hex');
 }
 
 // ─── Supabase (por su API REST, sin librerías) ──────────────────────────
@@ -188,23 +121,14 @@ async function supabaseGet(ruta) {
   throw new Error(ultimo);
 }
 
-// Solo publicada y no marcada para borrar.
-async function leerHistoria(historiaId) {
+// v3: lo publicado, de la tabla publicaciones. Si no hay fila, el libro no está publicado
+// (despublicar y eliminar borran la fila).
+async function leerPublicacion(historiaId) {
   const filas = await supabaseGet(
-    `historias?id=eq.${historiaId}&estado_publicacion=eq.publicado&marcado_borrado=eq.false` +
-    `&select=id,titulo,contenido,idioma_original&limit=1`
+    `publicaciones?historia_id=eq.${historiaId}` +
+    `&select=historia_id,titulo,contenido,idioma_original&limit=1`
   );
   return filas[0] || null;
-}
-
-async function leerPies(historiaId) {
-  const filas = await supabaseGet(`fotos?historia_id=eq.${historiaId}&select=id,url,pie_foto`);
-  const pies = {};
-  filas
-    .filter(f => f.url && String(f.pie_foto || '').trim())
-    .sort((a, b) => String(a.id).localeCompare(String(b.id)))
-    .forEach(f => { pies[f.id] = String(f.pie_foto).trim(); });
-  return pies;
 }
 
 async function buscarEnCache(historiaId, idioma, laHuella) {
@@ -215,12 +139,33 @@ async function buscarEnCache(historiaId, idioma, laHuella) {
   return filas[0] ? filas[0].contenido_traducido : null;
 }
 
+// v3: el gasto de hoy sale de registro_gasto (sobrevive al borrado de traducciones).
 async function gastoDeHoy() {
   const desde = new Date().toISOString().slice(0, 10) + 'T00:00:00Z';
   const filas = await supabaseGet(
-    `traducciones_cache?fecha_generado=gte.${desde}&select=coste_euros&limit=10000`
+    `registro_gasto?servicio=eq.traduccion&fecha=gte.${desde}&select=coste_euros&limit=100000`
   );
   return filas.reduce((n, f) => n + (Number(f.coste_euros) || 0), 0);
+}
+
+// v3: una fila por cada traducción pagada (haya salido bien o no). Si no se puede
+// anotar, se avisa en el registro de Vercel, pero el lector recibe su traducción.
+async function anotarGasto(historiaId, coste, detalle) {
+  try {
+    const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/registro_gasto`, {
+      method: 'POST',
+      headers: { ...cabecerasServicio(), Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        servicio: 'traduccion',
+        historia_id: historiaId,
+        coste_euros: Math.round((coste || 0) * 1e6) / 1e6,
+        detalle
+      })
+    });
+    if (!r.ok) console.error('No se pudo anotar el gasto:', r.status, await r.text());
+  } catch (e) {
+    console.error('No se pudo anotar el gasto:', e.message);
+  }
 }
 
 // Si otro lector acaba de guardar la misma traducción, no se duplica.
@@ -275,7 +220,7 @@ async function llamarGemini(sistema, mensaje, json) {
   return { texto, coste: costeEnEuros(uso) };
 }
 
-// Hasta dos intentos. Devuelve { contenido, coste } o null si no cuadra.
+// Hasta dos intentos. Devuelve { contenido, coste }; contenido es null si no cuadra.
 async function traducirTramo(texto, destino) {
   let coste = 0;
   for (let intento = 0; intento < 2; intento++) {
@@ -284,7 +229,7 @@ async function traducirTramo(texto, destino) {
     if (r.texto && mismaEstructura(texto, r.texto)) return { contenido: { texto: r.texto }, coste };
     console.error('Traducción con estructura distinta; intento', intento + 1);
   }
-  return null;
+  return { contenido: null, coste }; // v3: lo gastado se anota aunque no sirva
 }
 
 async function traducirCabecera(original, destino) {
@@ -308,7 +253,7 @@ async function traducirCabecera(original, destino) {
       console.error('Cabecera no válida; intento', intento + 1, e.message);
     }
   }
-  return null;
+  return { contenido: null, coste }; // v3: lo gastado se anota aunque no sirva
 }
 
 // ─── Función principal ──────────────────────────────────────────────────
@@ -334,8 +279,8 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    // 2. Leer la historia: solo publicada y no marcada.
-    const historia = await leerHistoria(historia_id);
+    // 2. Leer lo publicado (v3: tabla publicaciones).
+    const historia = await leerPublicacion(historia_id);
     if (!historia) {
       res.status(404).json({ error: 'NO_DISPONIBLE' });
       return;
@@ -355,12 +300,8 @@ module.exports = async function handler(req, res) {
     // 4. Preparar lo que se pide y su huella.
     let original, laHuella;
     if (esCabecera) {
-      original = {
-        titulo: String(historia.titulo || c.title || c.name || ''),
-        subtitulo: String(c.subtitle || ''),
-        pies: await leerPies(historia_id)
-      };
-      laHuella = huella('cabecera', JSON.stringify(original));
+      original = cabeceraDe(historia); // v3: pies de la copia publicada
+      laHuella = huellaCabecera(historia);
     } else {
       if (numTramo >= tramos.length) {
         res.status(404).json({ error: 'NO_DISPONIBLE', tramos: tramos.length });
@@ -372,7 +313,7 @@ module.exports = async function handler(req, res) {
         res.status(200).json({ texto: original, tramos: tramos.length });
         return;
       }
-      laHuella = huella('tramo', original);
+      laHuella = huellaTramo(original);
     }
 
     const responder = contenido => {
@@ -397,7 +338,10 @@ module.exports = async function handler(req, res) {
     const resultado = esCabecera
       ? await traducirCabecera(original, destino)
       : await traducirTramo(original, destino);
-    if (!resultado) {
+    await anotarGasto(historia_id, resultado.coste, {
+      idioma, parte: esCabecera ? 'cabecera' : numTramo, valida: !!resultado.contenido, modelo: MODELO
+    });
+    if (!resultado.contenido) {
       res.status(502).json({ error: 'ERROR_TRADUCCION' });
       return;
     }
