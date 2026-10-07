@@ -1,4 +1,21 @@
 // api/foto-editor.js — Editor de fotos con IA (Locus Mundi, pieza 5)
+// Versión 4 · 06/10/2026 · Sustituye a la versión 3 (commit 72361ed).
+// Diseño: LOCUS_MUNDI_DISENO_MODERACION.md v6, §11.5 y §11.8, decisión 1 (dos versiones de
+// cada libro). Cambios respecto a la v3:
+//   (1) Ningún archivo se sobrescribe jamás. Cada imagen guardada es un archivo nuevo con
+//       nombre imposible de adivinar: {carpeta}/{foto-<id>|cover}-<código>.jpg. Así la foto
+//       publicada no cambia aunque el Autor edite la que escribe.
+//   (2) Sin copias del original: "original" es el archivo que había antes de la primera
+//       edición; original_url / portada_original_url apuntan a él.
+//   (3) "volverOriginal" solo cambia las direcciones: no copia ni borra (el archivo editado
+//       puede estar publicado). Los archivos sin uso los borra api/moderar.js al subir.
+//   (4) La propuesta es también un archivo nuevo ({...}-propuesta-<código>); antes de
+//       guardarla se borran las anteriores de esa foto. El editor SOLO borra propuestas.
+//   (5) Direcciones sin ?v= (cada archivo es único). Las imágenes se localizan por su
+//       dirección (reglas de api/_almacen.js, compartido con api/moderar.js) y solo dentro
+//       de la carpeta del libro.
+// Compatible con el index.html anterior: operaciones y respuestas iguales.
+// En la segunda subida (v5), "aceptar" y "guardarTono" revisarán la imagen antes de guardarla.
 // Versión 3 · 05/10/2026 · Sustituye a la versión 2 (03/10/2026).
 // Cambios respecto a la v2 (diseño: Continuidad, sesión "05/10/2026 (fotos)"):
 //   (1) Original recuperable. Antes de sobrescribir por primera vez una foto o la
@@ -35,7 +52,9 @@
 const LIMITE_EDICIONES = 4; // único sitio donde vive el 4
 const MODELO = "gemini-3.1-flash-image-preview"; // Nano Banana 2
 const TAMANO_IMAGEN = "2K";
-const BUCKET = "fotos";
+const crypto = require("crypto");
+const almacen = require("./_almacen"); // compartido con api/moderar.js
+const BUCKET = almacen.BUCKET;
 const MAX_JPG_BYTES = 3 * 1024 * 1024; // un JPG de 1.600 px pesa mucho menos
 
 const SUPA_URL = process.env.SUPABASE_URL;
@@ -105,7 +124,7 @@ async function actualizar(tabla, filtro, datos) {
 async function subir(ruta, buffer, tipo) {
   const r = await fetch(`${SUPA_URL}/storage/v1/object/${BUCKET}/${ruta}`, {
     method: "POST",
-    headers: cabeceras({ "Content-Type": tipo, "x-upsert": "true", "cache-control": "no-cache" }),
+    headers: cabeceras({ "Content-Type": tipo, "x-upsert": "false", "cache-control": "max-age=31536000" }), // v4: nunca sobrescribe; archivo único, se puede guardar en caché
     body: buffer,
   });
   if (!r.ok) throw new Error(`STORAGE_SUBIDA ${r.status}`);
@@ -130,14 +149,41 @@ async function borrar(rutas) {
   } catch (_) { /* best-effort, como en el navegador */ }
 }
 
-// Misma forma que la URL que guarda el navegador: pública, con ?v= para saltar la caché.
+// v4: dirección pública sin ?v= (cada archivo es único).
 function urlPublica(ruta) {
-  return `${SUPA_URL}/storage/v1/object/public/${BUCKET}/${ruta}?v=${Date.now()}`;
+  return almacen.direccionPublica(ruta, SUPA_URL);
+}
+
+// v4: ruta del archivo de una dirección, solo si es de la carpeta del libro.
+function rutaDe(direccion, obj) {
+  const ruta = almacen.rutaDeDireccion(direccion, SUPA_URL);
+  return almacen.rutaEnCarpeta(ruta, obj.carpeta) ? ruta : null;
+}
+
+// v4: nombre nuevo e imposible de adivinar, en la carpeta del libro.
+function rutaNueva(obj, sufijo, extension) {
+  return `${obj.carpeta}/${obj.prefijo}-${sufijo ? sufijo + "-" : ""}${crypto.randomUUID()}${extension || ""}`;
+}
+
+// v4: borra las propuestas de esa foto (único borrado que hace el editor).
+async function borrarPropuestas(obj) {
+  try {
+    const r = await fetch(`${SUPA_URL}/storage/v1/object/list/${BUCKET}`, {
+      method: "POST",
+      headers: cabeceras({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ prefix: obj.carpeta, limit: 1000, offset: 0, search: `${obj.prefijo}-propuesta-` }),
+    });
+    if (!r.ok) return;
+    const nombres = (await r.json())
+      .filter((it) => it.id !== null && String(it.name).startsWith(`${obj.prefijo}-propuesta-`))
+      .map((it) => `${obj.carpeta}/${it.name}`);
+    if (nombres.length) await borrar(nombres);
+  } catch (_) { /* best-effort */ }
 }
 
 // ---------- Objetivo: foto o portada, con comprobación de propiedad ----------
-// Rutas idénticas a fotoStoragePath del index.html: {autor}/{historia}/foto-{id}.jpg o cover.jpg
-// Copia del original (v3): {base}-original.jpg, en la misma carpeta (la purga v2 la borra).
+// v4: carpeta del libro y prefijo del nombre (foto-{id} o cover); los archivos se localizan
+// por su dirección, no por un nombre fijo.
 // v2: una historia marcada para borrar se trata como inexistente.
 async function resolverObjetivo(body, autorId) {
   if (body.objetivo === "portada") {
@@ -150,7 +196,8 @@ async function resolverObjetivo(body, autorId) {
       url: h.portada_url,
       original: h.portada_original_url || null,
       ediciones: h.portada_ediciones_ia || 0,
-      base: `${autorId}/${h.id}/cover`,
+      carpeta: `${autorId}/${h.id}`,
+      prefijo: "cover",
       tabla: "historias",
       filtro: `id=eq.${h.id}`,
       colUrl: "portada_url",
@@ -169,7 +216,8 @@ async function resolverObjetivo(body, autorId) {
       url: f.url,
       original: f.original_url || null,
       ediciones: f.ediciones_ia || 0,
-      base: `${autorId}/${h.id}/foto-${f.id}`,
+      carpeta: `${autorId}/${h.id}`,
+      prefijo: `foto-${f.id}`,
       tabla: "fotos",
       filtro: `id=eq.${f.id}`,
       colUrl: "url",
@@ -202,28 +250,16 @@ function leerJpg(imagen) {
   return buf;
 }
 
-// v3: la imagen de partida de la IA es la copia del original si existe; si no
-// (foto nunca editada, o copia perdida), la imagen actual.
+// La imagen de partida de la IA es el original si existe; si no (foto nunca editada), la
+// actual. v4: se localiza por su dirección, dentro de la carpeta del libro.
 async function imagenDePartida(obj) {
-  if (obj.original) {
-    const ruta = `${obj.base}-original.jpg`;
+  for (const direccion of [obj.original, obj.url]) {
+    const ruta = rutaDe(direccion, obj);
+    if (!ruta) continue;
     const img = await descargar(ruta);
-    if (img) return { img, url: urlPublica(ruta) };
+    if (img) return { img, url: direccion };
   }
-  const img = await descargar(`${obj.base}.jpg`);
-  return img ? { img, url: obj.url } : null;
-}
-
-// v3: antes de la primera sobrescritura, copia la imagen actual a {base}-original.jpg.
-// Devuelve la URL de la copia (o la existente). Lanza error si no puede: así nunca
-// se sobrescribe una foto sin haber guardado antes su original.
-async function asegurarOriginal(obj) {
-  if (obj.original) return obj.original;
-  const actual = await descargar(`${obj.base}.jpg`);
-  if (!actual) throw new Error("ORIGINAL_SIN_ARCHIVO");
-  const ruta = `${obj.base}-original.jpg`;
-  await subir(ruta, actual.buffer, actual.tipo || "image/jpeg");
-  return urlPublica(ruta);
+  return null;
 }
 
 // ---------- Operaciones ----------
@@ -269,8 +305,10 @@ async function proponer(body, obj, autorId, res) {
   const datos = parte.inlineData || parte.inline_data;
   const tipo = datos.mimeType || datos.mime_type || "image/png";
 
-  // Propuesta provisional, sin extensión (puede ser PNG o JPG): {base}-propuesta
-  const rutaPropuesta = `${obj.base}-propuesta`;
+  // Propuesta provisional, sin extensión (puede ser PNG o JPG). v4: archivo nuevo; antes se
+  // borran las anteriores de esa foto, para que nunca quede más de una.
+  await borrarPropuestas(obj);
+  const rutaPropuesta = rutaNueva(obj, "propuesta", "");
   await subir(rutaPropuesta, Buffer.from(datos.data, "base64"), tipo);
 
   const nuevas = obj.ediciones + 1;
@@ -289,32 +327,29 @@ async function guardarImagen(body, obj, res, borrarPropuesta) {
   if (!obj.url) return res.status(400).json({ error: "SIN_IMAGEN" });
   const jpg = leerJpg(body.imagen);
   if (!jpg) return res.status(400).json({ error: "IMAGEN_NO_VALIDA" });
-  const originalUrl = await asegurarOriginal(obj); // v3: antes de sobrescribir
-  const ruta = `${obj.base}.jpg`;
+  // v4: el original es el archivo que había antes de la primera edición (sin copias).
+  const originalUrl = obj.original || obj.url;
+  const ruta = rutaNueva(obj, "", ".jpg");
   await subir(ruta, jpg, "image/jpeg");
   const url = urlPublica(ruta);
-  // service_role: no gasta el cambio de imagen; anota la copia del original
+  // service_role: no gasta el cambio de imagen; anota el original
   await actualizar(obj.tabla, obj.filtro, { [obj.colUrl]: url, [obj.colOriginal]: originalUrl });
-  if (borrarPropuesta) await borrar([`${obj.base}-propuesta`]);
+  if (borrarPropuesta) await borrarPropuestas(obj);
   return res.status(200).json({ url, tieneOriginal: true });
 }
 
 async function descartar(obj, res) {
-  await borrar([`${obj.base}-propuesta`]); // la edición queda gastada (29/09, punto 4b)
+  await borrarPropuestas(obj); // la edición queda gastada (29/09, punto 4b)
   return res.status(200).json({ ok: true });
 }
 
-// v3: repone la copia del original. No toca contadores.
+// v4: vuelve a apuntar al original. No copia ni borra archivos (el editado puede estar
+// publicado; si nadie lo usa, lo borra api/moderar.js al subir). No toca contadores.
 async function volverOriginal(obj, res) {
-  if (!obj.original) return res.status(400).json({ error: "SIN_ORIGINAL" });
-  const copia = await descargar(`${obj.base}-original.jpg`);
-  if (!copia) return res.status(404).json({ error: "SIN_ORIGINAL" });
-  const ruta = `${obj.base}.jpg`;
-  await subir(ruta, copia.buffer, copia.tipo || "image/jpeg");
-  const url = urlPublica(ruta);
-  await actualizar(obj.tabla, obj.filtro, { [obj.colUrl]: url, [obj.colOriginal]: null });
-  await borrar([`${obj.base}-original.jpg`, `${obj.base}-propuesta`]);
-  return res.status(200).json({ url, tieneOriginal: false });
+  if (!obj.original || !rutaDe(obj.original, obj)) return res.status(400).json({ error: "SIN_ORIGINAL" });
+  await actualizar(obj.tabla, obj.filtro, { [obj.colUrl]: obj.original, [obj.colOriginal]: null });
+  await borrarPropuestas(obj);
+  return res.status(200).json({ url: obj.original, tieneOriginal: false });
 }
 
 // ---------- Entrada ----------
