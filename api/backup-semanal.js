@@ -1,33 +1,38 @@
+// api/backup-semanal.js — Locus Mundi
+// Versión 2 · 06/10/2026 · Diseño de la moderación v6, §11.2 (dos versiones de cada libro).
+// Cambio respecto a la versión anterior: la copia semanal guarda, además de historias (lo que
+// el Autor escribe), la tabla publicaciones (lo que se lee), que puede ser distinta. Archivo
+// nuevo: backups/copia-AAAA-MM-DD.json con { fecha, historias, publicaciones }.
+// Pendientes que siguen (no de esta versión): la copia no incluye la tabla fotos, y las
+// copias no caducan (Hoja de Ruta, prioridad alta).
+
+async function leerTabla(tabla) {
+  const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${tabla}?select=*`, {
+    headers: {
+      apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+  });
+  if (!r.ok) throw new Error(`Fallo leyendo ${tabla}: ${await r.text()}`);
+  return r.json();
+}
+
 module.exports = async function handler(req, res) {
   // Protegido igual que el cron de purgado, con el mismo secreto
   const secret = req.headers['authorization'];
-  if (secret !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || secret !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'No autorizado' });
   }
 
   try {
-    // 1. Leer todas las historias desde Supabase con la llave de servicio
-    const supaRes = await fetch(
-      `${process.env.SUPABASE_URL}/rest/v1/historias?select=*`,
-      {
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-        },
-      }
-    );
+    // 1. Leer las dos tablas con la llave de servicio
+    const historias = await leerTabla('historias');
+    const publicaciones = await leerTabla('publicaciones');
 
-    if (!supaRes.ok) {
-      const errText = await supaRes.text();
-      return res.status(500).json({ error: 'Fallo leyendo Supabase', detalle: errText });
-    }
-
-    const historias = await supaRes.json();
-
-    // 2. Preparar el nombre de archivo con la fecha de hoy (UTC)
+    // 2. Nombre de archivo con la fecha de hoy (UTC)
     const hoy = new Date().toISOString().slice(0, 10); // AAAA-MM-DD
-    const nombreArchivo = `backups/historias-${hoy}.json`;
-    const contenido = JSON.stringify(historias, null, 2);
+    const nombreArchivo = `backups/copia-${hoy}.json`;
+    const contenido = JSON.stringify({ fecha: hoy, historias, publicaciones }, null, 2);
     const contenidoBase64 = Buffer.from(contenido, 'utf-8').toString('base64');
 
     // 3. Subir el archivo al repositorio locusmundi-backups vía GitHub API
@@ -55,8 +60,9 @@ module.exports = async function handler(req, res) {
       ok: true,
       archivo: nombreArchivo,
       historias_guardadas: historias.length,
+      publicaciones_guardadas: publicaciones.length,
     });
   } catch (err) {
-    return res.status(500).json({ error: 'Error inesperado', detalle: String(err) });
+    return res.status(500).json({ error: 'Error inesperado', detalle: String(err.message || err) });
   }
 };
