@@ -629,6 +629,82 @@ function frenchQuoteSpaces(str){
 }
 // Marca [FOTO n] (y variantes de la traducción): misma regla que renderStoryBody.
 const FOTO_MARK_RE = /^\[\s*([^\]\d\s][^\]\d]*?)\s*(\d+)\s*\]$/;
+// Segunda subida (08/10/2026; diseño de la moderación v10, §11.13, punto 7): solo se publican las
+// fotos COLOCADAS en el texto. Copia exacta de fotosColocadas de api/_tramos.js v2 (la regla de
+// la lectura): corchetes, una palabra que empieza por "foto" o "photo" y el número (= orden).
+function fotosColocadas(text){
+  const colocadas=new Set();
+  for(const raw of String(text||"").split("\n\n")){
+    const m=raw.trim().match(FOTO_MARK_RE);
+    if(m && /^(foto|photo)/i.test(m[1])) colocadas.add(m[2]);
+  }
+  return colocadas;
+}
+// Guiones al leer (diseño §8.3; segunda subida). Sin IA y sin tocar el texto guardado: se aplica
+// al mostrar cada párrafo de prosa, en el idioma en que se lee (también en la traducción).
+// Todos los idiomas salvo el inglés: un solo guion, el medio (–).
+//  1. "--" o "---" → –.   6. raya (—) → –.
+//  2. Guion al principio del párrafo → – pegado al texto (salvo un número negativo: "-5 grados").
+//  3. Guion de inciso → –: espacio delante y no detrás ("tarde -dijo"); detrás y no delante
+//     ("suave- y"); a los dos lados ("era tarde - dijo"); pegado a una palabra por delante y
+//     seguido de . , ; : ("–dijo-. Y").
+//  4. Guion de cierre al final del párrafo ("–Ya voy –dijo–.") → se quita ("–Ya voy –dijo.").
+//  5. No se tocan el guion entre letras o cifras sin espacios ni el de un número negativo.
+// Inglés (Estándar §9ter): la raya se respeta y "--" pasa a raya; las reglas 2 a 4 no se aplican.
+function formatDashes(p, lang){
+  if(String(lang||"").toUpperCase()==="EN") return p.replace(/-{2,3}/g,"—");
+  let s=p.replace(/-{2,3}/g,"–").replace(/—/g,"–");
+  s=s.replace(/^(\s*)[-–]\s*(?=\D)/,"$1–");                                  // 2
+  s=s.replace(/(\s)-\s+(?=\S)/g,"$1– ")                                        // 3, a los dos lados
+     .replace(/(\s)-(?=[^\s\d-])/g,"$1–")                                       // 3, espacio delante
+     .replace(/([^\s-])-(?=\s)/g,"$1–")                                         // 3, espacio detrás
+     .replace(/([\p{L}\p{N}])-(?=[.,;:])/gu,"$1–");                             // 3, ante puntuación
+  s=s.replace(/(\s–[^–\n]*?[\p{L}\p{N}][^–\n]*?)–([.…!?»”"]*)\s*$/u,"$1$2");     // 4
+  return s;
+}
+// Parche del pegado (diseño §8.4; Pendientes del Asistente, §3). Une las líneas cortadas de un
+// texto pegado; no une dos líneas separadas por una línea en blanco (cambio de párrafo real), ni
+// las que empiezan por ¶ o §, ni las marcas [FOTO n]: esas quedan como párrafo propio.
+// Devuelve null si no hay nada que unir (el navegador pega como siempre).
+function joinPastedLines(raw){
+  const txt=String(raw||"").replace(/\r\n?/g,"\n");
+  if(!/[^\n]\n[^\n]/.test(txt)) return null;
+  const aparte=l=>{ const x=l.trim(); return x.startsWith(CHAPTER_SIGN)||x.startsWith(SECTION_SIGN)||FOTO_MARK_RE.test(x); };
+  const parrafos=[];
+  for(const bloque of txt.split(/\n[ \t]*\n/)){
+    let actual="";
+    for(const linea of bloque.split("\n")){
+      const l=linea.trim();
+      if(!l) continue;
+      if(aparte(l)){ if(actual) parrafos.push(actual); parrafos.push(l); actual=""; continue; }
+      actual=actual?actual+" "+l:l;
+    }
+    if(actual) parrafos.push(actual);
+  }
+  const out=parrafos.map(p=>p.replace(/[ \t]{2,}/g," ")).join("\n\n");
+  return out===txt ? null : out;
+}
+// Quita una cita exacta del texto (pasajes señalados, "Suprimir"; diseño §11.13, punto 8). Si el
+// párrafo queda vacío, desaparece con su línea en blanco; si no, no quedan espacios dobles.
+// Devuelve null si la cita no está.
+function suprimirCita(text, cita){
+  const i=cita?text.indexOf(cita):-1;
+  if(i===-1) return null;
+  let antes=text.slice(0,i), despues=text.slice(i+cita.length);
+  const finAntes=/(^|\n\n)[ \t]*$/.test(antes), iniDespues=/^[ \t]*(\n\n|$)/.test(despues);
+  if(finAntes && iniDespues){
+    antes=antes.replace(/[ \t]*$/,""); despues=despues.replace(/^[ \t]*/,"");
+    if(antes.endsWith("\n\n") && despues.startsWith("\n\n")) despues=despues.slice(2);
+    else if(!antes && despues.startsWith("\n\n")) despues=despues.slice(2);
+    else if(antes.endsWith("\n\n") && !despues) antes=antes.slice(0,-2);
+    return antes+despues;
+  }
+  if(/[ \t]$/.test(antes) && /^[ \t]/.test(despues)) despues=despues.replace(/^[ \t]+/,"");
+  else if(/[ \t]$/.test(antes) && /^[.,;:!?…)»”]/.test(despues)) antes=antes.replace(/[ \t]+$/,"");
+  else if(!antes.trim() || /\n\n$/.test(antes)) despues=despues.replace(/^[ \t]+/,"");
+  if(!despues || despues.startsWith("\n")) antes=antes.replace(/[ \t]+$/,""); // fin de párrafo: sin espacio colgando
+  return antes+despues;
+}
 // Extracto de las tarjetas de la Biblioteca (04/10/2026; Continuidad, sesiones "03/10/2026 (tarde)",
 // punto 5, y "03/10/2026 (interfaz)", punto 5). Sin ¶, §, [FOTO n] ni guiones bajos o asteriscos
 // de la cursiva; empieza por el primer párrafo de prosa; si hay que cortar, se corta en un espacio
@@ -646,7 +722,9 @@ function storyExcerpt(text, max=88){
 }
 function renderStoryBody(text, fotos=[], lang=null) {
   return (text||"").split("\n\n").map((raw,i)=>{
-    const p = raw.replace(/—/g,"–");
+    // Guiones (diseño §8.3, segunda subida): la raya pasa a guion medio salvo en inglés; el
+    // resto de reglas, solo en los párrafos de prosa (más abajo, formatDashes).
+    const p = String(lang||"").toUpperCase()==="EN" ? raw : raw.replace(/—/g,"–");
     const trimmed = p.trim();
     // Marcador [FOTO n]. Tolerante a propósito: si la traducción por IA cambiara la palabra
     // (p. ej. [PHOTO 2], [FOTOGRAFÍA 2]), basta con corchetes + palabra + número final.
@@ -682,7 +760,7 @@ function renderStoryBody(text, fotos=[], lang=null) {
       const body = trimmed.slice(SECTION_SIGN.length).trim();
       return <h3 key={i} style={{fontFamily:"var(--serif)",fontSize:"1.15rem",color:"var(--navy)",margin:"2rem 0 0.8rem",paddingBottom:"0.4rem",borderBottom:"1px solid var(--border)"}}>{body}</h3>;
     }
-    const q = toAngleQuotes(p, lang);
+    const q = toAngleQuotes(formatDashes(p, lang), lang);
     return <p key={i}>{renderInline(lang==="FR" ? frenchQuoteSpaces(q) : q)}</p>;
   });
 }
@@ -759,8 +837,8 @@ const LEGAL_ES = {"aviso": {"title": "Aviso Legal", "blocks": [{"t": "meta", "x"
 const LEGAL_EN = {"aviso":{"title":"Legal Notice","blocks":[{"t":"meta","x":"Last updated: August 3, 2026"},{"t":"h2","x":"INFORMATION SOCIETY SERVICES ACT (LSSI)"},{"t":"p","x":"Alastuey y Morera Asociados, S.L., with Tax ID (CIF) B-62760772 and contact email contactlocusmundi@gmail.com, hereinafter «the CONTROLLER», makes this document available to users in order to comply with the obligations set out in Spanish Law 34/2002, of July 11, on Information Society Services and Electronic Commerce (LSSICE), and to inform all website users of the applicable terms of use."},{"t":"p","x":"Any person who accesses this website assumes the role of User, and undertakes to observe and strictly comply with the provisions set out herein, as well as any other applicable legal provision."},{"t":"p","x":"The CONTROLLER reserves the right to modify any information that may appear on the website, without any obligation to give prior notice or otherwise inform users of such modifications, publication on the website being deemed sufficient."},{"t":"h2","x":"1. IDENTIFYING INFORMATION"},{"t":"ul","x":["Owner: Alastuey y Morera Asociados, S.L.","Tax ID (CIF): B-62760772","Email: contactlocusmundi@gmail.com","Address for notification purposes: Castell de Montagut 12, Sant Julià de Ramis, 17481 Girona, Spain"]},{"t":"h2","x":"2. PURPOSE"},{"t":"p","x":"Locus Mundi is, essentially, a platform for generating, preserving and publishing generational memory on a global scale, open to the world's major languages. It allows anyone to write, publish and permanently preserve their own autobiography or that of a family member, with the option of adding photographs and AI-assisted editorial support. Through this website, users are offered information about these services, as well as access to the stories published by other authors."},{"t":"h2","x":"3. PRIVACY AND DATA PROCESSING"},{"t":"p","x":"When access to certain content or services requires providing personal data, users guarantee that such data is truthful, accurate, authentic and up to date. The CONTROLLER will process such data as appropriate to its nature or purpose, under the terms set out in the Privacy Policy."},{"t":"h2","x":"4. INTELLECTUAL AND INDUSTRIAL PROPERTY"},{"t":"p","x":"The design, the «Locus Mundi» brand, the logo, the website's own texts, the software and the structure of the platform are protected by the CONTROLLER's intellectual and industrial property rights. Reproduction, distribution or unauthorized use without express consent is prohibited."},{"t":"p","x":"Stories, texts and photographs published by each Author remain the property of that Author. Locus Mundi does not claim ownership of the autobiographical content published by users; its relationship with such content, and the specific conditions for publication, preservation and deletion, are governed by the Publication Terms for Authors, a separate document that every Author expressly accepts upon publishing."},{"t":"h2","x":"5. USER OBLIGATIONS AND RESPONSIBILITIES"},{"t":"p","x":"The user agrees to:"},{"t":"ul","x":["Make appropriate and lawful use of the website and its contents.","Not use the website for fraudulent, unlawful purposes or in ways that harm the rights of third parties.","Not introduce or spread computer viruses or other systems liable to cause damage to the website or its users.","Not publish, if acting as an Author, private information about third parties without their consent, nor any information or images of minors without the consent of whoever holds parental authority or guardianship over them. Special caution is required when publishing special categories of data (health, ethnic origin, sexual orientation, religious beliefs or other sensitive information under Article 9 of the GDPR), which must never be published without the explicit consent of the person concerned."]},{"t":"p","x":"The CONTROLLER will not be liable for actions taken by users that breach these terms."},{"t":"h2","x":"6. LIABILITY"},{"t":"p","x":"The CONTROLLER does not guarantee uninterrupted access to the website, nor the absence of errors. Likewise, it is not liable for damages arising from improper use of the website or from technical failures on the network."},{"t":"p","x":"The CONTROLLER reserves the right to modify or temporarily suspend access to the website without prior notice, for reasons of maintenance, security or service improvements. This reservation does not affect the permanence of stories already published, whose preservation is governed by the Publication Terms for Authors."},{"t":"h2","x":"7. THIRD-PARTY LINKS"},{"t":"p","x":"The website may include links to third-party websites. The CONTROLLER is not responsible for the content, privacy policies or practices of these external sites."},{"t":"h2","x":"8. DATA PROTECTION"},{"t":"p","x":"The processing of personal data is governed by current data protection regulations. For more information, please see the Privacy Policy."},{"t":"h2","x":"9. COOKIES"},{"t":"p","x":"This website uses cookies to function correctly. For more information, please see the Cookie Policy."},{"t":"h2","x":"10. APPLICABLE LAW AND JURISDICTION"},{"t":"p","x":"These terms are governed by Spanish law. Any dispute will be submitted to the Courts and Tribunals of the CONTROLLER's domicile, without prejudice to any rights the consumer may have under applicable consumer protection regulations, where relevant."},{"t":"p","x":"Should any provision of this legal notice be declared null or unenforceable, the remaining provisions will remain in force."}]},"privacidad":{"title":"Privacy Policy","blocks":[{"t":"meta","x":"Last updated: September 8, 2026"},{"t":"h2","x":"INFORMATION FOR THE USER"},{"t":"p","x":"Alastuey y Morera Asociados, S.L., as Data Controller, informs users that, pursuant to Regulation (EU) 2016/679, of April 27 (GDPR), and Spanish Organic Law 3/2018, of December 5, on Data Protection and Guarantee of Digital Rights (LOPDGDD), their data will be processed as set out in this Privacy Policy."},{"t":"p","x":"This Policy applies to the processing of personal data collected by Alastuey y Morera Asociados, S.L. through the Locus Mundi platform."},{"t":"h2","x":"CONTACT"},{"t":"ul","x":["Owner: Alastuey y Morera Asociados, S.L.","Tax ID (CIF): B-62760772","Email: contactlocusmundi@gmail.com","Address for notification purposes: Castell de Montagut 12, Sant Julià de Ramis, 17481 Girona, Spain"]},{"t":"h2","x":"PRINCIPLES APPLIED TO DATA PROCESSING"},{"t":"ul","x":["Lawfulness: we only collect personal data for specific, explicit and legitimate purposes.","Data minimization: we limit collection to what is strictly necessary to provide the service.","Purpose limitation: we only process data for the stated purposes.","Accuracy: we keep data accurate and up to date.","Security: we apply reasonable technical and organizational measures to protect data.","Access and rectification: the user may access or rectify their data at any time.","Retention: data is kept only for as long as necessary for the purposes for which it was collected, except for published autobiographical stories, whose permanent preservation is governed by the Publication Terms for Authors.","International transfers: see the specific section below."]},{"t":"h2","x":"WHAT DATA WE COLLECT"},{"t":"ul","x":["Identifying data: name, email address, country, and any data the Author voluntarily chooses to include in their story (date of birth, place of origin, etc.).","Autobiographical content: the text, title, subtitle and photographs the Author chooses to publish.","Browsing data: as described in the Cookie Policy.","Payment data: handled directly by the payment gateway (Stripe); Locus Mundi does not store card data.", "Connection log (LSSI): IP address and date/time of connection, recorded at sign-up and at each publication or unpublication of a story, in compliance with Spanish Law 34/2002 (LSSICE)."]},{"t":"h2","x":"WHAT WE USE YOUR DATA FOR"},{"t":"ul","x":["Enabling the creation, publication and preservation of autobiographical stories on the platform.","Providing the AI-assisted editorial support service, when the user activates this feature.","Managing contact requests and responding to inquiries.","Managing payments corresponding to the platform's paid options."]},{"t":"p","x":"We do not use your data to build profiles or for unsolicited advertising purposes."},{"t":"h2","x":"INTERNATIONAL TRANSFERS AND THIRD PARTIES"},{"t":"p","x":"To provide the service, Locus Mundi may share data with the following data processors:"},{"t":"ul","x":["Vercel Inc. (web hosting for the platform)","Supabase (database)","Google Ireland Limited (provider of the artificial intelligence —Google Gemini— powering the editorial assistance service, when the Author activates this feature). This provider may process data outside the European Economic Area, so text sent to the AI may involve an international data transfer, subject to the safeguards required under the GDPR. Locus Mundi only sends this service the text that the Author voluntarily chooses to submit for editorial review or improvement, never automatically or without the user's explicit action.","Stripe (payment processor)"]},{"t":"p","x":"No data is shared with third parties other than those described here, except where legally required."},{"t":"h2","x":"LEGAL BASIS FOR PROCESSING"},{"t":"ul","x":["User consent, which may be withdrawn at any time.","Performance of a contractual relationship (provision of the publishing service).","Compliance with a legal obligation."]},{"t":"h2","x":"YOUR RIGHTS"},{"t":"p","x":"You may exercise the following rights in relation to the processing of your personal data:"},{"t":"ul","x":["Access: obtain confirmation as to whether we process your data, and access it.","Rectification: correct inaccurate or incomplete data.","Erasure: request deletion of your data when it is no longer necessary for the purposes it was collected for. *(For stories published by Authors, this right is exercised in accordance with the Publication Terms for Authors, given the permanent nature of publication expressly accepted upon publishing.)*","Restriction of processing.","Portability: receive your data in a structured format.","Objection."]},{"t":"p","x":"You may exercise these rights by writing to contactlocusmundi@gmail.com. You also have the right to file a complaint with the Spanish Data Protection Agency (www.aepd.es) if you believe the processing does not comply with applicable regulations."},{"t":"h2","x":"MINORS"},{"t":"p","x":"Locus Mundi services that involve the processing of personal data, such as registering to write and publish a story, are not directed at minors under 14 years of age. Reading published stories is open to the public, requires no registration or collection of any personal data, and may be accessed by readers of any age, including an Author's own minor descendants. If an Author includes information or images of minors in their story (for example, family members), it is the Author's responsibility to have obtained the necessary consent to do so, in accordance with the Publication Terms for Authors. Additionally, being an Author on Locus Mundi requires being of legal age (18), as further detailed in those Terms."},{"t":"h2","x":"LEGAL INFORMATION"},{"t":"p","x":"The requirements of this Policy complement, and do not replace, any other requirement under applicable data protection law. This Policy may be reviewed periodically; any relevant change will be notified through the website."}]},"cookies":{"title":"Cookie Policy","blocks":[{"t":"meta","x":"Last updated: August 3, 2026"},{"t":"h2","x":"WHAT IS A COOKIE"},{"t":"p","x":"A «cookie» is a small piece of text that websites send to the browser and that is stored on the user's device (computer or mobile device). It allows information about the user's browsing to be stored and retrieved in order to improve their experience on the website."},{"t":"h2","x":"COOKIES CURRENTLY USED BY LOCUS MUNDI"},{"t":"p","x":"At this time, Locus Mundi uses only its own strictly technical cookies, necessary for the website to function (for example, to remember that you have accepted this cookie notice). These cookies do not require prior consent under applicable regulations, as they are essential to providing the service."},{"t":"p","x":"Locus Mundi does not use third-party cookies for advertising or commercial tracking purposes. If a third-party analytics tool (for example, Google Analytics) is added in the future, this Policy will be updated before it is activated, and the user's corresponding consent will be requested, as required by law."},{"t":"p","x":"Internal platform statistics: Locus Mundi may display aggregated information of general interest, such as the number of stories published or their geographic distribution (for example, in map form). When this information is obtained through anonymous, aggregated counters managed directly on Locus Mundi's own server — without being shared with third parties or used to build individual profiles — it may fall under the exception that allows informing users without requiring prior consent, in accordance with the cookie guidance issued by the Spanish Data Protection Agency (AEPD). If this type of statistic is ever implemented through the platform's own cookies for this exclusively internal purpose, it will be disclosed in this Policy."},{"t":"h2","x":"CONSENT AND COOKIE MANAGEMENT"},{"t":"p","x":"By browsing and continuing to use the website, the user accepts the use of the technical cookies described in this Policy."},{"t":"p","x":"Users may delete cookies stored on their device at any time through their browser settings. You can find out how to do so at the following links:"},{"t":"ul","x":["Chrome: https://support.google.com/chrome/answer/95647","Firefox: https://support.mozilla.org/kb/clear-cookies-and-site-data-firefox","Safari (Mac): https://support.apple.com/guide/safari/manage-cookies-and-website-data-sfri11471/mac","Safari (iPhone/iPad): https://support.apple.com/HT201265","Edge: https://support.microsoft.com/help/4468242/microsoft-edge-browsing-data-and-privacy-microsoft-privacy"]},{"t":"h2","x":"UPDATES TO THIS POLICY"},{"t":"p","x":"Alastuey y Morera Asociados, S.L. reserves the right to modify this Cookie Policy to adapt it to legislative developments or changes in how the website operates. Users are advised to review it periodically."},{"t":"h2","x":"CONTACT"},{"t":"p","x":"contactlocusmundi@gmail.com"}]},"condiciones":{"title":"Publication Terms for Authors","blocks":[{"t":"meta","x":"Last updated: September 8, 2026"},{"t":"p","x":"This document applies specifically to those who publish an autobiographical story on Locus Mundi (hereinafter, the «Author»), and complements — without replacing — the site's general Legal Notice and Privacy Policy. When opening a new file in the \"Write your story\" section, the Author must expressly accept these terms before being able to draft or publish content, through an explicit acceptance step (general browsing of the site is not sufficient, unlike the cookie notice)."},{"t":"p","x":"The Author declares and warrants that they are of legal age (18 years or older) at the time of registering and accepting these terms. Locus Mundi is not directed at minors as Authors; the platform reserves the right to suspend or delete any account it has reasonable grounds to believe belongs to a minor."},{"t":"h2","x":"1. WHAT LOCUS MUNDI IS"},{"t":"p","x":"Locus Mundi is, essentially, a platform for generating, preserving and publishing generational memory on a global scale, open to the world's major languages. Unlike a social network or a conventional blog, its purpose is not temporary or ephemeral publication, but the permanent preservation of the family and personal stories that its Authors choose to entrust to the platform."},{"t":"h2","x":"2. PERMANENCE OF PUBLISHED STORIES"},{"t":"p","x":"Every story published on Locus Mundi remains published permanently by default, and can be read free of charge by any website user. This permanence is a core principle of the platform, not an incidental feature."},{"t":"p","x":"Only the Author may contract, as an optional extra, a properly formatted file for printing their autobiography (DIN A4 or A5), subject to the pricing terms in effect. This printing option does not in any way alter the free, permanent availability of the story on the website."},{"t":"ul","x":["Only the Author, duly authenticated with their password (and, where applicable, reinforced by a security question), may request the deletion of their own story.","Neither the Author's heirs nor Locus Mundi may delete a story by default. This restriction is grounded in Article 96 of Organic Law 3/2018 (LOPDGDD), which recognizes every person's right to leave express instructions, during their lifetime, regarding the fate of their digital content, restricting the access or powers that would otherwise pass to their heirs. By publishing, the Author expressly records their wish that their story remain permanently available unless they themselves decide otherwise.","Exceptionally, Locus Mundi may remove content without the Author's request only for a serious and documented legal reason (for example, unlawful content or a final court order requiring it)."]},{"t":"h2","x":"3. OWNERSHIP OF CONTENT"},{"t":"p","x":"The Author retains the intellectual property rights to their story, texts and photographs at all times. By publishing, the Author grants Locus Mundi a non-exclusive license to host, display and preserve that content on the platform, for the purpose of fulfilling the preservation purpose described in this document. This license does not transfer ownership of the content to Locus Mundi."},{"t":"h2","x":"4. RESPONSIBILITY FOR CONTENT AND THIRD PARTIES MENTIONED"},{"t":"p","x":"The Author is responsible for the content they publish, and specifically agrees to:"},{"t":"ul","x":["Not publish private information about third parties (including living family members) without their consent.","Take special care when the story mentions or includes any information or images of minors, whether or not of a private nature. The Author declares that they hold the necessary consent from whoever holds parental authority or guardianship in such cases.","Exercise particular caution with special categories of data (health, ethnic origin, sexual orientation, religious beliefs or other sensitive information under Article 9 of the GDPR) concerning any third party mentioned, which must never be published without the explicit consent of the person concerned.","Not publish defamatory or unlawful content, or content that infringes the rights of third parties."]},{"t":"p","x":"Locus Mundi may review content before or after publication to verify compliance with these terms, and may contact the Author if it detects a possible breach."},{"t":"h2","x":"5. ACCOUNT, AUTHENTICATION AND DELETION"},{"t":"ul","x":["Access to write, edit or delete a story is done using the Author's personal password, with an optional security-question reinforcement.","The Author is responsible for safeguarding their access credentials. Locus Mundi will provide an access recovery procedure for cases of lost passwords, reasonably verifying the identity of the person requesting it.","Deletion of a story by the Author is an irreversible action: once confirmed, there is no procedure — not even by contacting Locus Mundi — to undo the Author's decision. For purely technical and internal system-security reasons, the record may persist internally, inaccessible to both the Author and third parties, for a short period (up to 30 days) before permanent physical deletion, solely to protect the platform against technical errors or system failures."]},{"t":"h2","x":"6. SERVICE TIERS AND AI ASSISTANCE"},{"t":"ul","x":["The Author may publish free of charge (Base tier) or contract optional paid extras (additional photos, a printable PDF file, the Editorial Assistant). The specific pricing terms for each extra will be detailed at the time of purchase.","If the Author activates the Editorial Assistant (AI), they agree that any text they voluntarily submit to that feature will be sent to an external language-processing provider (see Privacy Policy), solely for the purpose of receiving suggestions for improvement, structure or correction. The Author retains final control over their text at all times."]},{"t":"h2","x":"7. DIGITAL LEGACY"},{"t":"p","x":"Locus Mundi recognizes that the nature of this service calls for a long-term perspective. While the Author is alive, they are the only person able to modify or delete their story. After their death, the story remains published in accordance with the permanence principle described in section 2, unless the Author has left different instructions in writing and communicated them to Locus Mundi beforehand."},{"t":"h2","x":"8. CHANGES TO THESE TERMS"},{"t":"p","x":"Locus Mundi may update these terms to adapt them to regulatory or service changes. Changes affecting the essence of the permanence principle (section 2) will not be applied retroactively to stories already published without the express consent of the affected Author."},{"t":"h2","x":"CONTACT"},{"t":"p","x":"contactlocusmundi@gmail.com"}]}};
 
 
-const FAQ_ES = [{"q": "¿Qué es Locus Mundi?", "a": "Locus Mundi es una plataforma creada por y para todas aquellas personas que deseen escribir, publicar, preservar y compartir gratuitamente sus autobiografías e historias de vida, con el objeto de transmitir su testimonio a otros miembros de su generación o a las generaciones futuras."}, {"q": "¿Quién puede publicar su autobiografía?", "a": "Cualquier persona, sin importar su edad, nacionalidad o idioma. No hace falta ser escritor ni tener experiencia previa. Solo tener una vida que contar."}, {"q": "¿La publicación es gratuita?", "a": "Sí, siempre. La opción básica permite publicar texto ilimitado, una fotografía de portada y alojar la autobiografía en el archivo permanente de Locus Mundi. También existen servicios de pago solo para Autores, como añadir fotografías, solicitar la versión imprimible en PDF o contratar al asistente editorial de IA de la plataforma."}, {"q": "¿Qué tipo de historias pueden publicarse?", "a": "Locus Mundi publica exclusivamente autobiografías, memorias familiares e historias de vida reales. No es una plataforma de ficción, aunque cada Autor puede utilizar distintos recursos y géneros literarios para contar su historia. No están permitidos los textos o enunciados ofensivos, discriminatorios o manifiestamente falsos."}, {"q": "¿Puede traducir Locus Mundi mi autobiografía a otros idiomas?", "a": "Sí, empleando la IA, la plataforma podrá traducir tu historia a otros idiomas para que pueda ser leída por personas de otros países, sin sustituir nunca el texto original. Como lector, tú podrás traducir a tu lengua de preferencia cualquier biografía que desees leer."}, {"q": "¿Puedo publicar mi autobiografía aunque todavía no esté acabada?", "a": "Puedes publicarla capítulo a capítulo o cuando esté terminada, según prefieras. Además, podrás modificarla en todo momento. La vida es cambiante, afortunadamente, porque solo tenemos una. Razón por la cual Locus Mundi solo publica una obra por Autor."}, {"q": "¿Puedo modificar mi autobiografía después de publicarla?", "a": "Sí, siempre que quieras, con tu contraseña de Autor. Solo tú puedes editarla o eliminarla. Tus cambios llegan a la Biblioteca cuando pulsas «Subir a la Biblioteca»; hasta entonces, los lectores siguen viendo la última versión que subiste."}, {"q": "¿Puedo añadir fotografías, vídeos o documentos?", "a": "Por ahora, Locus Mundi solo permite incluir fotografías editables. En el futuro está previsto poder añadir también vídeos u otros documentos."}, {"q": "¿Puedo imprimir mi autobiografía?", "a": "Solo los Autores podrán solicitar, como opción de pago, un archivo PDF imprimible para imprimir su obra en los formatos DIN A4 o DIN A5."}, {"q": "¿Cómo protege Locus Mundi mis datos personales?", "a": "Locus Mundi no vende ni comercia con tus datos, en cumplimiento del RGPD europeo. Solo recoge los datos necesarios para prestar sus servicios, y permite ejercer los derechos de acceso, rectificación, oposición o supresión conforme a la normativa. Más detalles en nuestra Política de Privacidad."}];
-const FAQ_EN = [{"q": "What is Locus Mundi?", "a": "Locus Mundi is a platform created to write, publish and preserve autobiographies and life stories, with the purpose of keeping the memory of our generation alive and making it accessible to future generations."}, {"q": "Who can publish their autobiography?", "a": "Anyone, regardless of age, nationality or language. You don't need to be a writer or have previous experience. Just a life worth telling."}, {"q": "Is publishing free?", "a": "Yes, always. The Base level lets you publish unlimited text, one cover photo, and keep your autobiography in Locus Mundi's permanent archive. There are also optional paid extras, such as additional photos, a printable PDF file, or the AI editorial assistant."}, {"q": "What kind of stories can be published?", "a": "Locus Mundi publishes exclusively autobiographies, family memoirs and real life stories. It is not a fiction platform, although each Author may use different literary resources and genres to tell their story. Fragments containing offensive, discriminatory or clearly false content will be censored and removed."}, {"q": "Can Locus Mundi translate my autobiography into other languages?", "a": "Yes, using AI, the platform can translate your story into other languages so it can be read by people from other countries, without ever replacing the original text. As a reader, you can also translate any biography you wish to read into your preferred language."}, {"q": "Can I publish even if my autobiography isn't finished?", "a": "Yes. You can choose to publish it once you consider it complete, or publish it chapter by chapter, whichever you prefer. Keep in mind that only one autobiography can be published per Author."}, {"q": "Can I edit my autobiography after publishing it?", "a": "Yes, whenever you want, with your Author password. Only you can edit or delete it. Your changes reach the Library when you press \u201cUpload to the Library\u201d; until then, readers keep seeing the last version you uploaded."}, {"q": "Can I add photos, videos or documents?", "a": "For now, Locus Mundi only allows editable photos. Adding videos or other documents is planned for the future."}, {"q": "Can I print my autobiography?", "a": "Only Authors can request, as a paid option, a printable PDF file to print their work in DIN A4 or DIN A5 format."}, {"q": "How does Locus Mundi protect my personal data?", "a": "Locus Mundi does not sell or trade your data, in compliance with European GDPR. It only collects the data necessary to provide the service, and allows you to exercise your rights of access, rectification, objection or erasure under the regulation. More details in our Privacy Policy."}];
+const FAQ_ES = [{"q": "¿Qué es Locus Mundi?", "a": "Locus Mundi es una plataforma creada por y para todas aquellas personas que deseen escribir, publicar, preservar y compartir gratuitamente sus autobiografías e historias de vida, con el objeto de transmitir su testimonio a otros miembros de su generación o a las generaciones futuras."}, {"q": "¿Quién puede publicar su autobiografía?", "a": "Cualquier persona, sin importar su edad, nacionalidad o idioma. No hace falta ser escritor ni tener experiencia previa. Solo tener una vida que contar."}, {"q": "¿La publicación es gratuita?", "a": "Sí, siempre. La opción básica permite publicar texto ilimitado, una fotografía de portada y alojar la autobiografía en el archivo permanente de Locus Mundi. También existen servicios de pago solo para Autores, como añadir fotografías, solicitar la versión imprimible en PDF o contratar al asistente editorial de IA de la plataforma."}, {"q": "¿Qué tipo de historias pueden publicarse?", "a": "Locus Mundi publica exclusivamente autobiografías, memorias familiares e historias de vida reales. No es una plataforma de ficción, aunque cada Autor puede usar los recursos literarios que quiera para contar su historia. Cada Autor responde de lo que publica, según las Condiciones de Publicación que acepta. Antes de publicar, revisamos que el libro respete unos límites: nunca se publican contenidos sexuales que involucren a menores ni la incitación a la violencia, y pedimos reformular los pasajes que revelen hechos privados graves de otras personas vivas, datos privados de menores de hoy, lenguaje discriminatorio (salvo como testimonio de otra época) o descripciones sexuales explícitas. Tu propia vida, lo que otros te hicieron y los hechos públicos se cuentan con libertad."}, {"q": "¿Puede traducir Locus Mundi mi autobiografía a otros idiomas?", "a": "Sí, empleando la IA, la plataforma podrá traducir tu historia a otros idiomas para que pueda ser leída por personas de otros países, sin sustituir nunca el texto original. Como lector, tú podrás traducir a tu lengua de preferencia cualquier biografía que desees leer."}, {"q": "¿Puedo publicar mi autobiografía aunque todavía no esté acabada?", "a": "Puedes publicarla capítulo a capítulo o cuando esté terminada, según prefieras. Además, podrás modificarla en todo momento. La vida es cambiante, afortunadamente, porque solo tenemos una. Razón por la cual Locus Mundi solo publica una obra por Autor."}, {"q": "¿Puedo modificar mi autobiografía después de publicarla?", "a": "Sí, siempre que quieras, con tu contraseña de Autor. Solo tú puedes editarla o eliminarla. Tus cambios llegan a la Biblioteca cuando pulsas «Subir a la Biblioteca»; hasta entonces, los lectores siguen viendo la última versión que subiste."}, {"q": "¿Puedo añadir fotografías, vídeos o documentos?", "a": "Por ahora, Locus Mundi solo permite incluir fotografías editables. En el futuro está previsto poder añadir también vídeos u otros documentos."}, {"q": "¿Puedo imprimir mi autobiografía?", "a": "Solo los Autores podrán solicitar, como opción de pago, un archivo PDF imprimible para imprimir su obra en los formatos DIN A4 o DIN A5."}, {"q": "¿Cómo protege Locus Mundi mis datos personales?", "a": "Locus Mundi no vende ni comercia con tus datos, en cumplimiento del RGPD europeo. Solo recoge los datos necesarios para prestar sus servicios, y permite ejercer los derechos de acceso, rectificación, oposición o supresión conforme a la normativa. Más detalles en nuestra Política de Privacidad."}];
+const FAQ_EN = [{"q": "What is Locus Mundi?", "a": "Locus Mundi is a platform created to write, publish and preserve autobiographies and life stories, with the purpose of keeping the memory of our generation alive and making it accessible to future generations."}, {"q": "Who can publish their autobiography?", "a": "Anyone, regardless of age, nationality or language. You don't need to be a writer or have previous experience. Just a life worth telling."}, {"q": "Is publishing free?", "a": "Yes, always. The Base level lets you publish unlimited text, one cover photo, and keep your autobiography in Locus Mundi's permanent archive. There are also optional paid extras, such as additional photos, a printable PDF file, or the AI editorial assistant."}, {"q": "What kind of stories can be published?", "a": "Locus Mundi publishes exclusively autobiographies, family memoirs and real life stories. It is not a fiction platform, although each Author may use whatever literary resources they wish to tell their story. Each Author is responsible for what they publish, under the Publication Terms they accept. Before publishing, we check that the book respects some limits: sexual content involving minors and incitement to violence are never published, and we ask Authors to reword passages that reveal serious private facts about other living people, private details of today's minors, discriminatory language (except as testimony of another era) or explicit sexual descriptions. Your own life, what others did to you and public facts can be told freely."}, {"q": "Can Locus Mundi translate my autobiography into other languages?", "a": "Yes, using AI, the platform can translate your story into other languages so it can be read by people from other countries, without ever replacing the original text. As a reader, you can also translate any biography you wish to read into your preferred language."}, {"q": "Can I publish even if my autobiography isn't finished?", "a": "Yes. You can choose to publish it once you consider it complete, or publish it chapter by chapter, whichever you prefer. Keep in mind that only one autobiography can be published per Author."}, {"q": "Can I edit my autobiography after publishing it?", "a": "Yes, whenever you want, with your Author password. Only you can edit or delete it. Your changes reach the Library when you press \u201cUpload to the Library\u201d; until then, readers keep seeing the last version you uploaded."}, {"q": "Can I add photos, videos or documents?", "a": "For now, Locus Mundi only allows editable photos. Adding videos or other documents is planned for the future."}, {"q": "Can I print my autobiography?", "a": "Only Authors can request, as a paid option, a printable PDF file to print their work in DIN A4 or DIN A5 format."}, {"q": "How does Locus Mundi protect my personal data?", "a": "Locus Mundi does not sell or trade your data, in compliance with European GDPR. It only collects the data necessary to provide the service, and allows you to exercise your rights of access, rectification, objection or erasure under the regulation. More details in our Privacy Policy."}];
 
 const SAMPLE = [
   { id:1, name:"Irene Vilaseca Fructuoso", title:"Recuerdos de mi familia", born:1932, country:"España", flag:"🇪🇸", lang:"ES", profession:"ama de casa", founder:false,
@@ -914,6 +992,71 @@ const T = {
     up_err_photo:"No hemos podido comprobar la foto {n}. Escríbenos desde «Contacto» y lo revisamos.",
     up_err_cover:"No hemos podido comprobar la imagen de portada. Escríbenos desde «Contacto» y lo revisamos.",
     up_err_generic:"No se ha podido subir a la Biblioteca. Inténtalo de nuevo dentro de un momento.",
+    // Segunda subida: moderación (08/10/2026; diseño de la moderación v10, §11.13, puntos 8 a 12).
+    up_reviewing:"Revisando tu libro…",up_reviewing_n:"Revisando tu libro… ({a} de {b})",
+    up_err_limit:"Has subido tu libro varias veces hoy. Podrás volver a subirlo mañana.",
+    up_err_fuse:"Ahora mismo no podemos revisar tu libro. Inténtalo de nuevo mañana.",
+    up_err_review:"No hemos podido revisar tu libro ahora mismo. Inténtalo de nuevo dentro de un momento: lo ya revisado queda guardado.",
+    up_err_img_photo:"Tu libro no se ha subido: la foto {n} no ha pasado la revisión de imágenes ({motivo}). Cámbiala o quítala del texto para poder subirlo. Si crees que es un error, escríbenos desde «Contacto».",
+    up_err_img_cover:"Tu libro no se ha subido: la portada no ha pasado la revisión de imágenes ({motivo}). Cámbiala y vuelve a subirlo. Si crees que es un error, escríbenos desde «Contacto».",
+    img_motivo_menor:"muestra a un niño o una niña sin ropa",img_motivo_adulto:"muestra un desnudo o contenido sexual",
+    img_motivo_violencia:"muestra heridas, cadáveres o maltrato",img_motivo_ilegible:"no hemos podido abrirla",
+    mod_box_h:"Pasajes señalados",
+    mod_hay_one:"hay 1 pasaje",mod_hay_many:"hay {n} pasajes",
+    mod_not_up_pub:"Tu libro no se ha subido: {hay} que revisar. La Biblioteca sigue con la versión anterior.",
+    mod_not_up_unpub:"Tu libro no se ha subido: {hay} que revisar. Todavía no está en la Biblioteca.",
+    mod_pending_pub:"Antes de subir los cambios de tu libro, {hay} que revisar.",
+    mod_pending_unpub:"Antes de subir tu libro, {hay} que revisar.",
+    mod_where_text:"En el texto",mod_where_before:"Antes del primer capítulo",
+    mod_where_title:"En el título",mod_where_subtitle:"En el subtítulo",mod_where_name:"En el nombre de Autor",
+    mod_where_pubCity:"En la ciudad",mod_where_pubProfession:"En la profesión",mod_where_pubConcept:"En el concepto",
+    mod_where_pie:"En el pie de la foto {n}",mod_where_header:"En los datos del libro",
+    mod_blocked_start:"Empieza así: «{x}…»",
+    mod_go:"Ir al pasaje",mod_delete:"Suprimir",mod_error:"Creo que es un error",mod_changed:"Cambiado",
+    mod_hard:"Este pasaje no puede publicarse en ninguna forma. Suprímelo o reescríbelo sin ese contenido.",
+    mod_shortcut:"Subir sin los pasajes señalados",
+    mod_shortcut_q_one:"Se borrará de tu texto el pasaje señalado y se subirá tu libro. ¿Seguimos?",
+    mod_shortcut_q_many:"Se borrarán de tu texto los {n} pasajes señalados y se subirá tu libro. ¿Seguimos?",
+    mod_shortcut_yes:"Sí, borrar y subir",mod_cancel:"Cancelar",
+    mod_err_prompt:"Explícanos en una sola frase por qué crees que es un error:",
+    mod_err_send:"Enviar el aviso",
+    mod_err_sent:"Hemos recibido tu aviso y lo revisaremos a mano. Mientras tanto, ese pasaje impide subir el libro: si no quieres esperar, puedes suprimirlo ahora y volver a ponerlo cuando te demos la razón. Verás la respuesta aquí al abrir el editor.",
+    mod_err_once:"Ya nos has enviado un aviso en esta subida: solo se puede enviar uno cada vez.",
+    mod_err_fail:"No hemos podido enviar tu aviso. Inténtalo de nuevo dentro de un momento.",
+    mod_av_pending:"Tu aviso «Creo que es un error» está pendiente de revisión.",
+    mod_av_accepted:"Te hemos dado la razón en tu aviso: ese pasaje ya no impedirá subir el libro. Vuelve a subirlo.",
+    mod_av_rejected:"Hemos revisado tu aviso: ese pasaje debe cambiarse o suprimirse para publicar el libro.",
+    mod_reupload:"Volver a subir",mod_with_ai:"Revisar con el Asistente",
+    mod_conjunto:"Tu libro trata asuntos delicados en varios pasajes. Para publicarlo, necesita una revisión detallada con el Asistente editorial, pasaje a pasaje. Las normas de la Biblioteca son las mismas para todos: el Asistente te ayuda a cumplirlas.",
+    mod_conjunto_ai:"Revisar los pasajes con el Asistente",mod_conjunto_buy:"Contratar el Asistente",
+    mod_conjunto_buy_msg:"Con el Asistente editorial podrás revisar los pasajes uno a uno antes de subir tu libro.",
+    revision_reloaded:"Locus Mundi ha tenido que modificar el texto de tu libro, según las Condiciones de Publicación. Te mostramos la versión actual; lo escrito en los últimos segundos puede no haberse guardado.",
+    img_checking:"Revisando la foto…",img_ok_btn:"Entendido",
+    img_rej_menor:"No podemos publicar esta foto porque muestra a un niño o una niña sin ropa. Sabemos que suelen ser fotos entrañables, pero en una biblioteca abierta a todos preferimos no mostrarlas. No has gastado ninguna carga: puedes elegir otra.",
+    img_rej_adulto:"No podemos publicar esta foto porque muestra un desnudo o contenido sexual. No has gastado ninguna carga: puedes elegir otra.",
+    img_rej_violencia:"No podemos publicar esta foto porque muestra heridas, cadáveres o maltrato. Si es un documento importante para tu libro (por ejemplo, una foto de guerra), pulsa «Creo que es un error» y la revisaremos a mano. No has gastado ninguna carga.",
+    img_err_prompt:"Explícanos en una sola frase por qué esta foto debería publicarse:",
+    img_err_sent:"Hemos recibido tu aviso y revisaremos la foto a mano. Verás la respuesta aquí al abrir el editor.",
+    img_limit_day:"Has subido muchas fotos hoy. Podrás seguir mañana; lo que ya tienes está guardado.",
+    img_fuse:"Ahora mismo no podemos revisar fotos. Inténtalo de nuevo mañana; lo que ya tienes está guardado.",
+    img_unavailable:"No hemos podido revisar la foto. Inténtalo de nuevo dentro de un momento; no has gastado ninguna carga.",
+    img_av_pending:"Tu aviso sobre una foto está pendiente de revisión.",
+    img_av_accepted_photo:"Hemos revisado a mano la foto {n} que nos enviaste y te damos la razón.",
+    img_av_accepted_cover:"Hemos revisado a mano la portada que nos enviaste y te damos la razón.",
+    img_av_use:"Usar esta imagen",img_av_used:"Hecho: ya está en tu libro.",
+    img_av_rejected:"Hemos revisado a mano la imagen que nos enviaste y no podemos publicarla.",
+    img_av_dismiss:"Entendido",
+    ps_title:"Pasaje {i} de {n}",ps_delete:"Suprimir el pasaje",ps_skip:"Dejarlo así y pasar al siguiente",
+    ps_next:"Pasaje siguiente",ps_exit:"Salir de la revisión de pasajes",
+    ps_changed:"Este pasaje ya ha cambiado en tu texto.",
+    ps_discarded:"No he podido proponerte un cambio que respete tu texto. Puedes reformularlo tú o suprimirlo.",
+    ps_suggest_delete:"La forma más sencilla de resolverlo es suprimir el pasaje.",
+    ps_proposal:"Te propongo este cambio en tu ventana de abajo. Puedes retocarlo antes de pulsar «Sustituir en el texto».",
+    ps_done:"Has revisado todos los pasajes. Cuando quieras, vuelve a subir el libro: solo se revisará lo que ha cambiado.",
+    ps_notfound:"No he encontrado el pasaje tal cual en tu texto (quizá lo has cambiado): no he tocado nada.",
+    ps_replaced:"Hecho: he sustituido el pasaje en tu texto. Puedes deshacerlo con «↺ Deshacer».",
+    ps_deleted:"Hecho: he suprimido el pasaje de tu texto. Puedes deshacerlo con «↺ Deshacer».",
+    ps_none:"No hay pasajes señalados que revisar. Sube el libro y, si hay algo que revisar, te lo diremos.",
     ed_autosave:"Autoguardado activo.",ed_faq_link:"¿Cómo funciona el editor de textos?",
     ol_link:"Esquema del libro",ol_maybe_one:"posible título",ol_check_chapters:"revisar capítulos",ol_maybe_many:"posibles títulos",ol_h:"Esquema del libro",
     ol_sub:"Así está organizado tu libro ahora mismo, leído directamente del texto. Los capítulos y apartados se crean con los botones “+ Capítulo” y “+ Apartado”; para renombrar o borrar uno, edítalo directamente en el texto. Pulsa un título para ir a él en el texto.",
@@ -1245,6 +1388,71 @@ const T = {
     up_err_photo:"We couldn't check photo {n}. Write to us from \u201cContact\u201d and we'll look into it.",
     up_err_cover:"We couldn't check the cover image. Write to us from \u201cContact\u201d and we'll look into it.",
     up_err_generic:"It couldn't be uploaded to the Library. Please try again in a moment.",
+    // Second upload: moderation (08/10/2026; moderation design v10, §11.13, points 8 to 12).
+    up_reviewing:"Reviewing your book…",up_reviewing_n:"Reviewing your book… ({a} of {b})",
+    up_err_limit:"You have uploaded your book several times today. You can upload it again tomorrow.",
+    up_err_fuse:"We can't review your book right now. Please try again tomorrow.",
+    up_err_review:"We couldn't review your book right now. Please try again in a moment: what has already been reviewed is saved.",
+    up_err_img_photo:"Your book hasn't been uploaded: photo {n} didn't pass the image review ({motivo}). Change it or remove it from the text so it can be uploaded. If you think this is a mistake, write to us from \u201cContact\u201d.",
+    up_err_img_cover:"Your book hasn't been uploaded: the cover didn't pass the image review ({motivo}). Change it and upload it again. If you think this is a mistake, write to us from \u201cContact\u201d.",
+    img_motivo_menor:"it shows a child without clothes",img_motivo_adulto:"it shows nudity or sexual content",
+    img_motivo_violencia:"it shows wounds, corpses or cruelty",img_motivo_ilegible:"we couldn't open it",
+    mod_box_h:"Flagged passages",
+    mod_hay_one:"there is 1 passage",mod_hay_many:"there are {n} passages",
+    mod_not_up_pub:"Your book hasn't been uploaded: {hay} to review. The Library still has the previous version.",
+    mod_not_up_unpub:"Your book hasn't been uploaded: {hay} to review. It isn't in the Library yet.",
+    mod_pending_pub:"Before uploading the changes to your book, {hay} to review.",
+    mod_pending_unpub:"Before uploading your book, {hay} to review.",
+    mod_where_text:"In the text",mod_where_before:"Before the first chapter",
+    mod_where_title:"In the title",mod_where_subtitle:"In the subtitle",mod_where_name:"In the Author name",
+    mod_where_pubCity:"In the city",mod_where_pubProfession:"In the profession",mod_where_pubConcept:"In the concept",
+    mod_where_pie:"In the caption of photo {n}",mod_where_header:"In the book details",
+    mod_blocked_start:"It begins: \u201c{x}…\u201d",
+    mod_go:"Go to the passage",mod_delete:"Delete",mod_error:"I think this is a mistake",mod_changed:"Changed",
+    mod_hard:"This passage cannot be published in any form. Delete it or rewrite it without that content.",
+    mod_shortcut:"Upload without the flagged passages",
+    mod_shortcut_q_one:"The flagged passage will be deleted from your text and your book will be uploaded. Shall we go ahead?",
+    mod_shortcut_q_many:"The {n} flagged passages will be deleted from your text and your book will be uploaded. Shall we go ahead?",
+    mod_shortcut_yes:"Yes, delete and upload",mod_cancel:"Cancel",
+    mod_err_prompt:"Tell us in a single sentence why you think this is a mistake:",
+    mod_err_send:"Send",
+    mod_err_sent:"We have received your note and will review it by hand. Meanwhile, that passage prevents the book from being uploaded: if you'd rather not wait, you can delete it now and put it back once we agree with you. You'll see the answer here when you open the editor.",
+    mod_err_once:"You have already sent us a note for this upload: only one can be sent each time.",
+    mod_err_fail:"We couldn't send your note. Please try again in a moment.",
+    mod_av_pending:"Your \u201cI think this is a mistake\u201d note is waiting to be reviewed.",
+    mod_av_accepted:"We agree with your note: that passage will no longer prevent the book from being uploaded. Upload it again.",
+    mod_av_rejected:"We have reviewed your note: that passage must be changed or deleted to publish the book.",
+    mod_reupload:"Upload again",mod_with_ai:"Review with the Assistant",
+    mod_conjunto:"Your book deals with sensitive matters in several passages. To publish it, it needs a detailed review with the Editorial Assistant, passage by passage. The Library's rules are the same for everyone: the Assistant helps you meet them.",
+    mod_conjunto_ai:"Review the passages with the Assistant",mod_conjunto_buy:"Get the Assistant",
+    mod_conjunto_buy_msg:"With the Editorial Assistant you can review the passages one by one before uploading your book.",
+    revision_reloaded:"Locus Mundi has had to modify the text of your book, under the Publication Terms. We are showing you the current version; what you wrote in the last few seconds may not have been saved.",
+    img_checking:"Checking the photo…",img_ok_btn:"OK",
+    img_rej_menor:"We can't publish this photo because it shows a child without clothes. We know these are often tender photos, but in a library open to everyone we prefer not to show them. You haven't used up any upload: you can choose another one.",
+    img_rej_adulto:"We can't publish this photo because it shows nudity or sexual content. You haven't used up any upload: you can choose another one.",
+    img_rej_violencia:"We can't publish this photo because it shows wounds, corpses or cruelty. If it is an important document for your book (for example, a war photo), press \u201cI think this is a mistake\u201d and we will review it by hand. You haven't used up any upload.",
+    img_err_prompt:"Tell us in a single sentence why this photo should be published:",
+    img_err_sent:"We have received your note and will review the photo by hand. You'll see the answer here when you open the editor.",
+    img_limit_day:"You have uploaded many photos today. You can continue tomorrow; what you already have is saved.",
+    img_fuse:"We can't check photos right now. Please try again tomorrow; what you already have is saved.",
+    img_unavailable:"We couldn't check the photo. Please try again in a moment; you haven't used up any upload.",
+    img_av_pending:"Your note about a photo is waiting to be reviewed.",
+    img_av_accepted_photo:"We have reviewed by hand the photo {n} you sent us, and we agree with you.",
+    img_av_accepted_cover:"We have reviewed by hand the cover you sent us, and we agree with you.",
+    img_av_use:"Use this image",img_av_used:"Done: it is now in your book.",
+    img_av_rejected:"We have reviewed by hand the image you sent us, and we can't publish it.",
+    img_av_dismiss:"OK",
+    ps_title:"Passage {i} of {n}",ps_delete:"Delete the passage",ps_skip:"Leave it and go to the next one",
+    ps_next:"Next passage",ps_exit:"Leave the passage review",
+    ps_changed:"This passage has already changed in your text.",
+    ps_discarded:"I couldn't suggest a change that respects your text. You can reword it yourself or delete it.",
+    ps_suggest_delete:"The simplest way to solve it is to delete the passage.",
+    ps_proposal:"I suggest this change in your window below. You can adjust it before pressing \u201cReplace in text\u201d.",
+    ps_done:"You have reviewed all the passages. Whenever you like, upload the book again: only what has changed will be reviewed.",
+    ps_notfound:"I couldn't find the passage exactly as it was in your text (perhaps you changed it): I haven't touched anything.",
+    ps_replaced:"Done: I have replaced the passage in your text. You can undo it with \u201c↺ Undo\u201d.",
+    ps_deleted:"Done: I have deleted the passage from your text. You can undo it with \u201c↺ Undo\u201d.",
+    ps_none:"There are no flagged passages to review. Upload the book and, if there is anything to review, we'll tell you.",
     ed_autosave:"Autosave on.",ed_faq_link:"How does the text editor work?",
     ol_link:"Book outline",ol_maybe_one:"possible title",ol_check_chapters:"check chapters",ol_maybe_many:"possible titles",ol_h:"Book outline",
     ol_sub:"This is how your book is organised right now, read directly from the text. Chapters and sections are created with the “+ Chapter” and “+ Section” buttons; to rename or delete one, edit it directly in the text. Click a title to go to it in the text.",
@@ -2262,6 +2470,66 @@ async function fotoEditorApi(body){
   return d;
 }
 
+// api/moderar.js v2 (segunda subida). Devuelve {status, d} sin lanzar: las respuestas con sentido
+// propio (pasajes, imagen rechazada, límites) no son errores del navegador. Fallo de red: status 0.
+async function moderarApi(body){
+  try{
+    const { data } = await supa.auth.getSession();
+    const res=await fetch("/api/moderar",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({...body, token:data.session?data.session.access_token:null})
+    });
+    const d=await res.json().catch(()=>({}));
+    return {status:res.status, d:d||{}};
+  }catch(e){
+    console.error("moderar:", e);
+    return {status:0, d:{error:"RED"}};
+  }
+}
+// Dirección pública de nuestro almacén → ruta del archivo (como rutaDeDireccion de api/_almacen.js).
+function rutaDeUrl(url){
+  const pre=SUPABASE_URL+"/storage/v1/object/public/fotos/";
+  if(!url || typeof url!=="string" || !url.startsWith(pre)) return null;
+  try{ return decodeURIComponent(url.slice(pre.length).split("?")[0]); }catch(e){ return null; }
+}
+// Imagen rechazada al cargarla o al guardarla en el editor de fotos (diseño de la moderación v10,
+// §11.13, punto 9). aviso = {categoria, ruta?, objetivo:{objetivo,fotoId|historiaId}} o {mensaje}.
+// "Creo que es un error" solo en los casos 2 y 3 y si el servidor ha conservado el archivo (ruta);
+// en el caso 1 (menores) la imagen se borra en el acto y no hay botón.
+function ImagenRechazadaModal({aviso,t,onClose}){
+  const [paso,setPaso]=useState("ver"); // "ver" | "escribir" | "enviando" | "enviado"
+  const [texto,setTexto]=useState("");
+  const [error,setError]=useState("");
+  const mensaje=aviso.mensaje || t["img_rej_"+aviso.categoria] || t.img_unavailable;
+  const puedeAvisar=!aviso.mensaje && !!aviso.ruta && (aviso.categoria==="adulto"||aviso.categoria==="violencia");
+  const enviar=async()=>{
+    const ex=texto.trim(); if(!ex) return;
+    setPaso("enviando"); setError("");
+    const r=await moderarApi({operacion:"errorImagen",...aviso.objetivo,ruta:aviso.ruta,explicacion:ex});
+    if(r.status===200 && r.d.ok) setPaso("enviado");
+    else if(r.d.error==="AVISO_YA_ENVIADO") setPaso("enviado");
+    else { setPaso("escribir"); setError(t.mod_err_fail); }
+  };
+  return (
+    <div className="ov">
+      <div className="modal" style={{maxWidth:"420px"}} role="alertdialog" aria-modal="true">
+        <button className="modal-x" onClick={onClose} disabled={paso==="enviando"}>×</button>
+        {paso==="enviado"
+          ? <p className="ok-msg" style={{lineHeight:1.55}}>{t.img_err_sent}</p>
+          : <p style={{fontFamily:"var(--body)",fontSize:"0.95rem",lineHeight:1.6,color:"var(--ink)",margin:"0.4rem 0 0.8rem"}}>{mensaje}</p>}
+        {(paso==="escribir"||paso==="enviando")&&(<>
+          <label className="lbl">{t.img_err_prompt}</label>
+          <textarea className="inp" rows={3} maxLength={300} value={texto} onChange={e=>setTexto(e.target.value)} style={{width:"100%",resize:"vertical",fontFamily:"var(--body)",fontSize:"0.9rem"}}/>
+          {error&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem"}}>{error}</p>}
+          <button className="btn-pub" style={{width:"100%",marginTop:"0.5rem"}} disabled={!texto.trim()||paso==="enviando"} onClick={enviar}>{paso==="enviando"?t.up_busy:t.mod_err_send}</button>
+        </>)}
+        {paso==="ver"&&puedeAvisar&&<button className="btn-out" style={{width:"100%"}} onClick={()=>setPaso("escribir")}>{t.mod_error}</button>}
+        {paso!=="enviando"&&<button className="btn-pub" style={{width:"100%",marginTop:"0.5rem"}} onClick={onClose}>{t.img_ok_btn}</button>}
+      </div>
+    </div>
+  );
+}
+
 function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescarga,onSaved,onClose}){
   const esPortada=target.type==="cover";
   const objetivo=esPortada?{objetivo:"portada",historiaId}:{objetivo:"foto",fotoId:target.fotoId};
@@ -2277,6 +2545,7 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
   const [propuesta,setPropuesta]=useState(null); // {url, antes, jpg?} (jpg: "Colorear" ya compuesto)
   const [ocupado,setOcupado]=useState(null);     // "tono" | "proponer" | "aceptar" | "descartar" | "volver"
   const [aviso,setAviso]=useState(null);         // {texto, error}
+  const [rechazo,setRechazo]=useState(null);     // segunda subida: imagen rechazada al guardarla
 
   const fmt=(s)=>s.replace("{n}",String(Math.max(0,limite-(ediciones||0)))).replace("{max}",String(limite));
 
@@ -2318,7 +2587,18 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
     if(e.code==="SIN_SESION") return t.fe_session;
     if(e.code==="SIN_PROPUESTA") return t.fe_failed;
     if(e.code==="PORTADA_NO_INCLUIDA") return t.fe_cover_not_included;
+    if(e.code==="LIMITE_IMAGENES_DIA") return t.img_limit_day;     // segunda subida (api/foto-editor.js v5)
+    if(e.code==="FUSIBLE") return t.img_fuse;
+    if(e.code==="REVISION_NO_DISPONIBLE") return t.img_unavailable;
     return t.fe_error;
+  };
+  // "Aceptar" y "Guardar el tono" revisan la imagen antes de guardarla (§5.2). Si no pasa, no se
+  // guarda nada en la foto; la edición con IA ya gastada no se devuelve (diseño, §11.13, punto 9).
+  const trasError=(e)=>{
+    if(e.code==="IMAGEN_RECHAZADA"){
+      const d=e.data||{};
+      setRechazo({categoria:d.categoria, ruta:d.ruta||null, objetivo});
+    } else setAviso({texto:mensajeError(e),error:true});
   };
 
   const guardarTono=async()=>{
@@ -2327,7 +2607,7 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
     try{
       const d=await fotoEditorApi({operacion:"guardarTono",...objetivo,imagen:tonoVista});
       onSaved(target,d.url); setUrl(d.url); setTieneOriginal(true);
-    }catch(e){ console.error(e); setAviso({texto:mensajeError(e),error:true}); }
+    }catch(e){ console.error(e); trasError(e); }
     finally{ setOcupado(null); }
   };
 
@@ -2371,7 +2651,7 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
       onSaved(target,d.url);
       setPropuesta(null); setOpcion(null); setTieneOriginal(true);
       setUrl(d.url);
-    }catch(e){ console.error(e); setAviso({texto:mensajeError(e),error:true}); }
+    }catch(e){ console.error(e); trasError(e); }
     finally{ setOcupado(null); }
   };
 
@@ -2414,7 +2694,8 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
   const agotadas=ediciones!==null && ediciones>=limite;
   const bloqueado=!!ocupado;
 
-  return (
+  return (<>
+    {rechazo&&<ImagenRechazadaModal aviso={rechazo} t={t} onClose={()=>setRechazo(null)}/>}
     <div className="ov">
       <div className={"modal fe-modal"+(propuesta?" fe-modal-wide":"")} role="dialog" aria-modal="true" aria-labelledby="fe-title">
         <button className="modal-x" onClick={cerrar} disabled={bloqueado} aria-label="×">×</button>
@@ -2480,7 +2761,7 @@ function PhotoEditorModal({target,t,imageUrl,historiaId,iaPermitida,nombreDescar
         </>)}
       </div>
     </div>
-  );
+  </>);
 }
 
 // Condiciones mostradas al comprar (29/09): una sola casilla que acepta todo e incluye,
@@ -3273,15 +3554,19 @@ const CAMPOS_PUBLICADOS=["name","born","country","lang","title","subtitle","text
 // Forma comparable de una versión (la que se escribe o la publicada), para saber si hay
 // cambios sin subir. Mismos datos que copia api/moderar.js: título, campos de la lista,
 // portada, idioma y fotos con imagen (id, orden, url, pie), ordenadas por orden.
+// Segunda subida (08/10/2026): solo las fotos COLOCADAS en el texto de esa versión, como copia
+// api/moderar.js v2 (§11.13, punto 7). En lo publicado antes de esta subida (con fotos sin
+// colocar) se compara lo que de verdad ve el lector.
 function versionComparable({titulo,contenido,portada,idioma,fotos}){
   const txt=v=>(v===undefined||v===null)?"":String(v);
   const c=contenido||{};
+  const colocadas=fotosColocadas(c.text);
   return JSON.stringify({
     titulo: txt(titulo),
     campos: CAMPOS_PUBLICADOS.map(k=>txt(c[k])),
     portada: txt(portada),
     idioma: txt(idioma).toUpperCase(),
-    fotos: (fotos||[]).filter(x=>x&&x.url)
+    fotos: (fotos||[]).filter(x=>x&&x.url&&colocadas.has(String(x.orden)))
       .map(x=>[txt(x.id),Number(x.orden)||0,txt(x.url),txt(x.pie_foto)])
       .sort((a,b)=>a[1]-b[1])
   });
@@ -3327,6 +3612,11 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // Guardados en fila (07/10/2026): uno detrás de otro, para que un guardado antiguo que aún
   // está en camino no pise a uno más nuevo (importa antes de "Subir a la Biblioteca").
   const saveChainRef=useRef(Promise.resolve(true));
+  // Segunda subida (08/10/2026): revisión del libro que se leyó (historias.revision, solo del
+  // servidor; api/admin.js la sube al usar "Modificar").
+  const revisionRef=useRef(0);
+  const revisionBloqueadaRef=useRef(false);
+  const [revisionAviso,setRevisionAviso]=useState(false);
   const [f,setF]=useState({
     name:"",born:"",country:"",lang:"ES",title:"",subtitle:"",text:"",coverImg:null,
     authorNumber:null,founder:false,blocks:[{id:crypto.randomUUID(),type:"chapter",title:"",num:1}],
@@ -3365,10 +3655,11 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       supa.from("autores").select("tinta_euros, tinta_ultima_carga, numero_autor").eq("id", user.id).maybeSingle()
         .then(({data:a})=>{ if(a){ setTinta({tinta:Number(a.tinta_euros)||0, ultimaCarga:Number(a.tinta_ultima_carga)||0}); setNumAutor(a.numero_autor ?? null); } });
       const { data, error } = await supa.from("historias")
-        .select("id, titulo, contenido, portada_url")
+        .select("id, titulo, contenido, portada_url, revision")
         .eq("autor_id", user.id).eq("marcado_borrado", false).limit(1).maybeSingle();
       if(!error && data){
         historiaIdRef.current = data.id;
+        revisionRef.current = Number(data.revision)||0; // segunda subida: "Modificar" con el editor abierto
         const c = data.contenido || {};
         const blocks = (c.blocks&&c.blocks.length?c.blocks:[{type:"chapter",title:"",num:1}])
           .map(b=>b.id?b:{...b,id:crypto.randomUUID()}); // bloques creados antes de tener id
@@ -3388,6 +3679,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
           .select("id, bloque_id, url, pie_foto, orden, origen, lote_compra_id, fecha_compra, imagenes_cargadas")
           .eq("historia_id", data.id).order("orden");
         if(fotos) setFotosDb(fotos);
+        consultarModeracion(data.id); // pasajes señalados y avisos de la última subida (segunda subida)
       }
       loadedRef.current = true;
     } finally { setBookLoaded(true); } })();
@@ -3408,7 +3700,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       const { data, error } = await supa.from("historias")
         .insert({ autor_id: user.id, titulo:"", contenido:{}, estado_publicacion:"borrador" })
         .select("id").single();
-      if(!error && data) historiaIdRef.current = data.id;
+      if(!error && data){ historiaIdRef.current = data.id; revisionRef.current = 0; }
       else { console.error("No se pudo crear la historia:", error); programarReintento(); }
       creatingHistoriaRef.current = null;
       return historiaIdRef.current;
@@ -3436,27 +3728,74 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const guardarHistoria = async (fv) => {
     const id = await getOrCreateHistoriaId();
     if(!id) return false; // sin sesión, o creación fallida (ya avisada y con reintento)
+    // Segunda subida (08/10/2026): mientras se recarga un libro modificado por Locus Mundi, no se
+    // escribe nada (lo que hay en pantalla es la versión antigua).
+    if(revisionBloqueadaRef.current) return false;
     // El número no se guarda en el libro (04/10/2026); "published" ya no (07/10/2026).
     const { coverImg, authorNumber, founder, published, ...contenido } = fv;
+    // Segunda subida: la portada ya NO la escribe el autoguardado. La pone el servidor al revisar
+    // la imagen (api/moderar.js, revisarImagen; api/foto-editor.js). Antes, un autoguardado con la
+    // portada vacía en pantalla la habría quitado del libro.
     const payload = {
       autor_id: autorIdRef.current,
       titulo: fv.title || "",
       contenido,
-      idioma_original: String(fv.lang || "ES").toUpperCase(), // una sola fuente de verdad (03/10/2026)
-      portada_url: coverImg || null
+      idioma_original: String(fv.lang || "ES").toUpperCase() // una sola fuente de verdad (03/10/2026)
     };
-    // Solo se guarda en la historia viva: si se eliminó en otra pestaña, no se escribe en
-    // la marcada; se suelta y el siguiente intento crea la nueva con lo que hay en pantalla.
+    // Solo se guarda en la historia viva y en la revisión que se leyó (diseño de la moderación
+    // v10, §11.13, punto 12): si Locus Mundi ha usado "Modificar", la revisión ha cambiado y el
+    // texto antiguo de esta pantalla no se escribe encima.
+    const rev = revisionRef.current;
     const { data: guardadas, error: errGuardar } = await supa.from("historias")
-      .update(payload).eq("id", id).eq("marcado_borrado", false).select("id");
+      .update(payload).eq("id", id).eq("marcado_borrado", false).eq("revision", rev).select("id");
     if(errGuardar || !guardadas || !guardadas.length){
       console.error("No se pudo guardar la historia:", errGuardar);
-      if(!errGuardar && historiaIdRef.current===id) historiaIdRef.current = null;
+      if(!errGuardar){
+        // ¿Por qué no se ha escrito? Antes de soltar el libro hay que saberlo: soltarlo hace que
+        // el siguiente intento CREE un libro nuevo (lo correcto solo si se eliminó en otra pestaña).
+        const { data: fila, error: errMirar } = await supa.from("historias")
+          .select("id, marcado_borrado, revision").eq("id", id).maybeSingle();
+        if(!errMirar && fila && fila.marcado_borrado!==true && (Number(fila.revision)||0)!==rev){
+          await recargarTrasModificar(id);
+          return false;
+        }
+        if(!errMirar && (!fila || fila.marcado_borrado===true) && historiaIdRef.current===id){
+          historiaIdRef.current = null; // eliminado en otra pestaña: como hasta ahora
+        }
+      }
       programarReintento();
       return false;
     }
     setSaveError(false);
     return true;
+  };
+  // "Modificar" desde la administración con el editor abierto (§11.13, punto 12): deja de
+  // autoguardar, vuelve a leer el libro y lo publicado, y avisa. Lo escrito en los últimos
+  // segundos puede perderse (está dicho en el aviso).
+  const recargarTrasModificar=async(id)=>{
+    revisionBloqueadaRef.current=true;
+    if(saveTimerRef.current){ clearTimeout(saveTimerRef.current); saveTimerRef.current=null; }
+    if(saveRetryTimerRef.current){ clearTimeout(saveRetryTimerRef.current); saveRetryTimerRef.current=null; }
+    try{
+      const { data, error } = await supa.from("historias")
+        .select("id, titulo, contenido, portada_url, revision").eq("id", id).maybeSingle();
+      if(error || !data) throw error || new Error("NO_ENCONTRADA");
+      const c = data.contenido || {};
+      revisionRef.current = Number(data.revision)||0;
+      skipNextSaveRef.current = true; // la recarga no se vuelve a guardar
+      historyRef.current = [];        // "↺ Deshacer" no debe devolver el texto retirado
+      setF(p=>({ ...p, ...c, blocks:(c.blocks&&c.blocks.length?c.blocks:p.blocks),
+        title: data.titulo || c.title || "", coverImg: data.portada_url || null }));
+      const { data: pubData } = await supa.from("publicaciones").select(PUB_SELECT).eq("historia_id", id).maybeSingle();
+      setPubRow(pubData || null);
+      setRevisionAviso(true);
+      setSaveError(false);
+      revisionBloqueadaRef.current=false;
+    }catch(e){
+      console.error("No se pudo recargar el libro modificado:", e);
+      revisionBloqueadaRef.current=false;
+      programarReintento();
+    }
   };
   const encolarGuardado = (fv) => {
     const p = saveChainRef.current.then(()=>guardarHistoria(fv)).catch(e=>{ console.error(e); return false; });
@@ -3527,8 +3866,9 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     const path=fotoStoragePath(target);
     const{error}=await supa.storage.from("fotos").upload(path,blob,{contentType:"image/jpeg",upsert:false});
     if(error) throw error;
-    const{data}=supa.storage.from("fotos").getPublicUrl(path);
-    return data.publicUrl; // sin ?v= (07/10/2026): cada archivo es único
+    // Segunda subida (08/10/2026): el navegador ya no apunta la dirección; devuelve la ruta del
+    // archivo para que api/moderar.js (revisarImagen) lo revise y, si pasa, la apunte él.
+    return {historiaId, path};
   };
 
   const coverPreviewSrc=()=> pendingPhoto?.type==="cover" ? pendingPhoto.previewUrl : f.coverImg;
@@ -3584,11 +3924,13 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // Guarda ya todo lo pendiente (texto y datos del libro, y pies de foto). Se usa antes de
   // subir a la Biblioteca y al salir: al salir, el retraso del autoguardado se cancelaba y
   // los últimos segundos de trabajo podían perderse.
-  const guardarAhora=async()=>{
-    const habiaPendiente=!!saveTimerRef.current;
-    if(habiaPendiente){ clearTimeout(saveTimerRef.current); saveTimerRef.current=null; }
+  // fv: la versión que hay que guardar si no es la de la pantalla (el atajo "Subir sin los pasajes
+  // señalados" guarda el texto ya sin ellos, antes de que React pinte el cambio).
+  const guardarAhora=async(fv)=>{
+    const habiaPendiente=!!saveTimerRef.current || !!fv;
+    if(saveTimerRef.current){ clearTimeout(saveTimerRef.current); saveTimerRef.current=null; }
     // Sin libro todavía y sin nada pendiente (abrir y salir), no se crea un libro vacío.
-    const okTexto=(habiaPendiente||historiaIdRef.current) ? await encolarGuardado(f) : true;
+    const okTexto=(habiaPendiente||historiaIdRef.current) ? await encolarGuardado(fv||f) : true;
     const okPies=await guardarPiesAhora();
     return okTexto && okPies;
   };
@@ -3630,25 +3972,44 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     setFotosDb(p=>p.map(x=>x.id===fotoId?{...x,url:null,pie_foto:""}:x));
   };
 
+  // Segunda subida (08/10/2026; diseño de la moderación v10, §5.2 y §11.13, punto 9): el navegador
+  // sube el archivo (nombre nuevo) y pide a api/moderar.js que lo revise ("Revisando la foto…").
+  // Si pasa, el SERVIDOR apunta la dirección y cuenta la carga; si no, no se guarda ni gasta carga.
+  const [imgAviso,setImgAviso]=useState(null); // aviso de imagen rechazada o de límite
+  const objetivoDe=(target)=>target.type==="cover"
+    ? {objetivo:"portada",historiaId:historiaIdRef.current}
+    : {objetivo:"foto",fotoId:target.fotoId};
+  // Respuesta de revisarImagen → editor. Devuelve true si la imagen ha quedado puesta.
+  const trasRevisarImagen=(target,r)=>{
+    const d=r.d||{};
+    if(r.status===200 && d.ok && d.url){
+      if(target.type==="cover") setF(p=>({...p,coverImg:d.url}));
+      else setFotosDb(p=>p.map(x=>x.id===target.fotoId?{...x,url:d.url,imagenes_cargadas:typeof d.imagenes_cargadas==="number"?d.imagenes_cargadas:(x.imagenes_cargadas||0)+1}:x));
+      return true;
+    }
+    if(r.status===200 && d.ok===false && d.categoria){
+      setImgAviso({categoria:d.categoria, ruta:d.ruta||null, objetivo:objetivoDe(target)});
+      return false;
+    }
+    if(d.error==="LIMITE_IMAGENES"){ alert(t.photo_limit_reached); return false; }
+    const mensaje = d.error==="LIMITE_IMAGENES_DIA" ? t.img_limit_day
+      : d.error==="FUSIBLE" ? t.img_fuse
+      : t.img_unavailable;
+    setImgAviso({mensaje});
+    return false;
+  };
   const confirmCrop=async(dataUrl)=>{
     const target=cropTarget;
     setCropFile(null);setCropTarget(null);
-    setPendingPhoto({...target,previewUrl:dataUrl});
+    setPendingPhoto({...target,previewUrl:dataUrl,stage:"upload"});
     try{
       if(target.type==="slot" && (await imagenesCargadas(target.fotoId))>=2){
         alert(t.photo_limit_reached); return;
       }
-      const url=await uploadFotoToStorage(target,dataUrl);
-      if(target.type==="cover"){
-        up("coverImg",url);
-      }else{
-        const{data:fila,error}=await supa.from("fotos").update({url}).eq("id",target.fotoId).select("imagenes_cargadas").single();
-        if(error){
-          if(String(error.message||"").includes("LIMITE_IMAGENES")){ alert(t.photo_limit_reached); return; }
-          throw error;
-        }
-        setFotosDb(p=>p.map(x=>x.id===target.fotoId?{...x,url,imagenes_cargadas:fila?fila.imagenes_cargadas:(x.imagenes_cargadas||0)+1}:x));
-      }
+      const {path}=await uploadFotoToStorage(target,dataUrl);
+      setPendingPhoto(p=>p?{...p,stage:"check"}:p);
+      const r=await moderarApi({operacion:"revisarImagen",...objetivoDe(target),ruta:path});
+      trasRevisarImagen(target,r);
     }catch(e){
       console.error(e);
       alert(lang==="EN"?"The photo couldn't be uploaded. Please try again.":"No se ha podido subir la foto. Inténtalo de nuevo.");
@@ -4176,15 +4537,40 @@ redacción asistida (ver excepción anterior) o ajuste gramatical se aplica
 jamás directamente al texto definitivo sin la confirmación explícita del
 Autor en cada paso — tú solo la presentas en la ventana de diálogo.
 
-LÍMITES:
-- Ante difamación o faltas éticas hacia terceros identificables, ofrece
-  anonimizar o reformular, sin escribir tú la alternativa (ver Regla del
-  Redactor). Excepción: protege los testimonios históricos sobre
-  prejuicios o lenguaje de épocas pasadas, para preservar la memoria
-  colectiva tal como fue.
-- Ante incitación a la violencia, daño grave o relatos de delitos,
-  niégate con respeto a redactar o mejorar ese fragmento, e indica que
-  puede contactar con el canal de soporte de Locus Mundi.
+CRITERIO DE LA BIBLIOTECA: aplicas el mismo criterio que la revisión que
+se hace al subir el libro a la Biblioteca, ni más ni menos.
+- Puedes advertir al Autor, en una sola frase, y sugerirle quitar el
+  nombre o el dato, sin escribir tú la alternativa, ante: hechos privados
+  graves de OTRA persona viva e identificable (atribuirle un delito o una
+  conducta gravemente reprochable sin constancia pública, su salud física
+  o mental, su sexualidad o vida íntima, sus adicciones, su origen étnico,
+  sus creencias religiosas o sus opiniones políticas); cualquier hecho
+  privado de un menor identificable de hoy; lenguaje ofensivo o
+  discriminatorio contra un colectivo, salvo el testimonio histórico
+  (cómo se hablaba en otra época, o lo que alguien dijo, citado como tal);
+  o una descripción sexual explícita. Identificable: con nombre, o con
+  parentesco con el Autor ("mi cuñado"), porque el libro va firmado.
+  Viva: si el texto no deja claro que ha muerto.
+- No adviertas de: lo que el Autor cuenta de sí mismo; lo que otro le
+  hizo, contado como experiencia propia ("mi marido me engañó y me fui de
+  casa"); los hechos públicos, incluida la crítica dura; los asuntos
+  corrientes de la vida compartida (peleas, distancias, carácter); los
+  fallecidos. Contar un delito, sufrido o presenciado, no es motivo para
+  negarte a ayudar. En la duda, no adviertas.
+- Lo adviertes por tu cuenta en la revisión automática de cada párrafo,
+  por detrás de las erratas y como mucho una vez por escena (ver RITMO DE
+  INTERVENCIÓN).
+- Si el Autor te pregunta por un pasaje que la Biblioteca le ha
+  señalado, explícale en llano por qué, en una frase, y dile que puede
+  revisarlos uno a uno con el botón «Revisar con el Asistente» del
+  recuadro «Pasajes señalados». No escribas tú la versión corregida en la
+  conversación.
+
+LÍMITE DURO: contenido sexual que involucre a menores (contar un abuso
+sufrido de niño sí se permite, sin detalle sexual) e incitación a la
+violencia contra personas o grupos, o su apología. No redactes ni mejores
+ese fragmento: explica con respeto que no podrá publicarse en la
+Biblioteca y que puede suprimirlo.
 
 MAPA TEMÁTICO (banco de referencia, no guion activo): solo recurre a los
 módulos siguientes cuando el Autor te pida sugerencias explícitamente, o
@@ -4419,28 +4805,62 @@ ${capituloActual}
     if(code==="DIRECCION_NO_VALIDA") return d&&d.que==="foto"
       ? t.up_err_photo.replace("{n}",String(d.orden??""))
       : t.up_err_cover;
+    // Segunda subida (api/moderar.js v2; diseño §7 y §11.15).
+    if(code==="LIMITE_DIARIO") return t.up_err_limit;
+    if(code==="FUSIBLE") return t.up_err_fuse;
+    if(code==="REVISION_NO_DISPONIBLE"||code==="RED") return t.up_err_review;
+    if(code==="IMAGEN_RECHAZADA"){
+      const motivo=t["img_motivo_"+(d&&d.categoria)]||t.img_motivo_ilegible;
+      return d&&d.que==="foto"
+        ? t.up_err_img_photo.replace("{n}",String(d.orden??"")).replace("{motivo}",motivo)
+        : t.up_err_img_cover.replace("{motivo}",motivo);
+    }
     return t.up_err_generic;
   };
-  const publish=async(desde)=>{
+  // Segunda subida (08/10/2026): api/moderar.js v2 revisa con IA antes de publicar. Un libro largo
+  // puede necesitar varias llamadas (REVISION_EN_CURSO): el navegador vuelve a llamar solo y lo ya
+  // revisado queda guardado. Si hay pasajes señalados o veredicto de conjunto, no se publica.
+  const [subidaProgreso,setSubidaProgreso]=useState(null); // {a,b} mientras se revisa un libro largo
+  const subiendoTexto=()=>subidaProgreso&&subidaProgreso.b
+    ? t.up_reviewing_n.replace("{a}",String(subidaProgreso.a)).replace("{b}",String(subidaProgreso.b))
+    : t.up_busy;
+  const publish=async(desde, fvIn)=>{
+    const fv=fvIn||f;
     if(subiendo) return false;
     setSubirError("");
-    if(!f.name||!f.text||!String(f.country||"").trim()){ setSubirError(mensajeSubir("FALTAN_DATOS")); return false; }
+    if(!fv.name||!fv.text||!String(fv.country||"").trim()){ setSubirError(mensajeSubir("FALTAN_DATOS")); return false; }
     if(pendingPhoto){ setSubirError(mensajeSubir("FOTO_SUBIENDO")); return false; }
-    setSubiendo(true);
+    setSubiendo(true); setSubidaProgreso(null);
     try{
       const pid=await getOrCreateHistoriaId();
       if(!pid) throw Object.assign(new Error("GUARDADO"),{code:"GUARDADO"});
-      if(!(await guardarAhora())) throw Object.assign(new Error("GUARDADO"),{code:"GUARDADO"});
-      const { data:{ session } } = await supa.auth.getSession();
-      const res=await fetch("/api/moderar",{
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ operacion:"subir", token: session?session.access_token:null, historia_id: pid })
-      });
-      const d=await res.json().catch(()=>({}));
-      if(!res.ok || !d.ok){
+      if(!(await guardarAhora(fvIn))) throw Object.assign(new Error("GUARDADO"),{code:"GUARDADO"});
+      let r=null;
+      for(let vuelta=0; vuelta<40; vuelta++){
+        r=await moderarApi({ operacion:"subir", historia_id: pid });
+        if(r.status===202 && r.d.estado==="REVISION_EN_CURSO"){
+          setSubidaProgreso({a:Number(r.d.revisadas)||0, b:Number(r.d.total)||0});
+          continue;
+        }
+        break;
+      }
+      const d=r.d||{};
+      if(r.status===202) throw Object.assign(new Error("REVISION_NO_DISPONIBLE"),{code:"REVISION_NO_DISPONIBLE",datos:d});
+      // Pasajes señalados, límite duro o veredicto de conjunto: no se ha publicado nada.
+      if(r.status===200 && d.ok===false && ["pasajes","limite_duro","conjunto"].includes(d.resultado)){
+        const lista=Array.isArray(d.pasajes)?d.pasajes:[];
+        setModRes({resultado:d.resultado, pasajes:lista, total:d.total||lista.length, aviso_enviado:false, avisos:[], recien:true});
+        setErrPasaje(null);
+        if(desde==="salir"){ setShowSaveExit(false); setSaveExitStep("choose"); }
+        if(desde==="deshacer"){ setUnpubStep(null); setShowUndo(false); }
+        setTimeout(()=>document.getElementById("lm-pasajes")?.scrollIntoView({behavior:"smooth",block:"start"}),50);
+        return false;
+      }
+      if(!(r.status>=200 && r.status<300) || !d.ok){
         const code=d.error||"ERROR";
         throw Object.assign(new Error(code),{code,datos:d});
       }
+      setModRes(null); setErrPasaje(null);
       // Lo que se lee, tal como ha quedado en el servidor (un reintento si la lectura falla).
       let row=null;
       for(let i=0;i<2 && !row;i++){
@@ -4453,6 +4873,8 @@ ${capituloActual}
       if(desde==="salir"){
         if(d.nueva){ setShowSaveExit(false); setSaveExitStep("choose"); openShare("publish"); }
         else setSaveExitStep("done"); // "Tus cambios ya están en la Biblioteca." y volver al inicio
+      } else if(desde==="ahora" && d.nueva){
+        openShare("publish"); // primera publicación desde el recuadro de pasajes ("Volver a subir")
       } else if(desde==="ahora"){
         setSubidaHecha(true);
         clearTimeout(subidaHechaTimerRef.current);
@@ -4464,7 +4886,7 @@ ${capituloActual}
       setSubirError(mensajeSubir(e.code, e.datos));
       return false;
     }finally{
-      setSubiendo(false);
+      setSubiendo(false); setSubidaProgreso(null);
     }
   };
   // ¿Lo que se escribe difiere de lo publicado? Solo tiene sentido con el libro publicado.
@@ -4477,6 +4899,221 @@ ${capituloActual}
       idioma: pubRow.idioma_original || (pubRow.contenido&&pubRow.contenido.lang) || "ES",
       fotos: pubRow.contenido && pubRow.contenido.fotos
     });
+  // ---- Pasajes señalados (segunda subida, 08/10/2026; diseño de la moderación v10, §4.3,
+  // §6 y §11.13, puntos 2, 3, 8 y 11). El último resultado lo guarda el servidor (`moderaciones`):
+  // reaparece al abrir el editor (consultar). Un veredicto de conjunto nunca trae la lista.
+  const [modRes,setModRes]=useState(null);   // {resultado, pasajes, total, aviso_enviado, avisos, recien}
+  const [avisosImagen,setAvisosImagen]=useState([]);
+  const [errPasaje,setErrPasaje]=useState(null); // {id, texto, estado: "escribir"|"enviando"|"error"}
+  const [modErrEnviado,setModErrEnviado]=useState(false);
+  const [atajoPregunta,setAtajoPregunta]=useState(false);
+  const consultarModeracion=async(id)=>{
+    const r=await moderarApi({operacion:"consultar", historia_id:id});
+    if(r.status!==200) return;
+    const d=r.d||{};
+    setAvisosImagen(Array.isArray(d.avisosImagen)?d.avisosImagen:[]);
+    if(["pasajes","limite_duro","conjunto"].includes(d.resultado)){
+      setModRes({resultado:d.resultado, pasajes:Array.isArray(d.pasajes)?d.pasajes:[], total:d.total||(d.pasajes||[]).length,
+        aviso_enviado:!!d.aviso_enviado, avisos:Array.isArray(d.avisos)?d.avisos:[], recien:false});
+    } else setModRes(null);
+  };
+  // Dónde está hoy el texto de un pasaje: {valor, set} del campo (o del texto del libro).
+  const CAMPOS_CABECERA_ED=["title","subtitle","name","pubCity","pubProfession","pubConcept"];
+  const lugarDe=(ps)=>{
+    if(ps.clase==="cabecera" && ps.campo){
+      if(ps.campo.startsWith("pie:")){
+        const id=ps.campo.slice(4), ph=fotosDb.find(x=>String(x.id)===id);
+        return ph ? {tipo:"pie", foto:ph, valor:String(ph.pie_foto||"")} : null;
+      }
+      if(CAMPOS_CABECERA_ED.includes(ps.campo)) return {tipo:"campo", campo:ps.campo, valor:String(f[ps.campo]||"")};
+      return null;
+    }
+    return {tipo:"texto", valor:String(f.text||"")};
+  };
+  // ¿Sigue el pasaje tal cual? Si el Autor lo ha cambiado o borrado a mano, se marca "Cambiado".
+  const pasajePresente=(ps)=>{
+    const l=lugarDe(ps); if(!l) return false;
+    if(ps.bloqueado) return ps.inicio ? l.valor.includes(ps.inicio) : true;
+    return !!ps.cita && l.valor.includes(ps.cita);
+  };
+  const dondePasaje=(ps)=>{
+    if(ps.clase==="cabecera"){
+      if(ps.campo && ps.campo.startsWith("pie:")){
+        const ph=fotosDb.find(x=>String(x.id)===ps.campo.slice(4));
+        return t.mod_where_pie.replace("{n}",ph?String(ph.orden):"");
+      }
+      return t["mod_where_"+ps.campo]||t.mod_where_header;
+    }
+    if(ps.tituloCapitulo) return ps.tituloCapitulo;
+    return String(f.text||"").includes(CHAPTER_SIGN) && ps.capitulo===0 ? t.mod_where_before : t.mod_where_text;
+  };
+  const irAlPasaje=(ps)=>{
+    const l=lugarDe(ps); if(!l) return;
+    if(l.tipo==="pie"){ document.getElementById("lm-foto-"+l.foto.id)?.scrollIntoView({behavior:"smooth",block:"center"}); return; }
+    if(l.tipo==="campo"){
+      if(["pubCity","pubProfession","pubConcept"].includes(l.campo)){ setSubirError(""); setSaveExitStep("fields"); setShowSaveExit(true); }
+      else document.getElementById("lm-ed-head")?.scrollIntoView({behavior:"smooth",block:"start"});
+      return;
+    }
+    const q=ps.bloqueado?ps.inicio:ps.cita; if(!q) return;
+    const i=f.text.indexOf(q); const ta=taRef.current; if(i===-1||!ta) return;
+    ta.focus({preventScroll:true});
+    ta.setSelectionRange(i,i+q.length);
+    ta.scrollTop=Math.max(0,caretOffsetTop(ta,i)-ta.clientHeight/3);
+    ta.scrollIntoView({block:"nearest",behavior:"smooth"});
+  };
+  // Aplica "Suprimir" a una versión (fv) sin pintarla: devuelve la nueva o null si no está.
+  // Los pies de foto se guardan aparte (setPhotoCaption, con su propia fila de guardado).
+  const suprimirEn=(fv,ps)=>{
+    if(ps.bloqueado || !ps.cita) return null;
+    if(ps.clase==="cabecera" && ps.campo){
+      if(ps.campo.startsWith("pie:")) return null;
+      const v=suprimirCita(String(fv[ps.campo]||""),ps.cita);
+      return v===null ? null : {...fv,[ps.campo]:v.trim()};
+    }
+    const nt=suprimirCita(String(fv.text||""),ps.cita);
+    return nt===null ? null : {...fv,text:nt};
+  };
+  const suprimirPiePasaje=(ps)=>{
+    const l=lugarDe(ps); if(!l||l.tipo!=="pie") return false;
+    const v=suprimirCita(l.valor,ps.cita); if(v===null) return false;
+    setPhotoCaption(l.foto.id,v.trim()); return true;
+  };
+  const suprimirPasaje=(ps)=>{
+    if(ps.campo && ps.campo.startsWith("pie:")) return suprimirPiePasaje(ps);
+    const nf=suprimirEn(f,ps); if(!nf) return false;
+    pushHistory(); setF(nf); return true;
+  };
+  // "Subir sin los pasajes señalados" (§4.3): suprime todos los señalados y sube. Sin límite duro.
+  const subirSinPasajes=async()=>{
+    setAtajoPregunta(false);
+    if(!modRes) return;
+    let nf=f;
+    for(const ps of modRes.pasajes){
+      if(!pasajePresente(ps)) continue;
+      if(ps.campo && ps.campo.startsWith("pie:")){ suprimirPiePasaje(ps); continue; }
+      nf=suprimirEn(nf,ps)||nf;
+    }
+    if(nf!==f){ pushHistory(); setF(nf); }
+    if(f.publishedId && String(nf.country||"").trim()) await publish("ahora", nf);
+    else { setSubirError(""); setSaveExitStep("fields"); setShowSaveExit(true); }
+  };
+  // "Creo que es un error" (texto): una vez por subida, una sola frase.
+  const enviarErrorPasaje=async()=>{
+    if(!errPasaje || !historiaIdRef.current) return;
+    const explicacion=errPasaje.texto.trim(); if(!explicacion) return;
+    setErrPasaje(p=>({...p,estado:"enviando"}));
+    const r=await moderarApi({operacion:"error", historia_id:historiaIdRef.current, pasaje_id:errPasaje.id, explicacion});
+    if((r.status===200 && r.d.ok) || r.d.error==="AVISO_YA_ENVIADO"){
+      setErrPasaje(null); setModErrEnviado(r.d.ok?"enviado":"ya");
+      setModRes(m=>m?{...m,aviso_enviado:true}:m);
+    } else setErrPasaje(p=>({...p,estado:"error"}));
+  };
+  // Avisos de imagen resueltos por Javier (consultar): una imagen aceptada se ofrece para usarla
+  // (api/moderar.js la acepta sin IA); una rechazada, se dice una vez.
+  const avisoImagenVisto=(ruta)=>{ try{ return !!window.localStorage.getItem("lm_imgav_"+ruta); }catch(e){ return false; } };
+  const marcarAvisoImagen=(ruta)=>{ try{ window.localStorage.setItem("lm_imgav_"+ruta,"1"); }catch(e){} setAvisosImagen(a=>[...a]); };
+  const usarImagenAceptada=async(av)=>{
+    const target=av.objetivo==="portada"?{type:"cover"}:{type:"slot",fotoId:av.foto_id};
+    setPendingPhoto({...target,previewUrl:SUPABASE_URL+"/storage/v1/object/public/fotos/"+av.ruta,stage:"check"});
+    try{
+      const r=await moderarApi({operacion:"revisarImagen",...objetivoDe(target),ruta:av.ruta});
+      if(trasRevisarImagen(target,r)) marcarAvisoImagen(av.ruta);
+    } finally { setPendingPhoto(null); }
+  };
+
+  // ---- Modo "Revisar los pasajes señalados" del Asistente (§6.3; §11.13, puntos 2 y 3; Agente
+  // Editorial 2.11). Un pasaje cada vez: el servidor lo lee de `moderaciones`, lo explica y propone
+  // el cambio mínimo, y lo cobra en tinta (Flash). La lista no llega entera al navegador.
+  const [pasajeModo,setPasajeModo]=useState(null); // {indice, total, pasaje, cargando, fin, hecho}
+  const [pasajeTarget,setPasajeTarget]=useState(null); // pasaje cuya propuesta está en la caja "Tú"
+  const empezarRevisionPasajes=()=>{
+    if(!hasAiRight){ goToOffer("lm-offer-ai", t.mod_conjunto_buy_msg); return; }
+    setPasajeTarget(null);
+    setPasajeModo({indice:0, total:modRes?modRes.total:0, pasaje:null, cargando:false, fin:false, hecho:null, pedido:false});
+    const needsTreatment = asksTuUsted && !f.assistantTuUsted;
+    if(f.assistantActive && !needsTreatment) setShowAiPanel(true);
+    else { setAiTuUsted(null); setAiNameDraft(f.assistantName||f.name||""); setShowAiSetup(true); }
+  };
+  const cargarPasaje=async(indice)=>{
+    if(!historiaIdRef.current) return;
+    setPasajeTarget(null);
+    setPasajeModo(m=>({...(m||{}),indice,cargando:true,pasaje:null,fin:false,hecho:null,pedido:true}));
+    setChatLoading(true);
+    try{
+      const { data } = await supa.auth.getSession();
+      const res=await fetch("/api/asistente",{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({operacion:"pasaje", token:data.session?data.session.access_token:null,
+          historia_id:historiaIdRef.current, indice, interfaz:lang==="EN"?"EN":"ES"})
+      });
+      const d=await res.json().catch(()=>({}));
+      applyTinta(d);
+      if(!res.ok){
+        if(d.error==="FIN"){ setPasajeModo(m=>({...m,cargando:false,fin:true,total:d.total||m.total})); setChatMsgs(h=>[...h,{role:"model",text:t.ps_done}]); return; }
+        if(d.error==="SIN_PASAJES"||d.error==="NO_ENCONTRADA"){ setPasajeModo(m=>({...m,cargando:false,fin:true})); setChatMsgs(h=>[...h,{role:"model",text:t.ps_none}]); return; }
+        if(d.error==="SIN_TINTA"){ setTinta(p=>({tinta:0,ultimaCarga:(p&&p.ultimaCarga)||d.ultimaCarga||0})); setChatMsgs(h=>[...h,{role:"model",text:t.ai_no_ink}]); }
+        else if(d.error==="SIN_SESION") setChatMsgs(h=>[...h,{role:"model",text:t.ai_no_session}]);
+        else setChatMsgs(h=>[...h,{role:"model",text:t.ai_error_retry}]);
+        setPasajeModo(m=>({...m,cargando:false,pedido:false}));
+        return;
+      }
+      const ps=d.pasaje||{};
+      const titulo=t.ps_title.replace("{i}",String(indice+1)).replace("{n}",String(d.total));
+      const cita=ps.cita?(lang==="EN"?"\u201c"+ps.cita+"\u201d":"«"+ps.cita+"»"):"";
+      let texto=titulo+(cita?"\n"+cita:"");
+      if(d.cambiado) texto+="\n"+t.ps_changed;
+      else {
+        if(d.explicacion) texto+="\n"+d.explicacion;
+        if(ps.tipo==="duro") texto+="\n"+t.mod_hard;
+        else if(d.descartada) texto+="\n"+t.ps_discarded;
+        else if(d.propuesta==="") texto+="\n"+t.ps_suggest_delete;
+        else if(d.propuesta) texto+="\n"+t.ps_proposal;
+      }
+      setChatMsgs(h=>[...h,{role:"model",text:texto}]);
+      if(!d.cambiado && ps.tipo!=="duro" && d.propuesta){
+        setChatInput(d.propuesta); setChatInputFromAssistant(true); setJustDictated(false);
+        setPasajeTarget(ps);
+      }
+      setPasajeModo(m=>({...m,indice,total:d.total,pasaje:{...ps,cambiado:!!d.cambiado},cargando:false}));
+    }catch(e){
+      console.error("pasaje:", e);
+      setChatMsgs(h=>[...h,{role:"model",text:t.ai_error_retry}]);
+      setPasajeModo(m=>({...m,cargando:false,pedido:false}));
+    }finally{
+      setChatLoading(false);
+    }
+  };
+  // Con el panel abierto, se pide el primer pasaje (una sola vez por entrada en el modo).
+  useEffect(()=>{
+    if(showAiPanel && pasajeModo && !pasajeModo.pedido && !pasajeModo.cargando && !pasajeModo.fin) cargarPasaje(pasajeModo.indice);
+  },[showAiPanel,pasajeModo]);
+  const siguientePasaje=()=>{ if(pasajeModo && !pasajeModo.cargando) cargarPasaje(pasajeModo.indice+1); };
+  const salirPasajes=()=>{ setPasajeModo(null); setPasajeTarget(null); setChatInput(""); setChatInputFromAssistant(false); };
+  // "Sustituir en el texto": la propuesta (quizá retocada en la caja "Tú") en lugar de la cita, solo
+  // si la cita sigue tal cual; si no, no toca nada y lo dice (regla de 2.10).
+  const sustituirPasaje=(propuesta)=>{
+    const ps=pasajeTarget; if(!ps) return;
+    const nuevo=htmlToPlain(String(propuesta||"")).trim();
+    const l=lugarDe(ps);
+    const i=l?l.valor.indexOf(ps.cita):-1;
+    if(!l || i===-1 || !nuevo){ setChatMsgs(h=>[...h,{role:"model",text:t.ps_notfound}]); setPasajeTarget(null); return; }
+    const v=l.valor.slice(0,i)+nuevo+l.valor.slice(i+ps.cita.length);
+    if(l.tipo==="pie") setPhotoCaption(l.foto.id,v);
+    else if(l.tipo==="campo") setF(p=>({...p,[l.campo]:v}));
+    else { pushHistory(); up("text",v); }
+    setChatInput(""); setChatInputFromAssistant(false); setPasajeTarget(null);
+    setPasajeModo(m=>m?{...m,hecho:"sustituido"}:m);
+    setChatMsgs(h=>[...h,{role:"model",text:t.ps_replaced}]);
+  };
+  const suprimirPasajeModo=()=>{
+    const ps=pasajeModo&&pasajeModo.pasaje; if(!ps) return;
+    if(!pasajePresente(ps) || !suprimirPasaje(ps)){ setChatMsgs(h=>[...h,{role:"model",text:t.ps_notfound}]); return; }
+    setChatInput(""); setChatInputFromAssistant(false); setPasajeTarget(null);
+    setPasajeModo(m=>m?{...m,hecho:"suprimido"}:m);
+    setChatMsgs(h=>[...h,{role:"model",text:t.ps_deleted}]);
+  };
+
   // "Subir a la Biblioteca": la primera vez (o si falta el país) pide país y etiquetas; después, directo.
   const startUpload=(desde)=>{
     if(f.publishedId && String(f.country||"").trim()) publish(desde);
@@ -4698,6 +5335,18 @@ ${capituloActual}
       paragraphCheckRef.current.timer=setTimeout(()=>checkParagraphInBackground(justWritten,contexto,paraPos),1500);
     }
   };
+  // Parche del pegado (diseño §8.4): une las líneas cortadas de lo que se pega. A la vista del
+  // Autor, y se deshace con "↺ Deshacer" como cualquier otro cambio.
+  const onTextPaste=(e)=>{
+    const raw=e.clipboardData && e.clipboardData.getData("text/plain");
+    const limpio=joinPastedLines(raw);
+    if(limpio===null) return; // nada que unir: el navegador pega como siempre
+    e.preventDefault();
+    const ta=e.target, s0=ta.selectionStart, e0=ta.selectionEnd;
+    pushHistory();
+    up("text", f.text.slice(0,s0)+limpio+f.text.slice(e0));
+    requestAnimationFrame(()=>{ const el=taRef.current; if(el){ el.selectionStart=el.selectionEnd=s0+limpio.length; el.blur(); el.focus(); } });
+  };
   const applyItalic=()=>{
     const ta=taRef.current; if(!ta) return;
     let {selectionStart:s,selectionEnd:eIdx}=ta;
@@ -4841,6 +5490,11 @@ ${capituloActual}
   // ================= Paso 1 — datos del libro y Autor =================
   if(wStep==="datos") return (
     <div className="wr-wrap">
+      {/* Segunda subida (08/10/2026): la portada del alta también pasa por la revisión, y su aviso
+          debe verse aquí. De paso, la ventana de recorte: hasta ahora solo se pintaba en el editor,
+          así que en el alta elegir la portada no hacía nada visible (salía al entrar al editor). */}
+      {cropFile&&<CropRotateModal file={cropFile} t={t} onCancel={cancelCrop} onConfirm={confirmCrop}/>}
+      {imgAviso&&<ImagenRechazadaModal aviso={imgAviso} t={t} onClose={()=>setImgAviso(null)}/>}
       {topBar}
       {narrowCard(<>
         <h2 className="wr-h">{t.write_h}</h2>
@@ -4863,7 +5517,7 @@ ${capituloActual}
               <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"cover"})}/>
             </label>
             {coverPreviewSrc()&&<img src={coverPreviewSrc()} alt="portada" style={{height:"60px",width:"auto",borderRadius:"2px",border:"1px solid var(--border)",opacity:isCoverUploading()?0.5:1}}/>}
-            {isCoverUploading()&&<span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</span>}
+            {isCoverUploading()&&<span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{pendingPhoto&&pendingPhoto.stage==="check"?t.img_checking:(lang==="EN"?"Uploading…":"Subiendo…")}</span>}
             <span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{t.f_cover_note}</span>
           </div>
         </div>
@@ -5010,7 +5664,7 @@ ${capituloActual}
             {saveExitStep==="choose"&&(<>
                   <div className="modal-h" style={{fontSize:"1.15rem"}}>{t.ed_save_exit_q}</div>
                   <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} disabled={saliendo||subiendo} onClick={salir}>{t.ed_save_private}</button>
-                  <button className="btn-out" style={{width:"100%"}} disabled={!f.name||!f.text||subiendo||saliendo} onClick={()=>startUpload("salir")}>{subiendo?t.up_busy:t.ed_save_upload}</button>
+                  <button className="btn-out" style={{width:"100%"}} disabled={!f.name||!f.text||subiendo||saliendo} onClick={()=>startUpload("salir")}>{subiendo?subiendoTexto():t.ed_save_upload}</button>
                   {subirError&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginTop:"0.6rem"}}>{subirError}</p>}
                 </>)}
             {/* Tras subir cambios a un libro que ya estaba publicado: aviso breve (la ventana de
@@ -5030,7 +5684,7 @@ ${capituloActual}
               <div className="fld"><label className="lbl">{t.pub_city}</label><input className="inp" value={f.pubCity} onChange={e=>up("pubCity",e.target.value)} placeholder={t.pub_city_ph}/></div>
               <div className="fld"><label className="lbl">{t.pub_profession}</label><input className="inp" value={f.pubProfession} onChange={e=>up("pubProfession",e.target.value)} placeholder={t.pub_profession_ph}/></div>
               <div className="fld"><label className="lbl">{t.pub_concept}</label><input className="inp" value={f.pubConcept} onChange={e=>up("pubConcept",e.target.value)} placeholder={t.pub_concept_ph}/></div>
-              <button className="btn-pub" style={{width:"100%",marginTop:"0.6rem"}} disabled={!String(f.country||"").trim()||subiendo} onClick={()=>publish("salir")}>{subiendo?t.up_busy:t.ed_save_upload}</button>
+              <button className="btn-pub" style={{width:"100%",marginTop:"0.6rem"}} disabled={!String(f.country||"").trim()||subiendo} onClick={()=>publish("salir")}>{subiendo?subiendoTexto():t.ed_save_upload}</button>
               {subirError&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginTop:"0.6rem"}}>{subirError}</p>}
             </>)}
           </div>
@@ -5053,6 +5707,7 @@ ${capituloActual}
         </div>
       )}
       {cropFile&&<CropRotateModal file={cropFile} t={t} onCancel={cancelCrop} onConfirm={confirmCrop}/>}
+      {imgAviso&&<ImagenRechazadaModal aviso={imgAviso} t={t} onClose={()=>setImgAviso(null)}/>}
       {fotoEditor&&<PhotoEditorModal
         target={fotoEditor} t={t}
         imageUrl={fotoEditor.type==="cover"?f.coverImg:(fotosDb.find(x=>x.id===fotoEditor.fotoId)||{}).url}
@@ -5080,7 +5735,7 @@ ${capituloActual}
             </>)}
             {unpubStep==="done"&&(<>
               <p className="ok-msg">{t.unpub_done_msg}</p>
-              {showUndo&&<button className="btn-out" style={{width:"100%",marginTop:"0.6rem"}} disabled={subiendo} onClick={undoUnpublish}>{subiendo?t.up_busy:t.unpub_undo_btn}</button>}
+              {showUndo&&<button className="btn-out" style={{width:"100%",marginTop:"0.6rem"}} disabled={subiendo} onClick={undoUnpublish}>{subiendo?subiendoTexto():t.unpub_undo_btn}</button>}
               {subirError&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginTop:"0.6rem"}}>{subirError}</p>}
               <button className="btn-pub" style={{width:"100%",marginTop:"0.6rem"}} onClick={()=>setUnpubStep(null)}>OK</button>
             </>)}
@@ -5091,16 +5746,16 @@ ${capituloActual}
       <div className="wr-grid">
         <div className={"wr-work"+(hasAiRight?" wr-work-split":"")}>
         <div>
-          <div className="frow" style={{marginBottom:"0.9rem"}}>
+          <div id="lm-ed-head" className="frow" style={{marginBottom:"0.9rem"}}>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_title}</label><ConfirmedInput value={f.title} lang={bookLangTag(f.lang)} onCommit={v=>up("title",v)}/></div>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_subtitle}</label><input className="inp" lang={bookLangTag(f.lang)} spellCheck={true} value={f.subtitle} onChange={e=>up("subtitle",e.target.value)}/></div>
           </div>
           <div className="frow" style={{marginBottom:"0.9rem",alignItems:"flex-end"}}>
-            <div className="fld" style={{marginBottom:0}}>
+            <div id="lm-ed-cover" className="fld" style={{marginBottom:0}}>
             <label className="lbl">{t.f_cover}</label>
             <div style={{display:"flex",alignItems:"center",gap:"0.8rem",flexWrap:"wrap"}}>
               {coverPreviewSrc()&&<img src={coverPreviewSrc()} alt="portada" style={{height:"52px",width:"38px",objectFit:"cover",borderRadius:"2px",border:"1px solid var(--border)",opacity:isCoverUploading()?0.5:1}}/>}
-              {isCoverUploading()&&<span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</span>}
+              {isCoverUploading()&&<span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{pendingPhoto&&pendingPhoto.stage==="check"?t.img_checking:(lang==="EN"?"Uploading…":"Subiendo…")}</span>}
               <label style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",textDecoration:"underline",cursor:"pointer"}}>
                 {(f.coverImg||coverPreviewSrc())?t.ed_change_cover:t.ed_upload_cover}
                 <input type="file" accept="image/*" style={{display:"none"}} onChange={startCrop({type:"cover"})}/>
@@ -5170,6 +5825,110 @@ ${capituloActual}
               </div>
             </div>
           ), document.body)}
+          {/* Segunda subida (08/10/2026): aviso tras "Modificar" desde la administración (§11.13, punto 12). */}
+          {revisionAviso&&(
+            <div role="alert" style={{margin:"0 0 0.9rem",padding:"0.7rem 0.9rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"3px",fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.5,color:"var(--ink)"}}>
+              {t.revision_reloaded}
+              <div style={{marginTop:"0.4rem"}}><button type="button" className="toolbar-btn" onClick={()=>setRevisionAviso(false)}>{t.img_ok_btn}</button></div>
+            </div>
+          )}
+          {/* Avisos de imagen resueltos o pendientes ("Creo que es un error", §11.13, punto 9). */}
+          {avisosImagen.filter(av=>av.ruta && !avisoImagenVisto(av.ruta)).map(av=>{
+            const enUso = av.objetivo==="portada" ? rutaDeUrl(f.coverImg)===av.ruta
+              : fotosDb.some(ph=>String(ph.id)===String(av.foto_id) && rutaDeUrl(ph.url)===av.ruta);
+            if(enUso) return null;
+            const ph = av.objetivo==="foto" ? fotosDb.find(x=>String(x.id)===String(av.foto_id)) : null;
+            const estilo={margin:"0 0 0.7rem",padding:"0.6rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:"3px",fontFamily:"var(--body)",fontSize:"0.85rem",lineHeight:1.5,color:"var(--ink)"};
+            if(av.estado==="pendiente") return <div key={av.ruta} role="status" style={estilo}>{t.img_av_pending}</div>;
+            if(av.estado==="aceptado") return (
+              <div key={av.ruta} role="status" style={{...estilo,borderColor:"#2a6a2a"}}>
+                {av.objetivo==="portada"?t.img_av_accepted_cover:t.img_av_accepted_photo.replace("{n}",ph?String(ph.orden):"")}
+                <div style={{marginTop:"0.4rem",display:"flex",gap:"0.5rem",flexWrap:"wrap"}}>
+                  <button type="button" className="toolbar-btn" disabled={!!pendingPhoto} onClick={()=>usarImagenAceptada(av)}>{t.img_av_use}</button>
+                  <button type="button" className="toolbar-btn" onClick={()=>marcarAvisoImagen(av.ruta)}>{t.img_av_dismiss}</button>
+                </div>
+              </div>);
+            if(av.estado==="rechazado") return (
+              <div key={av.ruta} role="status" style={estilo}>
+                {t.img_av_rejected}
+                <div style={{marginTop:"0.4rem"}}><button type="button" className="toolbar-btn" onClick={()=>marcarAvisoImagen(av.ruta)}>{t.img_av_dismiss}</button></div>
+              </div>);
+            return null;
+          })}
+          {/* Veredicto de conjunto (§6.2): solo el aviso, sin la lista; la salida es el Asistente. */}
+          {modRes&&modRes.resultado==="conjunto"&&(
+            <div id="lm-pasajes" role="alert" style={{margin:"0 0 0.9rem",padding:"0.9rem 1rem",background:"var(--bg2)",border:"1px solid var(--navy)",borderRadius:"3px",fontFamily:"var(--body)",fontSize:"0.9rem",lineHeight:1.55,color:"var(--ink)"}}>
+              <div style={{fontFamily:"var(--serif)",fontSize:"1.05rem",color:"var(--navy)",marginBottom:"0.35rem"}}>{t.mod_box_h}</div>
+              {modRes.recien&&<p style={{margin:"0 0 0.5rem",fontWeight:600}}>{(publicado?t.mod_not_up_pub:t.mod_not_up_unpub).replace("{hay}",modRes.total===1?t.mod_hay_one:t.mod_hay_many.replace("{n}",String(modRes.total)))}</p>}
+              <p style={{margin:"0 0 0.6rem"}}>{t.mod_conjunto}</p>
+              <button type="button" className="btn-pub" style={{width:"auto",padding:"0.5rem 1.2rem"}} onClick={empezarRevisionPasajes}>{hasAiRight?t.mod_conjunto_ai:t.mod_conjunto_buy}</button>
+              {" "}<button type="button" className="toolbar-btn" disabled={subiendo} onClick={()=>startUpload("ahora")}>{subiendo?subiendoTexto():t.mod_reupload}</button>
+              {subirError&&!showSaveExit&&<p style={{color:"#b23b3b",fontSize:"0.82rem",margin:"0.5rem 0 0"}}>{subirError}</p>}
+            </div>
+          )}
+          {/* Pasajes señalados (§4.3; §11.13, punto 8): encima del texto, cada uno con sus tres salidas. */}
+          {modRes&&(modRes.resultado==="pasajes"||modRes.resultado==="limite_duro")&&(()=>{
+            const lista=modRes.pasajes||[];
+            const n=lista.length;
+            const hay=n===1?t.mod_hay_one:t.mod_hay_many.replace("{n}",String(n));
+            const cabecera = modRes.recien ? (publicado?t.mod_not_up_pub:t.mod_not_up_unpub).replace("{hay}",hay)
+              : (publicado?t.mod_pending_pub:t.mod_pending_unpub).replace("{hay}",hay);
+            const conDuro=lista.some(x=>x.tipo==="duro");
+            const ultimoAviso=(modRes.avisos||[])[0];
+            const avisoTxt = ultimoAviso ? (ultimoAviso.estado==="aceptado"?t.mod_av_accepted:ultimoAviso.estado==="rechazado"?t.mod_av_rejected:t.mod_av_pending) : "";
+            const btn={fontFamily:"var(--body)",fontSize:"0.8rem",textDecoration:"underline",cursor:"pointer",background:"none",border:"none",padding:0};
+            return (
+              <div id="lm-pasajes" role="region" aria-label={t.mod_box_h} style={{margin:"0 0 0.9rem",padding:"0.9rem 1rem",background:"var(--bg2)",border:"1px solid #b23b3b",borderRadius:"3px",fontFamily:"var(--body)",color:"var(--ink)"}}>
+                <div style={{fontFamily:"var(--serif)",fontSize:"1.05rem",color:"#b23b3b",marginBottom:"0.35rem"}}>{t.mod_box_h}</div>
+                <p style={{margin:"0 0 0.6rem",fontSize:"0.9rem",lineHeight:1.5,fontWeight:modRes.recien?600:400}}>{cabecera}</p>
+                {modErrEnviado&&<p role="status" style={{margin:"0 0 0.6rem",fontSize:"0.85rem",lineHeight:1.5,color:"#2a6a2a"}}>{modErrEnviado==="ya"?t.mod_err_once:t.mod_err_sent}</p>}
+                {!modErrEnviado&&avisoTxt&&<p role="status" style={{margin:"0 0 0.6rem",fontSize:"0.85rem",lineHeight:1.5,color:"var(--navy)"}}>{avisoTxt}</p>}
+                <div style={{display:"flex",gap:"0.6rem",flexWrap:"wrap",margin:"0 0 0.7rem"}}>
+                  {!conDuro&&<button type="button" className="toolbar-btn" disabled={subiendo} onClick={()=>setAtajoPregunta(true)}>{t.mod_shortcut}</button>}
+                  <button type="button" className="toolbar-btn" disabled={subiendo} onClick={()=>startUpload("ahora")}>{subiendo?subiendoTexto():t.mod_reupload}</button>
+                  {hasAiRight&&<button type="button" className="toolbar-btn" onClick={empezarRevisionPasajes}>✦ {t.mod_with_ai}</button>}
+                </div>
+                {subirError&&!showSaveExit&&<p style={{color:"#b23b3b",fontSize:"0.82rem",margin:"0 0 0.6rem"}}>{subirError}</p>}
+                {atajoPregunta&&(
+                  <div role="alertdialog" style={{margin:"0 0 0.8rem",padding:"0.7rem 0.8rem",background:"var(--bg3)",border:"1px solid var(--gold)",borderRadius:"3px"}}>
+                    <p style={{margin:"0 0 0.5rem",fontSize:"0.88rem",lineHeight:1.5}}>{n===1?t.mod_shortcut_q_one:t.mod_shortcut_q_many.replace("{n}",String(n))}</p>
+                    <button type="button" className="btn-pub" style={{width:"auto",padding:"0.45rem 1rem"}} onClick={subirSinPasajes}>{t.mod_shortcut_yes}</button>
+                    {" "}<button type="button" className="btn-out" style={{width:"auto",padding:"0.45rem 1rem"}} onClick={()=>setAtajoPregunta(false)}>{t.mod_cancel}</button>
+                  </div>
+                )}
+                {lista.map(ps=>{
+                  const presente=pasajePresente(ps);
+                  const muestra=ps.bloqueado ? t.mod_blocked_start.replace("{x}",String(ps.inicio||"").slice(0,90))
+                    : (lang==="EN"?"\u201c":"«")+(ps.cita.length>140?ps.cita.slice(0,140)+"…":ps.cita)+(lang==="EN"?"\u201d":"»");
+                  return (
+                    <div key={ps.id} style={{padding:"0.6rem 0",borderTop:"1px solid var(--border)"}}>
+                      <div style={{fontSize:"0.7rem",letterSpacing:"0.12em",textTransform:"uppercase",color:"var(--muted)",marginBottom:"0.2rem"}}>
+                        {dondePasaje(ps)}{!presente&&<span style={{color:"#2a6a2a",fontWeight:600,letterSpacing:"0.05em"}}> · {t.mod_changed}</span>}
+                      </div>
+                      <div style={{fontFamily:"var(--serif)",fontSize:"0.95rem",lineHeight:1.5,color:presente?"var(--ink)":"var(--muted)",textDecoration:presente?"none":"line-through"}}>{muestra}</div>
+                      <div style={{fontSize:"0.84rem",lineHeight:1.5,color:"#8a3030",margin:"0.25rem 0"}}>{lang==="EN"?ps.motivo_en:ps.motivo_es}{ps.tipo==="duro"&&!ps.bloqueado&&<> {t.mod_hard}</>}</div>
+                      {presente&&(
+                        <div style={{display:"flex",gap:"0.4rem 1rem",flexWrap:"wrap"}}>
+                          <button type="button" style={{...btn,color:"var(--navy)"}} onClick={()=>irAlPasaje(ps)}>{t.mod_go}</button>
+                          {!ps.bloqueado&&<button type="button" style={{...btn,color:"#b23b3b"}} onClick={()=>suprimirPasaje(ps)}>{t.mod_delete}</button>}
+                          {!modRes.aviso_enviado&&!errPasaje&&<button type="button" style={{...btn,color:"var(--muted)"}} onClick={()=>setErrPasaje({id:ps.id,texto:"",estado:"escribir"})}>{t.mod_error}</button>}
+                        </div>
+                      )}
+                      {errPasaje&&errPasaje.id===ps.id&&(
+                        <div style={{marginTop:"0.5rem"}}>
+                          <label className="lbl">{t.mod_err_prompt}</label>
+                          <textarea className="inp" rows={2} maxLength={300} value={errPasaje.texto} onChange={e=>setErrPasaje(p=>({...p,texto:e.target.value,estado:"escribir"}))} style={{width:"100%",resize:"vertical",fontFamily:"var(--body)",fontSize:"0.88rem"}}/>
+                          {errPasaje.estado==="error"&&<p style={{color:"#b23b3b",fontSize:"0.8rem",margin:"0.2rem 0"}}>{t.mod_err_fail}</p>}
+                          <button type="button" className="btn-pub" style={{width:"auto",padding:"0.4rem 1rem"}} disabled={!errPasaje.texto.trim()||errPasaje.estado==="enviando"} onClick={enviarErrorPasaje}>{errPasaje.estado==="enviando"?t.up_busy:t.mod_err_send}</button>
+                          {" "}<button type="button" className="btn-out" style={{width:"auto",padding:"0.4rem 1rem"}} disabled={errPasaje.estado==="enviando"} onClick={()=>setErrPasaje(null)}>{t.mod_cancel}</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
           <div style={{display:"flex",gap:"0.5rem",marginBottom:"0.5rem",flexWrap:"wrap",alignItems:"center"}}>
             <button type="button" className="toolbar-btn" onClick={()=>addBlock("chapter")}>{t.ed_add_chapter}</button>
             <button type="button" className="toolbar-btn" onClick={()=>addBlock("apartado")}>{t.ed_add_apartado}</button>
@@ -5231,18 +5990,18 @@ ${capituloActual}
             <button type="button" className="toolbar-btn" onClick={()=>searchGo(1)} disabled={!searchQ.trim()} style={searchQ.trim()?{}:{opacity:0.4,cursor:"not-allowed"}}>{t.ed_search_next}</button>
             {searchStatus&&<span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{searchStatus}</span>}
           </div>
-          <textarea ref={taRef} className="ta ta-ms" lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.f_text_ph} value={f.text} onChange={onTextChange} onKeyDown={onTextKeyDown}/>
+          <textarea ref={taRef} className="ta ta-ms" lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.f_text_ph} value={f.text} onChange={onTextChange} onKeyDown={onTextKeyDown} onPaste={onTextPaste}/>
 
           {fotosDb.length>0&&(
             <div id="lm-photos-added" style={{marginTop:"1rem"}}>
               <div className="lbl" style={{marginBottom:"0.5rem"}}>{t.ed_photos_added_h}</div>
               <div style={{display:"flex",gap:"0.8rem",flexWrap:"wrap"}}>
                 {fotosDb.map((ph)=>(
-                  <div key={ph.id} style={{width:"120px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"2px",padding:"0.5rem"}}>
+                  <div key={ph.id} id={"lm-foto-"+ph.id} style={{width:"120px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"2px",padding:"0.5rem"}}>
                     {slotPreviewSrc(ph.id)?
                       <img src={slotPreviewSrc(ph.id)} alt="" style={{width:"100%",height:"90px",objectFit:"cover",borderRadius:"2px",marginBottom:"0.4rem",opacity:isSlotUploading(ph.id)?0.5:1}}/>
                       :<div style={{width:"100%",height:"90px",background:"var(--bg2)",borderRadius:"2px",marginBottom:"0.4rem"}}/>}
-                    {isSlotUploading(ph.id)&&<div style={{fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>{lang==="EN"?"Uploading…":"Subiendo…"}</div>}
+                    {isSlotUploading(ph.id)&&<div style={{fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>{pendingPhoto&&pendingPhoto.stage==="check"?t.img_checking:(lang==="EN"?"Uploading…":"Subiendo…")}</div>}
                     <div style={{fontFamily:"var(--body)",fontSize:"0.7rem",color:"var(--muted)",marginBottom:"0.35rem"}}>
                       {t.photo_word.charAt(0).toUpperCase()+t.photo_word.slice(1)+" "+ph.orden}
                       {isFotoPlaced(ph)&&<span style={{color:"var(--navy)",fontWeight:600}}> · {lang==="EN"?"in the text":"en el texto"}</span>}
@@ -5277,7 +6036,9 @@ ${capituloActual}
                   sendChatMessage={sendChatMessage} listening={listening} dictProcessing={dictProcessing} justDictated={justDictated} setJustDictated={setJustDictated} dictNotice={dictNotice} setDictNotice={setDictNotice} startListening={startListening}
                   stopListening={stopListening} addChatToStory={addChatToStory}
                   activeOfferId={activeOfferId} acceptCorrection={acceptCorrection} declineCorrection={declineCorrection}
-                  correctionTarget={correctionTarget} replaceParagraphInStory={replaceParagraphInStory}/>
+                  correctionTarget={correctionTarget} replaceParagraphInStory={replaceParagraphInStory}
+                  pasajeModo={pasajeModo} pasajeTarget={pasajeTarget} sustituirPasaje={sustituirPasaje} suprimirPasajeModo={suprimirPasajeModo}
+                  siguientePasaje={siguientePasaje} salirPasajes={salirPasajes}/>
               : <div className="ai-open-btn" style={{marginTop:"5.1rem" /* posición inicial junto al título; al bajar, se queda fijo bajo la cabecera (CSS .ai-open-btn, 01/10); 05/10: con el aviso de tinta debajo */}}>
                 <button style={{width:"100%",padding:"0.55rem 0.75rem",
                     fontFamily:"var(--body)",fontSize:"0.96rem",lineHeight:"1.2",boxSizing:"border-box",
@@ -5310,11 +6071,11 @@ ${capituloActual}
             {publicado&&hayCambios&&<p className="wr-sub" style={{margin:"0.45rem 0 0",fontSize:"0.8rem",color:"var(--gold)"}}>
               {t.ed_unsent}{" "}
               {subiendo
-                ? <span style={{marginLeft:"0.3rem"}}>{t.up_busy}</span>
+                ? <span style={{marginLeft:"0.3rem"}}>{subiendoTexto()}</span>
                 : <span style={{color:"var(--navy)",textDecoration:"underline",cursor:"pointer",marginLeft:"0.3rem"}} onClick={()=>startUpload("ahora")}>{t.ed_upload_now}</span>}
             </p>}
             {subidaHecha&&!hayCambios&&<p className="wr-sub" style={{margin:"0.45rem 0 0",fontSize:"0.8rem",color:"#2a6a2a"}}>✓ {t.ed_saved_published}</p>}
-            {subirError&&!showSaveExit&&!unpubStep&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.8rem",margin:"0.45rem 0 0"}}>{subirError}</p>}
+            {subirError&&!showSaveExit&&!unpubStep&&!modRes&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.8rem",margin:"0.45rem 0 0"}}>{subirError}</p>}
             {/* "Compartir" y "Despublicar" bajo "Autoguardado activo", solo con el libro publicado (04/10/2026);
                 "Compartir", como la guía del editor; "Despublicar", discreto. "Eliminar" se queda al final.
                 "Ver cómo está en la Biblioteca" (07/10/2026): abre el enlace del libro en otra pestaña,
@@ -5383,7 +6144,8 @@ const arrowStyle={background:"none",border:"none",color:"var(--navy)",cursor:"po
 
 function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,rechargeMsg,setRechargeMsg,
   lang,f,up,chatMsgs,setChatMsgs,chatInput,setChatInput,chatInputFromAssistant,setChatInputFromAssistant,chatLoading,sendChatMessage,listening,dictProcessing,justDictated,setJustDictated,dictNotice,setDictNotice,startListening,stopListening,addChatToStory,
-  activeOfferId,acceptCorrection,declineCorrection,correctionTarget,replaceParagraphInStory}) {
+  activeOfferId,acceptCorrection,declineCorrection,correctionTarget,replaceParagraphInStory,
+  pasajeModo,pasajeTarget,sustituirPasaje,suprimirPasajeModo,siguientePasaje,salirPasajes}) {
   if(!open) return null;
   const [rechargeOpen,setRechargeOpen]=useState(false);const [rechargeAmt,setRechargeAmt]=useState(5);const [rechargeOk,setRechargeOk]=useState(false);
   const usageLabel=aiUsage<=0?t.ai_usage_none:aiUsage<20?t.ai_usage_low:aiUsage<50?t.ai_usage_mid:t.ai_usage_ok;
@@ -5457,6 +6219,21 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
           </div>
         )}
         {rechargeMsg&&<p className="ai-usage-notice">{t.ai_recharge_notice}</p>}
+        {/* Modo "Revisar los pasajes señalados" (segunda subida; Agente Editorial 2.11). */}
+        {pasajeModo&&(
+          <div style={{margin:"0 0 0.8rem",padding:"0.6rem 0.7rem",border:"1px solid #b23b3b",borderRadius:"6px",background:"var(--bg2)",fontFamily:"var(--body)"}}>
+            <div style={{fontSize:"0.72rem",letterSpacing:"0.1em",textTransform:"uppercase",color:"#b23b3b",marginBottom:"0.4rem"}}>
+              {pasajeModo.pasaje&&!pasajeModo.fin ? t.ps_title.replace("{i}",String(pasajeModo.indice+1)).replace("{n}",String(pasajeModo.total||"")) : t.mod_box_h}
+            </div>
+            <div style={{display:"flex",gap:"0.4rem",flexWrap:"wrap"}}>
+              {pasajeModo.pasaje&&!pasajeModo.fin&&!pasajeModo.pasaje.cambiado&&!pasajeModo.hecho&&!pasajeModo.pasaje.bloqueado&&
+                <button className="btn-out" style={{padding:"0.35rem 0.7rem",fontSize:"0.8rem"}} disabled={chatLoading} onClick={suprimirPasajeModo}>{t.ps_delete}</button>}
+              {pasajeModo.pasaje&&!pasajeModo.fin&&
+                <button className={pasajeModo.hecho||pasajeModo.pasaje.cambiado?"btn-pub":"btn-out"} style={{padding:"0.35rem 0.7rem",fontSize:"0.8rem"}} disabled={chatLoading} onClick={siguientePasaje}>{pasajeModo.hecho||pasajeModo.pasaje.cambiado?t.ps_next:t.ps_skip}</button>}
+              <button className="btn-out" style={{padding:"0.35rem 0.7rem",fontSize:"0.8rem"}} disabled={chatLoading} onClick={salirPasajes}>{t.ps_exit}</button>
+            </div>
+          </div>
+        )}
 
         <div className="ai-chat-col" style={{display:"flex",flexDirection:"column"}}>
               <div style={{fontFamily:"var(--body)",fontSize:"0.7rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"0.3rem"}}>{t.ai_h}</div>
@@ -5487,11 +6264,14 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
               {dictNotice && !dictProcessing && <div role="status" style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"#8a5a00",lineHeight:1.45,margin:"0.3rem 0 0"}}>{t["ai_dict_n_"+dictNotice]}</div>}
               <div style={{display:"flex",flexDirection:"column",gap:"0.4rem",marginTop:"0.5rem"}}>
                 <div style={{display:"flex",gap:"0.4rem",flexWrap:"wrap"}}>
-                  {!correctionTarget && /* con una corrección en la caja, solo tiene sentido "Sustituir" (01/10) */
+                  {!correctionTarget && !pasajeTarget && /* con una corrección en la caja, solo tiene sentido "Sustituir" (01/10) */
                   <button className={justDictated?"btn-out":"btn-pub"} style={{padding:"0.45rem 0.9rem",flex:1}} disabled={chatLoading||!chatInput.trim()||listening||dictProcessing} onClick={()=>sendChatMessage(chatInput)}>
                     {lang==="EN"?"Send to Assistant":"Enviar al Asistente"}
                   </button>}
-                  {chatInputFromAssistant && (
+                  {pasajeTarget && (
+                    <button className="btn-pub" style={{padding:"0.45rem 0.9rem",flex:1}} disabled={chatLoading||!chatInput.trim()} onClick={()=>sustituirPasaje(chatInput)}>{t.ai_replace_btn}</button>
+                  )}
+                  {chatInputFromAssistant && !pasajeTarget && (
                     <button className={justDictated?"btn-pub":"btn-out"} style={{padding:"0.45rem 0.9rem",flex:1}} disabled={listening||dictProcessing||!chatInput.trim()} onClick={()=>correctionTarget?replaceParagraphInStory(chatInput):addChatToStory(chatInput)}>
                       {correctionTarget ? t.ai_replace_btn : (lang==="EN"?"Send to text window":"Mandar a ventana de texto")}
                     </button>
