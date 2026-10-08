@@ -1,4 +1,8 @@
 // api/admin.js — Locus Mundi
+// Versión 3 · 08/10/2026 · Diseño de la moderación v10, §11.13, punto 12. Cambio respecto a la
+// v2: "modificar" sube en uno historias.revision (columna solo del servidor). Así el editor
+// que el Autor tenga abierto se da cuenta, deja de autoguardar el texto antiguo y recarga el
+// nuevo (index.html de la segunda subida). Nada más cambia.
 // Versión 2 · 06/10/2026 · Diseño de la moderación v6, §4.3 y §11.8 (dos versiones de cada
 // libro; decisión de Javier en la conversación de la primera subida).
 // Acción de administrador sobre una historia: "retirar" (despublicar) o "modificar"
@@ -61,7 +65,7 @@ module.exports = async function handler(req, res) {
   try {
     // Las dos versiones actuales.
     const getRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/historias?id=eq.${id}&select=id,contenido,estado_publicacion`,
+      `${SUPABASE_URL}/rest/v1/historias?id=eq.${id}&select=id,contenido,estado_publicacion,revision`,
       { headers }
     );
     if (!getRes.ok) throw new Error("Error al leer la historia: " + (await getRes.text()));
@@ -92,7 +96,10 @@ module.exports = async function handler(req, res) {
       const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/historias?id=eq.${id}`, {
         method: "PATCH",
         headers: { ...headers, Prefer: "return=minimal" },
-        body: JSON.stringify({ contenido: { ...(historiaActual.contenido || {}), text: nuevo_texto } }),
+        body: JSON.stringify({
+          contenido: { ...(historiaActual.contenido || {}), text: nuevo_texto },
+          revision: (Number(historiaActual.revision) || 0) + 1, // v3
+        }),
       });
       if (!patchRes.ok) throw new Error("Error al modificar la historia: " + (await patchRes.text()));
 
