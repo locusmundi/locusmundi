@@ -1,4 +1,13 @@
 // api/_tramos.js — Locus Mundi
+// Versión 2 · 08/10/2026 · Diseño de la moderación v10, §11.13, puntos 4 y 7. Dos funciones
+// nuevas, sin tocar nada de lo anterior (los tramos y las huellas son los mismos: las
+// traducciones guardadas y las huellas de la moderación siguen valiendo):
+//   - tramosConCapitulo(texto): los mismos tramos que dividirEnTramos, con el capítulo (¶) al
+//     que pertenece cada uno. El texto anterior al primer ¶ es el capítulo 0 (prólogo); un
+//     libro sin ¶ es un solo capítulo. Para el umbral del veredicto de conjunto (§6.1).
+//   - fotosColocadas(texto): números (orden) de las fotos con su marca en el texto, con la
+//     MISMA regla que la lectura (renderStoryBody de index.html): corchetes, una palabra que
+//     empieza por "foto" o "photo" y el número. Solo esas se publican.
 // Versión 1 · 06/10/2026 · Nuevo. Diseño de la moderación v6, §11.4 y §11.8 (decisión 2).
 // Archivo COMPARTIDO por api/traducir.js (v3) y api/moderar.js (v1): una sola regla para
 // dividir el libro en tramos y calcular sus huellas. Sustituye a la duplicación en los dos
@@ -132,7 +141,40 @@ function huellasVigentes(publicacion) {
   return [huellaCabecera(publicacion), ...dividirEnTramos(c.text).map(huellaTramo)];
 }
 
+// ─── v2: capítulo de cada tramo (diseño v10, §11.13, punto 4) ───────────
+// Misma división que dividirEnTramos, paso a paso; cada tramo lleva el número de su capítulo
+// (0, 1, 2…, en el orden del libro) y el título de ese capítulo sin el signo ¶ ("" si es el
+// texto anterior al primer ¶).
+function tramosConCapitulo(texto) {
+  const tramos = [];
+  agrupar(parrafosDe(texto), esTituloCapitulo).forEach((capitulo, n) => {
+    const titulo = esTituloCapitulo(capitulo[0]) ? capitulo[0].replace(/^¶\s*/, '').trim() : '';
+    const poner = ps => tramos.push({ texto: ps.join('\n\n'), capitulo: n, tituloCapitulo: titulo });
+    if (cabe(capitulo)) { poner(capitulo); return; }
+    for (const apartado of agrupar(capitulo, esTituloApartado)) {
+      if (cabe(apartado)) poner(apartado);
+      else trocear(apartado).forEach(poner);
+    }
+  });
+  return tramos;
+}
+
+// ─── v2: fotos colocadas (diseño v10, §11.13, punto 7) ──────────────────
+// Copia exacta de FOTO_MARK_RE de index.html y de la condición de renderStoryBody.
+const FOTO_MARK_RE = /^\[\s*([^\]\d\s][^\]\d]*?)\s*(\d+)\s*\]$/;
+
+function fotosColocadas(texto) {
+  const colocadas = new Set();
+  for (const raw of String(texto || '').split('\n\n')) {
+    const m = raw.trim().match(FOTO_MARK_RE);
+    if (m && /^(foto|photo)/i.test(m[1])) colocadas.add(m[2]); // como la lectura: String(orden) === número escrito
+  }
+  return colocadas;
+}
+
 module.exports = {
+  tramosConCapitulo,
+  fotosColocadas,
   MAX_CARACTERES,
   MAX_PARRAFOS,
   esTituloCapitulo,
