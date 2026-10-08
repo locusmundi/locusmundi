@@ -1,4 +1,18 @@
 // api/foto-editor.js — Editor de fotos con IA (Locus Mundi, pieza 5)
+// Versión 5 · 08/10/2026 · Diseño de la moderación v10, §5.2 y §11.13, punto 9. Cambios
+// respecto a la v4: "aceptar" y "guardarTono" REVISAN la imagen que envía el navegador antes
+// de guardarla (regla compartida con api/moderar.js en api/_moderacion.js), con el límite de
+// 10 revisiones de imagen al día por Autor y el fusible diario de la moderación.
+//   - Si pasa: se guarda como en la v4 y se anota como revisada (imagen_revisada o
+//     portada_revisada = la dirección nueva).
+//   - Si no pasa (caso 1, menores): no se guarda nada.
+//   - Si no pasa (casos 2 y 3): el archivo se guarda en la carpeta del libro SIN apuntarlo a la
+//     foto (lo borra la limpieza al cabo de una hora), y se devuelve su ruta para que el Autor
+//     pueda pulsar "Creo que es un error" (operación errorImagen de api/moderar.js).
+//   - "proponer", "descartar" y "volverOriginal", sin cambios (la IA parte de una imagen ya
+//     revisada; al volver al original, la imagen se revisará al subir si hiciera falta).
+// Respuestas nuevas: 422 IMAGEN_RECHAZADA {categoria, ruta?}; 429 LIMITE_IMAGENES_DIA;
+// 503 FUSIBLE; 503 REVISION_NO_DISPONIBLE.
 // Versión 4 · 06/10/2026 · Sustituye a la versión 3 (commit 72361ed).
 // Diseño: LOCUS_MUNDI_DISENO_MODERACION.md v6, §11.5 y §11.8, decisión 1 (dos versiones de
 // cada libro). Cambios respecto a la v3:
@@ -15,7 +29,6 @@
 //       dirección (reglas de api/_almacen.js, compartido con api/moderar.js) y solo dentro
 //       de la carpeta del libro.
 // Compatible con el index.html anterior: operaciones y respuestas iguales.
-// En la segunda subida (v5), "aceptar" y "guardarTono" revisarán la imagen antes de guardarla.
 // Versión 3 · 05/10/2026 · Sustituye a la versión 2 (03/10/2026).
 // Cambios respecto a la v2 (diseño: Continuidad, sesión "05/10/2026 (fotos)"):
 //   (1) Original recuperable. Antes de sobrescribir por primera vez una foto o la
@@ -54,6 +67,7 @@ const MODELO = "gemini-3.1-flash-image-preview"; // Nano Banana 2
 const TAMANO_IMAGEN = "2K";
 const crypto = require("crypto");
 const almacen = require("./_almacen"); // compartido con api/moderar.js
+const mod = require("./_moderacion"); // v5: revisión de imágenes y límites, compartido con api/moderar.js
 const BUCKET = almacen.BUCKET;
 const MAX_JPG_BYTES = 3 * 1024 * 1024; // un JPG de 1.600 px pesa mucho menos
 
@@ -203,6 +217,8 @@ async function resolverObjetivo(body, autorId) {
       colUrl: "portada_url",
       colEdiciones: "portada_ediciones_ia",
       colOriginal: "portada_original_url",
+      colRevisada: "portada_revisada", // v5
+      historiaId: h.id,
     };
   }
   if (body.objetivo === "foto") {
@@ -223,6 +239,8 @@ async function resolverObjetivo(body, autorId) {
       colUrl: "url",
       colEdiciones: "ediciones_ia",
       colOriginal: "original_url",
+      colRevisada: "imagen_revisada", // v5
+      historiaId: h.id,
     };
   }
   return null;
@@ -323,17 +341,43 @@ async function proponer(body, obj, autorId, res) {
   });
 }
 
-async function guardarImagen(body, obj, res, borrarPropuesta) {
+async function guardarImagen(body, obj, autorId, res, borrarPropuesta) {
   if (!obj.url) return res.status(400).json({ error: "SIN_IMAGEN" });
   const jpg = leerJpg(body.imagen);
   if (!jpg) return res.status(400).json({ error: "IMAGEN_NO_VALIDA" });
+
+  // v5: revisión de la imagen hecha en el navegador (§5.2), antes de guardar nada.
+  if (await mod.imagenesRevisadasHoy(autorId) >= mod.LIMITE_IMAGENES_DIA) {
+    return res.status(429).json({ error: "LIMITE_IMAGENES_DIA" });
+  }
+  if (await mod.fusibleSaltado()) {
+    await mod.avisarFusible(autorId, obj.historiaId);
+    return res.status(503).json({ error: "FUSIBLE" });
+  }
+  const ruta = rutaNueva(obj, "", ".jpg");
+  let revision;
+  try { revision = await mod.revisarImagen({ buffer: jpg, tipo: "image/jpeg" }); }
+  catch (e) {
+    await mod.anotarGasto("moderacion_imagen", autorId, obj.historiaId, e.coste || 0, { origen: "editor", ruta, fallo: true });
+    console.error("foto-editor: revisión", e.message);
+    return res.status(503).json({ error: "REVISION_NO_DISPONIBLE" });
+  }
+  await mod.anotarGasto("moderacion_imagen", autorId, obj.historiaId, revision.coste,
+    { origen: "editor", ruta, objetivo: obj.tipo, categoria: revision.categoria, bloqueo: revision.bloqueo });
+  if (revision.categoria === "menor") {
+    return res.status(422).json({ error: "IMAGEN_RECHAZADA", categoria: "menor" }); // nunca se guarda
+  }
+  await subir(ruta, jpg, "image/jpeg");
+  if (revision.categoria !== "ok") {
+    // Sin apuntarla a la foto: la limpieza la borra en una hora, salvo "Creo que es un error".
+    return res.status(422).json({ error: "IMAGEN_RECHAZADA", categoria: revision.categoria, ruta });
+  }
+
   // v4: el original es el archivo que había antes de la primera edición (sin copias).
   const originalUrl = obj.original || obj.url;
-  const ruta = rutaNueva(obj, "", ".jpg");
-  await subir(ruta, jpg, "image/jpeg");
   const url = urlPublica(ruta);
-  // service_role: no gasta el cambio de imagen; anota el original
-  await actualizar(obj.tabla, obj.filtro, { [obj.colUrl]: url, [obj.colOriginal]: originalUrl });
+  // service_role: no gasta el cambio de imagen; anota el original y (v5) que está revisada
+  await actualizar(obj.tabla, obj.filtro, { [obj.colUrl]: url, [obj.colOriginal]: originalUrl, [obj.colRevisada]: url });
   if (borrarPropuesta) await borrarPropuestas(obj);
   return res.status(200).json({ url, tieneOriginal: true });
 }
@@ -366,8 +410,8 @@ module.exports = async function handler(req, res) {
 
     switch (body.operacion) {
       case "proponer": return await proponer(body, obj, autorId, res);
-      case "aceptar": return await guardarImagen(body, obj, res, true);
-      case "guardarTono": return await guardarImagen(body, obj, res, false);
+      case "aceptar": return await guardarImagen(body, obj, autorId, res, true);
+      case "guardarTono": return await guardarImagen(body, obj, autorId, res, false);
       case "descartar": return await descartar(obj, res);
       case "volverOriginal": return await volverOriginal(obj, res);
       default: return res.status(400).json({ error: "OPERACION_DESCONOCIDA" });
