@@ -1,4 +1,14 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.1 · 11/10/2026 · Corrige la v3 tras el TEST A real (Continuidad, sesión
+// "11/10/2026 (subida pequeña)"). Cambios respecto a la v3, aprobados por Javier:
+//   - El motivo de "tercero" no decía "privada": la regla va ahora dentro de la instrucción del
+//     motivo, con ejemplos de ese tipo (la IA imita el ejemplo más que la regla).
+//   - Nueva excepción en "DO NOT FLAG": la actividad política o sindical y la persecución,
+//     juicio, cárcel, exilio o represión por motivos políticos en el pasado, contados como
+//     testimonio histórico, son hechos públicos (caso del tío Mariano, preso político). Sigue
+//     señalándose la opinión política privada y presente de una persona viva.
+//   - La etiqueta del registro de gastos dice "moderar v3" (la v3 seguía diciendo "moderar v2").
+//   - VERSION_CRITERIO nueva (cambian las instrucciones).
 // Versión 3 · 11/10/2026 · Cambio del criterio (LOCUS_MUNDI_DISENO_MODERACION.md v13, §11.17,
 // punto 5; v14, §11.18, punto 7; Continuidad, sesión "11/10/2026 (subida pequeña)"). Cambios
 // respecto a la v2, solo en las instrucciones de la IA:
@@ -54,7 +64,7 @@ const MARGEN_LIMPIEZA_MS = 60 * 60 * 1000; // una hora (§11.4)
 // Versión del criterio (§11.13, punto 6). Cambiarla obliga a revisar de nuevo todos los
 // tramos en la siguiente subida de cada libro. Cambiarla SIEMPRE que cambien las
 // instrucciones de la IA de más abajo.
-const VERSION_CRITERIO = 'texto-2026-10-11';
+const VERSION_CRITERIO = 'texto-2026-10-11b';
 
 const TIPOS = ['duro', 'tercero', 'menor', 'colectivo', 'sexual'];
 const UMBRAL_CAPITULOS = 3;  // §6.1
@@ -109,6 +119,7 @@ function instruccionesTexto(idioma) {
     '- Public facts, including harsh criticism.',
     '- Ordinary private matters of shared life: quarrels, estrangement, character.',
     '- Deceased people (except the hard limit).',
+    '- Political or union activity, and persecution, trial, imprisonment, exile or repression for political reasons in the past (for example under a dictatorship or during a war), told as historical testimony: these are public, historical facts, even if they reveal the person\'s ideology. Do flag a living person\'s present, private political opinions or vote.',
     '- Whether the story is true, its literary quality, spelling or format.',
     '',
     'PRACTICAL RULES:',
@@ -120,8 +131,7 @@ function instruccionesTexto(idioma) {
     'OUTPUT: JSON {"pasajes": [ {"cita": "...", "tipo": "...", "motivo_es": "...", "motivo_en": "..."} ]}.',
     '- "cita": copy EXACTLY, character by character, the complete sentence or sentences that contain the problem, as they appear in the fragment. Never part of a sentence. Never rewrite it.',
     '- "tipo": one of "duro", "tercero", "menor", "colectivo", "sexual".',
-    '- "motivo_es" and "motivo_en": one plain sentence, in Spanish and in English, saying why, without legal jargon and without repeating the quote. Example: "Atribuye un delito a una persona viva con nombre y apellidos." / "It attributes a crime to a living person named in full."',
-    '- When "tipo" is "tercero", the reason always says that the fact is private (for a crime: that it is not public knowledge). Example: "Revela información privada sobre la salud de una persona viva con nombre." / "It reveals private health information about a named living person."',
+    '- "motivo_es" and "motivo_en": one plain sentence, in Spanish and in English, saying why, without legal jargon and without repeating the quote. When "tipo" is "tercero", the sentence MUST say that the fact is private ("privada" / "private"; for a crime: "sin constancia pública" / "not public knowledge"). Examples: "Revela información privada sobre la salud mental de un familiar vivo e identificable." / "It reveals private mental health information about an identifiable living relative." — "Atribuye un delito sin constancia pública a una persona viva con nombre." / "It attributes a crime that is not public knowledge to a named living person."',
     '- Do not suggest any rewording.',
     '- If nothing must be flagged: {"pasajes": []}.'
   ].join('\n');
@@ -396,7 +406,7 @@ async function subir(body, autorId, ip, res) {
     }
   }
   const anotarSubida = (detalle) => mod.anotarGasto('subida', autorId, h.id, 0, {
-    version: 'moderar v2', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
+    version: 'moderar v3', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
   });
 
   // 6. Imágenes sin revisar (§5.2): la portada y las fotos colocadas.
