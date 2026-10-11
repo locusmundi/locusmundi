@@ -1,4 +1,13 @@
 // api/moderar.js — Locus Mundi
+// Versión 3 · 11/10/2026 · Cambio del criterio (LOCUS_MUNDI_DISENO_MODERACION.md v13, §11.17,
+// punto 5; v14, §11.18, punto 7; Continuidad, sesión "11/10/2026 (subida pequeña)"). Cambios
+// respecto a la v2, solo en las instrucciones de la IA:
+//   - Regla "Identifiable": una referencia vaga ("un familiar", "un vecino", "una persona") no
+//     identifica a nadie, salvo que el contexto deje claro de quién se trata.
+//   - Cuando el tipo es "tercero", el motivo dice que el hecho es privado.
+//   - VERSION_CRITERIO nueva: cada libro se revisa entero en su siguiente subida. Los avisos
+//     "Creo que es un error" aceptados se siguen respetando (van por frase, no por versión).
+// Nada más cambia.
 // Versión 2 · 08/10/2026 · Segunda subida: la moderación con IA. Sustituye a la v1 (sin IA).
 // Diseño: LOCUS_MUNDI_DISENO_MODERACION.md v10, §4, §5, §6, §7, §11.4 a §11.6, §11.13 y §11.14.
 // Cambios respecto a la v1:
@@ -45,7 +54,7 @@ const MARGEN_LIMPIEZA_MS = 60 * 60 * 1000; // una hora (§11.4)
 // Versión del criterio (§11.13, punto 6). Cambiarla obliga a revisar de nuevo todos los
 // tramos en la siguiente subida de cada libro. Cambiarla SIEMPRE que cambien las
 // instrucciones de la IA de más abajo.
-const VERSION_CRITERIO = 'texto-2026-10-08';
+const VERSION_CRITERIO = 'texto-2026-10-11';
 
 const TIPOS = ['duro', 'tercero', 'menor', 'colectivo', 'sexual'];
 const UMBRAL_CAPITULOS = 3;  // §6.1
@@ -103,7 +112,7 @@ function instruccionesTexto(idioma) {
     '- Whether the story is true, its literary quality, spelling or format.',
     '',
     'PRACTICAL RULES:',
-    '- Identifiable: anyone with a name, or with a family relationship to the author ("my brother-in-law"), because the book is signed.',
+    '- Identifiable: anyone named, or with a specific family relationship or tie to the author ("my brother-in-law", "my aunt", "my neighbour on the third floor"), because the book is signed. A vague reference ("a relative", "an acquaintance", "a neighbour", "a person") does not identify anyone, unless the context makes clear who it is.',
     '- Living: presume the person is alive unless the text makes clear they have died.',
     '- When in doubt, do not flag.',
     '- Lines starting with ¶ or § are chapter and section titles; lines like [FOTO 2] are technical marks.',
@@ -112,6 +121,7 @@ function instruccionesTexto(idioma) {
     '- "cita": copy EXACTLY, character by character, the complete sentence or sentences that contain the problem, as they appear in the fragment. Never part of a sentence. Never rewrite it.',
     '- "tipo": one of "duro", "tercero", "menor", "colectivo", "sexual".',
     '- "motivo_es" and "motivo_en": one plain sentence, in Spanish and in English, saying why, without legal jargon and without repeating the quote. Example: "Atribuye un delito a una persona viva con nombre y apellidos." / "It attributes a crime to a living person named in full."',
+    '- When "tipo" is "tercero", the reason always says that the fact is private (for a crime: that it is not public knowledge). Example: "Revela información privada sobre la salud de una persona viva con nombre." / "It reveals private health information about a named living person."',
     '- Do not suggest any rewording.',
     '- If nothing must be flagged: {"pasajes": []}.'
   ].join('\n');
