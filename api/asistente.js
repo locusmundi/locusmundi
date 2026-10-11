@@ -1,4 +1,13 @@
 // api/asistente.js — Locus Mundi
+// Versión 8 · 11/10/2026 · Cambio del criterio (LOCUS_MUNDI_DISENO_MODERACION.md v13, §11.17,
+// punto 5; v14, §11.18, puntos 3 y 7; Continuidad, sesión "11/10/2026 (subida pequeña)").
+// Cambios respecto a la v7, solo en las instrucciones del modo de pasajes (instruccionesPasaje):
+//   - La sustitución neutra conserva la relación ("mi vecino Ramón" → "un vecino", nunca
+//     "un conocido"); una referencia vaga no identifica a nadie.
+//   - "la Biblioteca", con mayúscula, en las explicaciones.
+//   - Encabezado: "la revisión al subir el libro" (no "la Biblioteca") y "Condiciones de
+//     Publicación" (no "normas de la Biblioteca").
+// Nada más cambia: ni la red de seguridad, ni la tinta, ni las demás operaciones.
 // Versión 7 · 08/10/2026 · Diseño de la moderación v10, §6.3 y §11.13, puntos 2 y 3 (Agente
 // Editorial, 2.11). Operación nueva "pasaje": el modo "Revisar los pasajes señalados".
 //   - Solo con tinta (es el Asistente de pago) y con Flash (§11.13: la conversación del
@@ -247,11 +256,11 @@ function instruccionesPasaje({ interfaz, libro, nombre, tratamiento, duro }) {
     ` Address the author as "${tratamiento}" (${tratamiento === 'usted' ? 'formal' : 'informal'} Spanish).`;
   return [
     'You are the editorial assistant of Locus Mundi, an online library of autobiographies. You help the author, never replace them.',
-    'Before publishing, the library\'s review flagged one passage of the author\'s book. The rules of the library are the same for everyone; you help the author comply with them.',
-    `1. "explicacion": in ${lenguaInterfaz}, one or two plain, kind sentences explaining why this passage was flagged, based on the reason given. You may use the author's first name (${nombre || 'unknown'}) once, naturally.${trato} No legal jargon. Do not lecture.`,
+    'When the author uploaded the book, the review flagged one passage. The Publication Terms ("Condiciones de Publicación") are the same for everyone; you help the author comply with them.',
+    `1. "explicacion": in ${lenguaInterfaz}, one or two plain, kind sentences explaining why this passage was flagged, based on the reason given. You may use the author's first name (${nombre || 'unknown'}) once, naturally.${trato} No legal jargon. Do not lecture. When you mention the library, write "la Biblioteca" (in English, "the Library"), with a capital letter.`,
     duro
       ? '2. "propuesta": always an empty string. This passage falls under the hard limit: you must not help reword it. In the explanation, say respectfully that it cannot be published and that the author can delete it.'
-      : `2. "propuesta": in ${lenguaLibro}, the passage with the MINIMAL change that solves the problem: remove or replace only the data that motivated the flag (a name, a family relationship, the graphic detail, the statement about health…). Keep every other word of the author exactly as it is, in the same order, with the author's own voice. Never add facts, names, dates, places or opinions. A short neutral replacement ("una persona", "un familiar") is allowed. If the only solution is to delete the whole passage, return an empty string.`,
+      : `2. "propuesta": in ${lenguaLibro}, the passage with the MINIMAL change that solves the problem: remove or replace only the data that motivated the flag (a name, a family relationship, the graphic detail, the statement about health…). Keep every other word of the author exactly as it is, in the same order, with the author's own voice. Never add facts, names, dates, places or opinions. A short neutral replacement is allowed, but it must keep the kind of relationship: "mi vecino Ramón" → "un vecino" (never "un conocido"); "mi cuñado Andrés" → "un familiar" or "una persona" (never "un conocido"). A vague reference like these does not identify anyone. If the only solution is to delete the whole passage, return an empty string.`,
     'Return only JSON: {"explicacion": "...", "propuesta": "..."}.'
   ].join('\n');
 }
