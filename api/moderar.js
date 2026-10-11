@@ -1,4 +1,12 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.4 · 11/10/2026 · Tras la batería real de la v3.3 ("Mía"): Flash-Lite no señaló al
+// primo Luis porque sus instrucciones le pedían prudencia ("en la duda, no se señala"), cuando
+// en este esquema solo propone y decide Flash. Cambios respecto a la v3.3, aprobados por Javier:
+//   - Primera revisión (Flash-Lite) sensible: "en la duda, señala; otro revisor confirmará". Sin
+//     la marca "claro", que ya no usa nadie.
+//   - La confirmación (Flash) mantiene el criterio estricto: solo lo claro y manifiesto.
+//   - Temperatura 0 en las dos llamadas (respuestas estables), con _moderacion.js v1.1.
+//   - VERSION_CRITERIO nueva.
 // Versión 3.3 · 11/10/2026 · Coste (Javier: la publicación es gratuita y debe ser sostenible).
 // La v3.2 revisaba todo con Flash: unos 5 céntimos por un libro corto. Cambios respecto a la
 // v3.2, aprobados por Javier:
@@ -86,7 +94,7 @@ const MARGEN_LIMPIEZA_MS = 60 * 60 * 1000; // una hora (§11.4)
 // Versión del criterio (§11.13, punto 6). Cambiarla obliga a revisar de nuevo todos los
 // tramos en la siguiente subida de cada libro. Cambiarla SIEMPRE que cambien las
 // instrucciones de la IA de más abajo.
-const VERSION_CRITERIO = 'texto-2026-10-11d';
+const VERSION_CRITERIO = 'texto-2026-10-11e';
 
 // v3.3: la revisión del texto la hace Flash-Lite (mod.MODELO_MODERACION, el de las imágenes) y
 // Flash solo confirma lo señalado. Los dos precios están en la tabla de _moderacion.js.
@@ -123,7 +131,9 @@ const IDIOMAS = {
 
 // ─── Instrucciones de la IA (criterio de §4.4; §11.4 y §11.13, punto 8) ──
 
-function instruccionesTexto(idioma) {
+// v3.4: fase 'revision' (Flash-Lite, sensible) o 'confirmacion' (Flash, estricta).
+function instruccionesTexto(idioma, fase) {
+  const confirmacion = fase === 'confirmacion';
   const lengua = IDIOMAS[idioma] || 'the language of the text';
   return [
     'You review one fragment of an autobiography before it is published in an open online library.',
@@ -152,11 +162,12 @@ function instruccionesTexto(idioma) {
     'PRACTICAL RULES:',
     '- Identifiable: anyone named, or with a specific family relationship or tie to the author ("my brother-in-law", "my aunt", "my neighbour on the third floor"), because the book is signed. A vague reference ("a relative", "an acquaintance", "a neighbour", "a person") does not identify anyone, unless the context makes clear who it is.',
     '- Living: presume the person is alive unless the text makes clear they have died.',
-    '- When in doubt, do not flag. Flag only clear, manifest cases.',
+    confirmacion
+      ? '- When in doubt, do not flag. Only clear, manifest cases count.'
+      : '- In this first review, when in doubt, DO flag: another reviewer will confirm each case. Still never flag what the DO NOT FLAG list excludes.',
     '- Lines starting with ¶ or § are chapter and section titles; lines like [FOTO 2] are technical marks.',
     '',
-    'OUTPUT: JSON {"pasajes": [ {"cita": "...", "tipo": "...", "claro": true, "motivo_es": "...", "motivo_en": "..."} ]}.',
-    '- "claro": true only if the case is clear and manifest: the person is clearly identifiable under the rule above (named, or with a specific relationship to the author) AND the fact is clearly private and serious (or, for the other types, clearly offensive or explicit). If you have any doubt, false.',
+    'OUTPUT: JSON {"pasajes": [ {"cita": "...", "tipo": "...", "motivo_es": "...", "motivo_en": "..."} ]}.',
     '- "cita": copy EXACTLY, character by character, the complete sentence or sentences that contain the problem, as they appear in the fragment. Never part of a sentence. Never rewrite it.',
     '- "tipo": one of "duro", "tercero", "menor", "colectivo", "sexual".',
     '- "motivo_es" and "motivo_en": one plain sentence, in Spanish and in English, saying why, without legal jargon and without repeating the quote. When "tipo" is "tercero", the sentence MUST say that the fact is private ("privada" / "private"; for a crime: "sin constancia pública" / "not public knowledge"). Examples: "Revela información privada sobre la salud mental de un familiar vivo e identificable." / "It reveals private mental health information about an identifiable living relative." — "Atribuye un delito sin constancia pública a una persona viva con nombre." / "It attributes a crime that is not public knowledge to a named living person."',
@@ -175,11 +186,10 @@ const ESQUEMA_TEXTO = {
         properties: {
           cita: { type: 'STRING' },
           tipo: { type: 'STRING', enum: TIPOS },
-          claro: { type: 'BOOLEAN' },
           motivo_es: { type: 'STRING' },
           motivo_en: { type: 'STRING' }
         },
-        required: ['cita', 'tipo', 'claro', 'motivo_es', 'motivo_en']
+        required: ['cita', 'tipo', 'motivo_es', 'motivo_en']
       }
     }
   },
@@ -301,7 +311,6 @@ function pasajesValidos(json, unidad) {
   const out = [];
   for (const p of lista) {
     if (!p || !TIPOS.includes(p.tipo)) continue;
-    // v3.3: el "claro" de Flash-Lite no decide (no es fiable); lo decide la confirmación con Flash.
     let cita = String(p.cita || '').trim();
     if (unidad.clase === 'cabecera') {
       // En la cabecera, la cita debe estar dentro de UN campo; si la IA ha copiado también la
@@ -327,7 +336,8 @@ async function revisarUnidad(unidad, idioma) {
   for (let intento = 0; intento < 2; intento++) {
     const r = await mod.llamarGeminiJson({
       modelo: mod.MODELO_MODERACION,
-      sistema: instruccionesTexto(idioma),
+      sistema: instruccionesTexto(idioma, 'revision'),
+      temperatura: 0,
       partes: [{ text: unidad.clase === 'cabecera'
         ? 'Book header and photo captions (each line is a separate field):\n\n' + unidad.texto
         : unidad.texto }],
@@ -379,7 +389,7 @@ async function confirmar(pasajes, unidad, idioma) {
   const dudables = pasajes.filter(p => p.tipo !== 'duro');
   if (!dudables.length) return { pasajes, coste: 0, estado: null };
   const lista = dudables.map((p, i) => ({ n: i + 1, cita: p.cita, tipo: p.tipo, contexto: contextoDe(p.cita, unidad) }));
-  const sistema = instruccionesTexto(idioma) + '\n\n' + [
+  const sistema = instruccionesTexto(idioma, 'confirmacion') + '\n\n' + [
     'CONFIRMATION TASK (this replaces the OUTPUT section above): another reviewer flagged the sentences below.',
     'For each one, decide only whether it is a clear, manifest case under the criteria above: the person is clearly identifiable (named, or with a specific relationship to the author) and the fact is clearly private and serious (or, for the other types, clearly offensive or explicit).',
     'Vague references, nicknames, deceased people, public facts, what others did to the author, and past political repression told as historical testimony are NOT clear cases. When in doubt, "claro": false.',
@@ -388,7 +398,7 @@ async function confirmar(pasajes, unidad, idioma) {
   let r;
   try {
     r = await mod.llamarGeminiJson({
-      modelo: MODELO_CONFIRMACION, sistema,
+      modelo: MODELO_CONFIRMACION, sistema, temperatura: 0,
       partes: [{ text: JSON.stringify(lista) }],
       esquema: ESQUEMA_CONFIRMACION
     });
