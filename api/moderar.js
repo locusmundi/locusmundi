@@ -1,4 +1,15 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.3 · 11/10/2026 · Coste (Javier: la publicación es gratuita y debe ser sostenible).
+// La v3.2 revisaba todo con Flash: unos 5 céntimos por un libro corto. Cambios respecto a la
+// v3.2, aprobados por Javier:
+//   - "Flash-Lite revisa, Flash confirma": cada capítulo lo revisa Flash-Lite (barato, como hasta
+//     la v3.1); solo si señala algo que no sea límite duro, Flash confirma en UNA llamada por
+//     capítulo cada frase señalada, con su párrafo como contexto, y se quedan solo las que
+//     confirma como claras. Un libro sano no paga nada de Flash.
+//   - Si la confirmación falla (red, bloqueo, respuesta ilegible), se conserva lo que señaló
+//     Flash-Lite (más vale pedir una revisión de más que publicar algo grave).
+//   - El "claro" que marca Flash-Lite ya no descarta nada por sí solo (no es fiable): decide Flash.
+//   - VERSION_CRITERIO nueva.
 // Versión 3.2 · 11/10/2026 · Estabilidad del criterio, tras el TEST A real (Continuidad, sesión
 // "11/10/2026 (subida pequeña)"): con la v3.1, una frase que había pasado ("Un vecino engaña…")
 // se señaló al revisar de nuevo su capítulo, y también la propuesta del Asistente ("Un familiar
@@ -75,11 +86,11 @@ const MARGEN_LIMPIEZA_MS = 60 * 60 * 1000; // una hora (§11.4)
 // Versión del criterio (§11.13, punto 6). Cambiarla obliga a revisar de nuevo todos los
 // tramos en la siguiente subida de cada libro. Cambiarla SIEMPRE que cambien las
 // instrucciones de la IA de más abajo.
-const VERSION_CRITERIO = 'texto-2026-10-11c';
+const VERSION_CRITERIO = 'texto-2026-10-11d';
 
-// v3.2: modelo de la revisión del texto (las imágenes, mod.MODELO_MODERACION). Su precio está en
-// la tabla de _moderacion.js, que calcula el gasto.
-const MODELO_TEXTO = 'gemini-3.5-flash';
+// v3.3: la revisión del texto la hace Flash-Lite (mod.MODELO_MODERACION, el de las imágenes) y
+// Flash solo confirma lo señalado. Los dos precios están en la tabla de _moderacion.js.
+const MODELO_CONFIRMACION = 'gemini-3.5-flash';
 
 const TIPOS = ['duro', 'tercero', 'menor', 'colectivo', 'sexual'];
 const UMBRAL_CAPITULOS = 3;  // §6.1
@@ -290,8 +301,7 @@ function pasajesValidos(json, unidad) {
   const out = [];
   for (const p of lista) {
     if (!p || !TIPOS.includes(p.tipo)) continue;
-    // v3.2: solo lo manifiesto bloquea; el límite duro, siempre.
-    if (p.tipo !== 'duro' && p.claro !== true) continue;
+    // v3.3: el "claro" de Flash-Lite no decide (no es fiable); lo decide la confirmación con Flash.
     let cita = String(p.cita || '').trim();
     if (unidad.clase === 'cabecera') {
       // En la cabecera, la cita debe estar dentro de UN campo; si la IA ha copiado también la
@@ -316,7 +326,7 @@ async function revisarUnidad(unidad, idioma) {
   let coste = 0;
   for (let intento = 0; intento < 2; intento++) {
     const r = await mod.llamarGeminiJson({
-      modelo: MODELO_TEXTO,
+      modelo: mod.MODELO_MODERACION,
       sistema: instruccionesTexto(idioma),
       partes: [{ text: unidad.clase === 'cabecera'
         ? 'Book header and photo captions (each line is a separate field):\n\n' + unidad.texto
@@ -328,12 +338,73 @@ async function revisarUnidad(unidad, idioma) {
       return { coste, pasajes: [{ cita: '', tipo: 'duro', bloqueado: true, motivo_es: MOTIVO_BLOQUEO_ES, motivo_en: MOTIVO_BLOQUEO_EN }] };
     }
     const pasajes = pasajesValidos(r.json, unidad);
-    if (pasajes) return { pasajes, coste };
+    if (pasajes) {
+      const c = await confirmar(pasajes, unidad, idioma);
+      return { pasajes: c.pasajes, coste: coste + c.coste, confirmacion: c.estado };
+    }
     console.error('moderar: respuesta de texto ilegible; intento', intento + 1);
   }
   const e = new Error('REVISION_TEXTO_FALLIDA');
   e.coste = coste;
   throw e;
+}
+
+// v3.3: Flash confirma lo que ha señalado Flash-Lite (salvo el límite duro, que no se discute).
+// Una sola llamada por unidad. Devuelve { pasajes, coste, estado }.
+const ESQUEMA_CONFIRMACION = {
+  type: 'OBJECT',
+  properties: {
+    decisiones: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: { n: { type: 'INTEGER' }, claro: { type: 'BOOLEAN' } },
+        required: ['n', 'claro']
+      }
+    }
+  },
+  required: ['decisiones']
+};
+
+// El párrafo (o los párrafos) del fragmento que contienen la cita; en la cabecera, su línea.
+function contextoDe(cita, unidad) {
+  const bloques = unidad.clase === 'cabecera'
+    ? unidad.texto.split('\n')
+    : unidad.texto.replace(/\r\n?/g, '\n').split(/\n\s*\n/);
+  const b = bloques.find(x => x.includes(cita));
+  return (b || cita).trim().slice(0, 3000);
+}
+
+async function confirmar(pasajes, unidad, idioma) {
+  const dudables = pasajes.filter(p => p.tipo !== 'duro');
+  if (!dudables.length) return { pasajes, coste: 0, estado: null };
+  const lista = dudables.map((p, i) => ({ n: i + 1, cita: p.cita, tipo: p.tipo, contexto: contextoDe(p.cita, unidad) }));
+  const sistema = instruccionesTexto(idioma) + '\n\n' + [
+    'CONFIRMATION TASK (this replaces the OUTPUT section above): another reviewer flagged the sentences below.',
+    'For each one, decide only whether it is a clear, manifest case under the criteria above: the person is clearly identifiable (named, or with a specific relationship to the author) and the fact is clearly private and serious (or, for the other types, clearly offensive or explicit).',
+    'Vague references, nicknames, deceased people, public facts, what others did to the author, and past political repression told as historical testimony are NOT clear cases. When in doubt, "claro": false.',
+    'Return only JSON: {"decisiones": [ {"n": 1, "claro": true} ]}, one item per sentence.'
+  ].join('\n');
+  let r;
+  try {
+    r = await mod.llamarGeminiJson({
+      modelo: MODELO_CONFIRMACION, sistema,
+      partes: [{ text: JSON.stringify(lista) }],
+      esquema: ESQUEMA_CONFIRMACION
+    });
+  } catch (e) {
+    console.error('moderar: confirmación fallida, se conserva lo señalado', e.message);
+    return { pasajes, coste: e.coste || 0, estado: 'fallo' };
+  }
+  const decisiones = r.json && Array.isArray(r.json.decisiones) ? r.json.decisiones : null;
+  if (r.bloqueo || !decisiones) {
+    console.error('moderar: confirmación sin respuesta legible, se conserva lo señalado');
+    return { pasajes, coste: r.coste, estado: 'fallo' };
+  }
+  const claros = new Set(decisiones.filter(d => d && d.claro === true).map(d => d.n));
+  const quedan = dudables.filter((p, i) => claros.has(i + 1));
+  return { pasajes: [...pasajes.filter(p => p.tipo === 'duro'), ...quedan], coste: r.coste,
+    estado: { senalados: dudables.length, confirmados: quedan.length } };
 }
 
 // Ejecuta tareas de pocas en pocas, sin empezar ninguna nueva pasado el plazo.
@@ -462,7 +533,8 @@ async function subir(body, autorId, ip, res) {
     let r;
     try { r = await revisarUnidad(u, idioma); }
     catch (e) { await mod.anotarGasto('moderacion_texto', autorId, h.id, e.coste || 0, { huella: u.huella, fallo: true }); throw e; }
-    await mod.anotarGasto('moderacion_texto', autorId, h.id, r.coste, { huella: u.huella, pasajes: r.pasajes.length });
+    await mod.anotarGasto('moderacion_texto', autorId, h.id, r.coste,
+      { huella: u.huella, pasajes: r.pasajes.length, ...(r.confirmacion ? { confirmacion: r.confirmacion } : {}) });
     await guardarFila('veredictos_tramo', {
       historia_id: h.id, huella: u.huella, version_criterio: VERSION_CRITERIO,
       pasajes: r.pasajes, fecha: new Date().toISOString()
