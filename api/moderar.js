@@ -1,4 +1,15 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.2 · 11/10/2026 · Estabilidad del criterio, tras el TEST A real (Continuidad, sesión
+// "11/10/2026 (subida pequeña)"): con la v3.1, una frase que había pasado ("Un vecino engaña…")
+// se señaló al revisar de nuevo su capítulo, y también la propuesta del Asistente ("Un familiar
+// vota…"). Cambios respecto a la v3.1, aprobados por Javier:
+//   - Las referencias vagas y los seudónimos ("un familiar", "un vecino", "el señor Oso") van
+//     también en "DO NOT FLAG", donde la IA mira qué no debe señalar.
+//   - Solo se señala lo manifiesto: la IA dice de cada pasaje si es claro ("claro": true) y el
+//     servidor descarta los dudosos (salvo el límite duro, que bloquea siempre).
+//   - El texto se revisa con Flash (MODELO_TEXTO), que sigue mejor las reglas con matices; las
+//     imágenes siguen con Flash-Lite (_moderacion.js, sin cambios).
+//   - VERSION_CRITERIO nueva.
 // Versión 3.1 · 11/10/2026 · Corrige la v3 tras el TEST A real (Continuidad, sesión
 // "11/10/2026 (subida pequeña)"). Cambios respecto a la v3, aprobados por Javier:
 //   - El motivo de "tercero" no decía "privada": la regla va ahora dentro de la instrucción del
@@ -64,7 +75,11 @@ const MARGEN_LIMPIEZA_MS = 60 * 60 * 1000; // una hora (§11.4)
 // Versión del criterio (§11.13, punto 6). Cambiarla obliga a revisar de nuevo todos los
 // tramos en la siguiente subida de cada libro. Cambiarla SIEMPRE que cambien las
 // instrucciones de la IA de más abajo.
-const VERSION_CRITERIO = 'texto-2026-10-11b';
+const VERSION_CRITERIO = 'texto-2026-10-11c';
+
+// v3.2: modelo de la revisión del texto (las imágenes, mod.MODELO_MODERACION). Su precio está en
+// la tabla de _moderacion.js, que calcula el gasto.
+const MODELO_TEXTO = 'gemini-3.5-flash';
 
 const TIPOS = ['duro', 'tercero', 'menor', 'colectivo', 'sexual'];
 const UMBRAL_CAPITULOS = 3;  // §6.1
@@ -119,16 +134,18 @@ function instruccionesTexto(idioma) {
     '- Public facts, including harsh criticism.',
     '- Ordinary private matters of shared life: quarrels, estrangement, character.',
     '- Deceased people (except the hard limit).',
+    '- Facts about someone referred to only vaguely or by a nickname or invented name meant to hide who they are ("a relative", "an acquaintance", "a neighbour", "a person", "Mr Bear"; in Spanish "un familiar", "un conocido", "un vecino", "una persona", "el señor Oso"): nobody can be identified, even if the fact is private.',
     '- Political or union activity, and persecution, trial, imprisonment, exile or repression for political reasons in the past (for example under a dictatorship or during a war), told as historical testimony: these are public, historical facts, even if they reveal the person\'s ideology. Do flag a living person\'s present, private political opinions or vote.',
     '- Whether the story is true, its literary quality, spelling or format.',
     '',
     'PRACTICAL RULES:',
     '- Identifiable: anyone named, or with a specific family relationship or tie to the author ("my brother-in-law", "my aunt", "my neighbour on the third floor"), because the book is signed. A vague reference ("a relative", "an acquaintance", "a neighbour", "a person") does not identify anyone, unless the context makes clear who it is.',
     '- Living: presume the person is alive unless the text makes clear they have died.',
-    '- When in doubt, do not flag.',
+    '- When in doubt, do not flag. Flag only clear, manifest cases.',
     '- Lines starting with ¶ or § are chapter and section titles; lines like [FOTO 2] are technical marks.',
     '',
-    'OUTPUT: JSON {"pasajes": [ {"cita": "...", "tipo": "...", "motivo_es": "...", "motivo_en": "..."} ]}.',
+    'OUTPUT: JSON {"pasajes": [ {"cita": "...", "tipo": "...", "claro": true, "motivo_es": "...", "motivo_en": "..."} ]}.',
+    '- "claro": true only if the case is clear and manifest: the person is clearly identifiable under the rule above (named, or with a specific relationship to the author) AND the fact is clearly private and serious (or, for the other types, clearly offensive or explicit). If you have any doubt, false.',
     '- "cita": copy EXACTLY, character by character, the complete sentence or sentences that contain the problem, as they appear in the fragment. Never part of a sentence. Never rewrite it.',
     '- "tipo": one of "duro", "tercero", "menor", "colectivo", "sexual".',
     '- "motivo_es" and "motivo_en": one plain sentence, in Spanish and in English, saying why, without legal jargon and without repeating the quote. When "tipo" is "tercero", the sentence MUST say that the fact is private ("privada" / "private"; for a crime: "sin constancia pública" / "not public knowledge"). Examples: "Revela información privada sobre la salud mental de un familiar vivo e identificable." / "It reveals private mental health information about an identifiable living relative." — "Atribuye un delito sin constancia pública a una persona viva con nombre." / "It attributes a crime that is not public knowledge to a named living person."',
@@ -147,10 +164,11 @@ const ESQUEMA_TEXTO = {
         properties: {
           cita: { type: 'STRING' },
           tipo: { type: 'STRING', enum: TIPOS },
+          claro: { type: 'BOOLEAN' },
           motivo_es: { type: 'STRING' },
           motivo_en: { type: 'STRING' }
         },
-        required: ['cita', 'tipo', 'motivo_es', 'motivo_en']
+        required: ['cita', 'tipo', 'claro', 'motivo_es', 'motivo_en']
       }
     }
   },
@@ -272,6 +290,8 @@ function pasajesValidos(json, unidad) {
   const out = [];
   for (const p of lista) {
     if (!p || !TIPOS.includes(p.tipo)) continue;
+    // v3.2: solo lo manifiesto bloquea; el límite duro, siempre.
+    if (p.tipo !== 'duro' && p.claro !== true) continue;
     let cita = String(p.cita || '').trim();
     if (unidad.clase === 'cabecera') {
       // En la cabecera, la cita debe estar dentro de UN campo; si la IA ha copiado también la
@@ -296,7 +316,7 @@ async function revisarUnidad(unidad, idioma) {
   let coste = 0;
   for (let intento = 0; intento < 2; intento++) {
     const r = await mod.llamarGeminiJson({
-      modelo: mod.MODELO_MODERACION,
+      modelo: MODELO_TEXTO,
       sistema: instruccionesTexto(idioma),
       partes: [{ text: unidad.clase === 'cabecera'
         ? 'Book header and photo captions (each line is a separate field):\n\n' + unidad.texto
