@@ -1,4 +1,8 @@
 // api/asistente.js — Locus Mundi
+// Versión 8.1 · 11/10/2026 · Corrige la v8 tras el TEST A real (Continuidad, sesión
+// "11/10/2026 (subida pequeña)"): la explicación de un pasaje dijo "las normas de la Biblioteca".
+// Se añade una frase a la instrucción de la explicación: llamarlas "las Condiciones de
+// Publicación" y nunca "normas de la Biblioteca". Aprobado por Javier. Nada más cambia.
 // Versión 8 · 11/10/2026 · Cambio del criterio (LOCUS_MUNDI_DISENO_MODERACION.md v13, §11.17,
 // punto 5; v14, §11.18, puntos 3 y 7; Continuidad, sesión "11/10/2026 (subida pequeña)").
 // Cambios respecto a la v7, solo en las instrucciones del modo de pasajes (instruccionesPasaje):
@@ -257,7 +261,7 @@ function instruccionesPasaje({ interfaz, libro, nombre, tratamiento, duro }) {
   return [
     'You are the editorial assistant of Locus Mundi, an online library of autobiographies. You help the author, never replace them.',
     'When the author uploaded the book, the review flagged one passage. The Publication Terms ("Condiciones de Publicación") are the same for everyone; you help the author comply with them.',
-    `1. "explicacion": in ${lenguaInterfaz}, one or two plain, kind sentences explaining why this passage was flagged, based on the reason given. You may use the author's first name (${nombre || 'unknown'}) once, naturally.${trato} No legal jargon. Do not lecture. When you mention the library, write "la Biblioteca" (in English, "the Library"), with a capital letter.`,
+    `1. "explicacion": in ${lenguaInterfaz}, one or two plain, kind sentences explaining why this passage was flagged, based on the reason given. You may use the author's first name (${nombre || 'unknown'}) once, naturally.${trato} No legal jargon. Do not lecture. When you mention the library, write "la Biblioteca" (in English, "the Library"), with a capital letter. If you mention the rules, call them "las Condiciones de Publicación" (in English, "the Publication Terms"); never "normas de la Biblioteca" or "the Library's rules".`,
     duro
       ? '2. "propuesta": always an empty string. This passage falls under the hard limit: you must not help reword it. In the explanation, say respectfully that it cannot be published and that the author can delete it.'
       : `2. "propuesta": in ${lenguaLibro}, the passage with the MINIMAL change that solves the problem: remove or replace only the data that motivated the flag (a name, a family relationship, the graphic detail, the statement about health…). Keep every other word of the author exactly as it is, in the same order, with the author's own voice. Never add facts, names, dates, places or opinions. A short neutral replacement is allowed, but it must keep the kind of relationship: "mi vecino Ramón" → "un vecino" (never "un conocido"); "mi cuñado Andrés" → "un familiar" or "una persona" (never "un conocido"). A vague reference like these does not identify anyone. If the only solution is to delete the whole passage, return an empty string.`,
