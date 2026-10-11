@@ -1,4 +1,8 @@
 // api/_moderacion.js — Locus Mundi
+// Versión 1.1 · 11/10/2026 · llamarGeminiJson admite un parámetro opcional "temperatura" (el
+// grado de azar de la respuesta; a 0, ante el mismo texto responde casi siempre lo mismo). Lo usa
+// api/moderar.js v3.4 en la revisión del texto (Continuidad, sesión "11/10/2026 (subida
+// pequeña)"). Sin él, todo funciona exactamente igual que en la v1 (imágenes incluidas).
 // Versión 1 · 08/10/2026 · Nuevo. Diseño de la moderación v10, §5, §7, §11.13 (puntos 6 y 9)
 // y §11.14. Archivo COMPARTIDO por api/moderar.js (v2) y api/foto-editor.js (v5): una sola
 // regla para revisar una imagen, para llamar a Gemini en la moderación y para los límites
@@ -129,11 +133,15 @@ const MOTIVOS_DE_BLOQUEO = ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'IMAGE_
 //   bloqueo = null, o { motivo, categorias } si Google se ha negado a responder.
 //   json = null si la respuesta no se ha podido leer (y no es un bloqueo).
 // Lanza un error solo si Gemini falla (red, 5xx…): eso no es un veredicto.
-async function llamarGeminiJson({ modelo, sistema, partes, esquema }) {
+async function llamarGeminiJson({ modelo, sistema, partes, esquema, temperatura }) {
   const body = {
     system_instruction: { parts: [{ text: sistema }] },
     contents: [{ role: 'user', parts: partes }],
-    generationConfig: { responseMimeType: 'application/json', ...(esquema ? { responseSchema: esquema } : {}) },
+    generationConfig: {
+      responseMimeType: 'application/json',
+      ...(esquema ? { responseSchema: esquema } : {}),
+      ...(typeof temperatura === 'number' ? { temperature: temperatura } : {})
+    },
     safetySettings: SIN_FILTROS
   };
   const r = await fetch(
