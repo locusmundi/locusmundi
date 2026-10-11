@@ -1,4 +1,14 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.5 · 11/10/2026 · Memoria de frases aprobadas (idea de Javier: "si ya pasó el filtro
+// una vez, que sirva para siempre"). En el TEST real, una frase que había pasado ("Mi primo Luis
+// vota…") se señaló al cambiar sus vecinas: Flash-Lite juzga cada frase según su contexto.
+//   - Tabla nueva frases_aprobadas (libro, versión del criterio, huella de la frase; cerrada a la
+//     web; cascada con el libro). Solo guarda la huella, nunca el texto.
+//   - Al revisar un fragmento, sus frases que no quedan señaladas se guardan como aprobadas.
+//   - Un pasaje cuyas frases están TODAS aprobadas para este libro y esta versión del criterio no
+//     se muestra. Nunca para el límite duro ni para un fragmento que no se pudo revisar.
+//   - Si la tabla falla, la subida sigue como en la v3.4 (la memoria nunca tumba nada).
+//   - Las instrucciones de la IA no cambian: VERSION_CRITERIO sigue siendo la misma.
 // Versión 3.4 · 11/10/2026 · Tras la batería real de la v3.3 ("Mía"): Flash-Lite no señaló al
 // primo Luis porque sus instrucciones le pedían prudencia ("en la duda, no se señala"), cuando
 // en este esquema solo propone y decide Flash. Cambios respecto a la v3.3, aprobados por Javier:
@@ -302,6 +312,71 @@ function unidadesDe(contenido, fotosPub) {
 
 const normalizar = s => String(s || '').replace(/\s+/g, ' ').trim();
 
+// ─── v3.5: memoria de frases aprobadas ──────────────────────────────────
+
+const ETIQUETA_CABECERA = /^(Title|Subtitle|Author name|City|Profession|Concept|Photo \d+ caption):\s*/;
+
+// Frases de un texto: por párrafos (o líneas, en la cabecera) y, dentro, tras . ! ? … (con sus
+// comillas de cierre). Misma función para el fragmento y para la cita: así coinciden.
+function frasesDe(texto, cabecera) {
+  const bloques = cabecera
+    ? String(texto || '').split('\n').map(l => l.replace(ETIQUETA_CABECERA, ''))
+    : String(texto || '').replace(/\r\n?/g, '\n').split(/\n\s*\n/);
+  const out = [];
+  for (const b of bloques) {
+    for (const f of b.split(/(?<=[.!?…][»"”’)]*)\s+/)) {
+      const n = normalizar(f);
+      if (n.length >= 2) out.push(n);
+    }
+  }
+  return out;
+}
+
+const huellaFrase = f => crypto.createHash('sha256').update('frase\n' + normalizar(f), 'utf8').digest('hex');
+
+async function frasesAprobadas(historiaId) {
+  try {
+    const filas = await leer(
+      `frases_aprobadas?historia_id=eq.${historiaId}&version_criterio=eq.${VERSION_CRITERIO}&select=huella&limit=100000`
+    );
+    return new Set(filas.map(f => f.huella));
+  } catch (e) {
+    console.error('moderar: frases_aprobadas, lectura', e.message);
+    return new Set();
+  }
+}
+
+// Guarda como aprobadas las frases del fragmento que no han quedado señaladas.
+async function aprobarFrases(historiaId, unidad, pasajes) {
+  if (pasajes.some(p => p.bloqueado)) return; // no se pudo revisar: nada se aprueba
+  const citas = pasajes.map(p => normalizar(p.cita)).filter(Boolean);
+  const huellas = [...new Set(frasesDe(unidad.texto, unidad.clase === 'cabecera')
+    .filter(f => !citas.some(c => c.includes(f) || f.includes(c)))
+    .map(huellaFrase))];
+  if (!huellas.length) return;
+  try {
+    for (let i = 0; i < huellas.length; i += 500) {
+      const r = await fetch(`${SUPA_URL()}/rest/v1/frases_aprobadas?on_conflict=historia_id,version_criterio,huella`, {
+        method: 'POST',
+        headers: cabeceras({ Prefer: 'resolution=ignore-duplicates,return=minimal' }),
+        body: JSON.stringify(huellas.slice(i, i + 500).map(huella => ({
+          historia_id: historiaId, version_criterio: VERSION_CRITERIO, huella
+        })))
+      });
+      if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    }
+  } catch (e) {
+    console.error('moderar: frases_aprobadas, escritura', e.message);
+  }
+}
+
+// ¿Todas las frases de la cita estaban ya aprobadas?
+function yaAprobada(p, unidad, aprobadas) {
+  if (!p.cita || p.bloqueado || p.tipo === 'duro' || !aprobadas.size) return false;
+  const fr = frasesDe(p.cita, unidad.clase === 'cabecera');
+  return fr.length > 0 && fr.every(f => aprobadas.has(huellaFrase(f)));
+}
+
 // Pasajes válidos de una respuesta de la IA: tipo conocido y cita que aparece TAL CUAL en el
 // fragmento (si no, no se podría marcar en el editor y se descarta; §11.4).
 function pasajesValidos(json, unidad) {
@@ -539,6 +614,8 @@ async function subir(body, autorId, ip, res) {
   }
 
   // 7. Texto: solo las unidades sin veredicto guardado (§11.13, punto 6).
+  // v3.5: las frases aprobadas antes de esta subida (se leen antes de guardar las nuevas).
+  const aprobadas = await frasesAprobadas(h.id);
   const txt = await enParalelo(pendientes, REVISIONES_A_LA_VEZ, plazo, async (u) => {
     let r;
     try { r = await revisarUnidad(u, idioma); }
@@ -550,6 +627,7 @@ async function subir(body, autorId, ip, res) {
       pasajes: r.pasajes, fecha: new Date().toISOString()
     }, 'historia_id,huella,version_criterio');
     guardados.set(u.huella, r.pasajes);
+    await aprobarFrases(h.id, u, r.pasajes);
     return u;
   });
   if (txt.fallos.length) {
@@ -573,6 +651,7 @@ async function subir(body, autorId, ip, res) {
   for (const u of unidades) {
     for (const p of guardados.get(u.huella) || []) {
       if (p.cita && aceptadas.has(normalizar(p.cita))) continue;
+      if (yaAprobada(p, u, aprobadas)) continue; // v3.5: ya pasó en una revisión anterior
       const pasaje = {
         id: crypto.createHash('sha256').update(u.huella + '|' + (p.cita || '*')).digest('hex').slice(0, 16),
         huella: u.huella, clase: u.clase, capitulo: u.capitulo, tituloCapitulo: u.tituloCapitulo,
