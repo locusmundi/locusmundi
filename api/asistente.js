@@ -1,8 +1,14 @@
 // api/asistente.js — Locus Mundi
-// Versión 8.1 · 11/10/2026 · Corrige la v8 tras el TEST A real (Continuidad, sesión
-// "11/10/2026 (subida pequeña)"): la explicación de un pasaje dijo "las normas de la Biblioteca".
-// Se añade una frase a la instrucción de la explicación: llamarlas "las Condiciones de
-// Publicación" y nunca "normas de la Biblioteca". Aprobado por Javier. Nada más cambia.
+// Versión 8.2 · 12/10/2026 · Paso C de la subida pequeña (Continuidad, sesión "11/10/2026
+// (subida pequeña)", puntos 14 y 15). Cambio respecto a la v8.1, solo en el modo de pasajes:
+//   - No recorre los pasajes cuya frase tiene un "Creo que es un error" aceptado por Javier
+//     (avisos_moderacion, error_texto, aceptado), con el mismo filtro por cita que moderar.js
+//     (espacios normalizados). Así no se gasta tinta en ellos, y el índice y el total son los
+//     de la lista sin aceptados (como el recuento del editor, B.4).
+//   - Si la lectura de los avisos falla, el modo sigue sin el filtro (nunca se bloquea).
+// Nada más cambia.
+// Versión 8.1 · 11/10/2026 (anotada aquí el 12/10; `5728b80`) · Instrucciones del modo de
+// pasajes: "las Condiciones de Publicación", nunca "normas de la Biblioteca".
 // Versión 8 · 11/10/2026 · Cambio del criterio (LOCUS_MUNDI_DISENO_MODERACION.md v13, §11.17,
 // punto 5; v14, §11.18, puntos 3 y 7; Continuidad, sesión "11/10/2026 (subida pequeña)").
 // Cambios respecto a la v7, solo en las instrucciones del modo de pasajes (instruccionesPasaje):
@@ -261,13 +267,16 @@ function instruccionesPasaje({ interfaz, libro, nombre, tratamiento, duro }) {
   return [
     'You are the editorial assistant of Locus Mundi, an online library of autobiographies. You help the author, never replace them.',
     'When the author uploaded the book, the review flagged one passage. The Publication Terms ("Condiciones de Publicación") are the same for everyone; you help the author comply with them.',
-    `1. "explicacion": in ${lenguaInterfaz}, one or two plain, kind sentences explaining why this passage was flagged, based on the reason given. You may use the author's first name (${nombre || 'unknown'}) once, naturally.${trato} No legal jargon. Do not lecture. When you mention the library, write "la Biblioteca" (in English, "the Library"), with a capital letter. If you mention the rules, call them "las Condiciones de Publicación" (in English, "the Publication Terms"); never "normas de la Biblioteca" or "the Library's rules".`,
+    `1. "explicacion": in ${lenguaInterfaz}, one or two plain, kind sentences explaining why this passage was flagged, based on the reason given. You may use the author's first name (${nombre || 'unknown'}) once, naturally.${trato} No legal jargon. Do not lecture. When you mention the library, write "la Biblioteca" (in English, "the Library"), with a capital letter.`,
     duro
       ? '2. "propuesta": always an empty string. This passage falls under the hard limit: you must not help reword it. In the explanation, say respectfully that it cannot be published and that the author can delete it.'
       : `2. "propuesta": in ${lenguaLibro}, the passage with the MINIMAL change that solves the problem: remove or replace only the data that motivated the flag (a name, a family relationship, the graphic detail, the statement about health…). Keep every other word of the author exactly as it is, in the same order, with the author's own voice. Never add facts, names, dates, places or opinions. A short neutral replacement is allowed, but it must keep the kind of relationship: "mi vecino Ramón" → "un vecino" (never "un conocido"); "mi cuñado Andrés" → "un familiar" or "una persona" (never "un conocido"). A vague reference like these does not identify anyone. If the only solution is to delete the whole passage, return an empty string.`,
     'Return only JSON: {"explicacion": "...", "propuesta": "..."}.'
   ].join('\n');
 }
+
+// v8.2: igual que en moderar.js, para comparar citas.
+const normalizar = s => String(s || '').replace(/\s+/g, ' ').trim();
 
 // Palabras (minúsculas, sin puntuación) para la red de seguridad.
 function palabras(texto) {
@@ -326,7 +335,19 @@ async function pasaje(body, autorId, res) {
   ))[0];
   if (!h || h.autor_id !== autorId || h.marcado_borrado === true) return res.status(404).json({ error: 'NO_ENCONTRADA' });
   const m = (await leerFilasServicio(`moderaciones?historia_id=eq.${h.id}&select=resultado,pasajes&limit=1`))[0];
-  const lista = (m && ['pasajes', 'conjunto', 'limite_duro'].includes(m.resultado) && m.pasajes) || [];
+  const todos = (m && ['pasajes', 'conjunto', 'limite_duro'].includes(m.resultado) && m.pasajes) || [];
+  // v8.2: fuera los pasajes con "Creo que es un error" aceptado (mismo filtro que moderar.js).
+  let aceptadas = new Set();
+  if (todos.length) {
+    try {
+      aceptadas = new Set((await leerFilasServicio(
+        `avisos_moderacion?historia_id=eq.${h.id}&tipo=eq.error_texto&estado=eq.aceptado&select=cita`
+      )).map(a => normalizar(a.cita)));
+    } catch (e) {
+      console.error('asistente: pasaje, avisos aceptados', e.message);
+    }
+  }
+  const lista = todos.filter(x => !(x.cita && aceptadas.has(normalizar(x.cita))));
   if (!lista.length) return res.status(404).json({ error: 'SIN_PASAJES' });
   if (indice >= lista.length) return res.status(404).json({ error: 'FIN', total: lista.length });
 
