@@ -1,4 +1,13 @@
 // api/asistente.js — Locus Mundi
+// Versión 8.3 · 13/10/2026 · Hoja de Ruta, Fase B2, punto 20 (a); Continuidad, sesión
+// "13/10/2026 (Agente Editorial V7.4 y plan)"; Agente Editorial V7.4, 2.11. En el TEST D la
+// explicación del modo de pasajes todavía decía "las normas de la Biblioteca". Cambios
+// respecto a la v8.2, solo en el modo de pasajes:
+//   - Orden explícita en las instrucciones: nunca "normas de la Biblioteca" ni "Library
+//     rules"; siempre "las Condiciones de Publicación" ("the Publication Terms").
+//   - Red sin IA en el servidor (terminosCorrectos): si aun así sale, se sustituye en la
+//     explicación antes de enviarla (también en el motivo que se usa cuando falla la IA).
+// Nada más cambia.
 // Versión 8.2 · 12/10/2026 · Paso C de la subida pequeña (Continuidad, sesión "11/10/2026
 // (subida pequeña)", puntos 14 y 15). Cambio respecto a la v8.1, solo en el modo de pasajes:
 //   - No recorre los pasajes cuya frase tiene un "Creo que es un error" aceptado por Javier
@@ -267,12 +276,22 @@ function instruccionesPasaje({ interfaz, libro, nombre, tratamiento, duro }) {
   return [
     'You are the editorial assistant of Locus Mundi, an online library of autobiographies. You help the author, never replace them.',
     'When the author uploaded the book, the review flagged one passage. The Publication Terms ("Condiciones de Publicación") are the same for everyone; you help the author comply with them.',
-    `1. "explicacion": in ${lenguaInterfaz}, one or two plain, kind sentences explaining why this passage was flagged, based on the reason given. You may use the author's first name (${nombre || 'unknown'}) once, naturally.${trato} No legal jargon. Do not lecture. When you mention the library, write "la Biblioteca" (in English, "the Library"), with a capital letter.`,
+    `1. "explicacion": in ${lenguaInterfaz}, one or two plain, kind sentences explaining why this passage was flagged, based on the reason given. You may use the author's first name (${nombre || 'unknown'}) once, naturally.${trato} No legal jargon. Do not lecture. When you mention the library, write "la Biblioteca" (in English, "the Library"), with a capital letter. Never write "normas de la Biblioteca", "reglas de la Biblioteca" or "Library rules": the rules are always "las Condiciones de Publicación" (in English, "the Publication Terms").`,
     duro
       ? '2. "propuesta": always an empty string. This passage falls under the hard limit: you must not help reword it. In the explanation, say respectfully that it cannot be published and that the author can delete it.'
       : `2. "propuesta": in ${lenguaLibro}, the passage with the MINIMAL change that solves the problem: remove or replace only the data that motivated the flag (a name, a family relationship, the graphic detail, the statement about health…). Keep every other word of the author exactly as it is, in the same order, with the author's own voice. Never add facts, names, dates, places or opinions. A short neutral replacement is allowed, but it must keep the kind of relationship: "mi vecino Ramón" → "un vecino" (never "un conocido"); "mi cuñado Andrés" → "un familiar" or "una persona" (never "un conocido"). A vague reference like these does not identify anyone. If the only solution is to delete the whole passage, return an empty string.`,
     'Return only JSON: {"explicacion": "...", "propuesta": "..."}.'
   ].join('\n');
+}
+
+// v8.3: red sin IA para el nombre de las normas. "las normas de la Biblioteca" →
+// "las Condiciones de Publicación"; "the Library rules" / "the rules of the Library" →
+// "the Publication Terms" (con "The" a principio de frase).
+function terminosCorrectos(texto) {
+  return String(texto || '')
+    .replace(/\b(?:normas|reglas)\s+de\s+la\s+biblioteca\b/gi, 'Condiciones de Publicación')
+    .replace(/\b(the\s+)?(?:library(?:'s)?\s+rules|rules\s+of\s+the\s+library)\b/gi,
+      (m, the) => (the ? (the[0] === 'T' ? 'The ' : 'the ') : '') + 'Publication Terms');
 }
 
 // v8.2: igual que en moderar.js, para comparar citas.
@@ -358,7 +377,7 @@ async function pasaje(body, autorId, res) {
     campo: p.campo || null, bloqueado: !!p.bloqueado
   };
   const base = { total: lista.length, indice, pasaje: publico };
-  const motivo = interfaz === 'EN' ? p.motivo_en : p.motivo_es;
+  const motivo = terminosCorrectos(interfaz === 'EN' ? p.motivo_en : p.motivo_es); // v8.3
 
   // Fragmento que no se pudo revisar: solo su motivo, sin IA y sin coste.
   if (p.bloqueado) return res.status(200).json({ ...base, explicacion: motivo, propuesta: null, tinta: saldo.tinta, ultimaCarga: saldo.ultimaCarga });
@@ -408,7 +427,7 @@ async function pasaje(body, autorId, res) {
   try { j = JSON.parse(texto.replace(/^```(?:json)?|```$/g, '').trim()); } catch (_) { j = null; }
 
   // Si Google no responde (bloqueo) o la respuesta no se puede leer: el motivo, sin propuesta.
-  const explicacion = (j && typeof j.explicacion === 'string' && j.explicacion.trim()) || motivo;
+  const explicacion = terminosCorrectos((j && typeof j.explicacion === 'string' && j.explicacion.trim()) || motivo); // v8.3
   let propuesta = null, descartada = false;
   if (!duro && j && typeof j.propuesta === 'string') {
     if (propuestaAceptable(p.cita, j.propuesta)) propuesta = j.propuesta.trim();
