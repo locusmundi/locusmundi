@@ -2934,14 +2934,14 @@ function TermsBox({title,items,consent,checked,onToggle}) {
     </div>
   );
 }
-function AmountPicker({amounts,value,onChange}) {
+function AmountPicker({amounts,value,onChange,t}) { // [P20-c] t: precio según el idioma
   return (
     <div style={{display:"flex",gap:"0.5rem",flexWrap:"wrap",margin:"0.6rem 0"}}>
       {amounts.map(v=>(
         <button key={v} type="button" onClick={()=>onChange(v)}
           style={{fontFamily:"var(--body)",fontSize:"0.9rem",padding:"0.5rem 1rem",borderRadius:"2px",cursor:"pointer",
             border:value===v?"1px solid var(--navy)":"1px solid var(--border)",
-            background:value===v?"var(--navy)":"transparent",color:value===v?"var(--cr)":"var(--ink)"}}>{v} €</button>
+            background:value===v?"var(--navy)":"transparent",color:value===v?"var(--cr)":"var(--ink)"}}>{t?t.precio_n.replace("{n}",v):v+"\u00a0€"}{/* [P20-c] original: {v} € */}</button>
       ))}
     </div>
   );
@@ -2972,12 +2972,12 @@ function PhotosModal({onClose,onPaid,t,tiene=0}) {
                   style={{fontFamily:"var(--body)",fontSize:"0.9rem",padding:"0.5rem 1rem",borderRadius:"2px",cursor:"pointer",
                     border:qty===v?"1px solid var(--gold)":"1px solid var(--border)",
                     background:qty===v?"var(--gold)":"transparent",
-                    color:qty===v?"var(--cr)":"var(--ink)"}}>{v} {t.photo_word}s — €{v}</button>
+                    color:qty===v?"var(--cr)":"var(--ink)"}}>{v} {t.photo_word}s — {t.precio_n.replace("{n}",v)}{/* [P20-c] original: €{v} */}</button>
               ))}
             </div>
             <TermsBox title={t.terms_h_photos} items={t.photo_terms} consent={t.terms_consent} checked={termsOk} onToggle={setTermsOk}/>
             <div className="stripe-sec">
-              <div className="stripe-lbl">Stripe · €{amount}</div>
+              <div className="stripe-lbl">Stripe · {t.precio_n.replace("{n}",amount)}{/* [P20-c] original: €{amount} */}</div>
               <div className="s-row"><input className="s-inp" placeholder="•••• •••• •••• ••••"/></div>
               <div className="s-row"><input className="s-inp" placeholder="MM/AA"/><input className="s-inp s-cvc" placeholder="CVC"/></div>
               <button className="s-pay" onClick={pay} disabled={paying||!amount||!termsOk}>{paying?<span style={{display:"flex",alignItems:"center",gap:"0.5rem",justifyContent:"center"}}><span className="sp"/>{t.processing}</span>:`${t.pay_generic} ${t.precio_n.replace("{n}",amount)}`/* [P20-c] original: `${t.pay_generic} €${amount}` */}</button>
@@ -3011,7 +3011,7 @@ function PdfModal({onClose,onPaid,t}) {
               ))}
             </div>
             <div className="stripe-sec">
-              <div className="stripe-lbl">Stripe · €5</div>
+              <div className="stripe-lbl">Stripe · {t.precio_5}{/* [P20-c] original: €5 */}</div>
               <div className="s-row"><input className="s-inp" placeholder="•••• •••• •••• ••••"/></div>
               <div className="s-row"><input className="s-inp" placeholder="MM/AA"/><input className="s-inp s-cvc" placeholder="CVC"/></div>
               <button className="s-pay" onClick={pay} disabled={paying}>{paying?<span style={{display:"flex",alignItems:"center",gap:"0.5rem",justifyContent:"center"}}><span className="sp"/>{t.processing}</span>:`${t.pay_generic} ${t.precio_5}`/* [P20-c] original: `${t.pay_generic} €5` */}</button>
@@ -5937,13 +5937,13 @@ ${capituloActual}
             :null}
             <div className="fld"><label className="lbl">{t.ai_ask_name_h}</label><input className="inp" value={aiNameDraft} onChange={e=>setAiNameDraft(e.target.value)}/></div>
             <div className="lbl" style={{marginTop:"0.4rem"}}>{t.ai_pick_amount}</div>
-            <AmountPicker amounts={[5,10]} value={aiCharge} onChange={setAiCharge}/>
+            <AmountPicker amounts={[5,10]} value={aiCharge} onChange={setAiCharge} t={t}/>
             <TermsBox title={t.terms_h_ai} items={t.ai_terms} consent={t.terms_consent} checked={aiTermsOk} onToggle={setAiTermsOk}/>
             <p className="s-note" style={{marginTop:0}}>{t.ai_recharge_notice}</p>
             <button className="btn-pub" style={{width:"100%"}} disabled={!aiTermsOk} onClick={()=>{
               setF(p=>({...p,assistantActive:true,assistantTuUsted:asksTuUsted?aiTuUsted:null,assistantName:aiNameDraft||f.name}));
               setShowAiOverlay(false);
-            }}>{t.ai_activate_with} {aiCharge} €</button>
+            }}>{t.ai_activate_with} {t.precio_n.replace("{n}",aiCharge)}{/* [P20-c] original: {aiCharge} € (igual en inglés) */}</button>
           </div>
         </div>
       )}
@@ -6583,9 +6583,9 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
         {rechargeOpen&&!rechargeMsg&&(
           <div style={{marginBottom:"1rem"}}>
             <div className="lbl">{t.ai_pick_amount}</div>
-            <AmountPicker amounts={[5,10]} value={rechargeAmt} onChange={setRechargeAmt}/>
+            <AmountPicker amounts={[5,10]} value={rechargeAmt} onChange={setRechargeAmt} t={t}/>
             <TermsBox title={t.terms_h_ai} items={t.ai_terms} consent={t.terms_consent} checked={rechargeOk} onToggle={setRechargeOk}/>
-            <button className="btn-pub" style={{width:"100%"}} disabled={!rechargeOk} onClick={()=>{setRechargeOpen(false);setRechargeMsg(true);}}>{t.ai_recharge_with} {rechargeAmt} €</button>
+            <button className="btn-pub" style={{width:"100%"}} disabled={!rechargeOk} onClick={()=>{setRechargeOpen(false);setRechargeMsg(true);}}>{t.ai_recharge_with} {t.precio_n.replace("{n}",rechargeAmt)}{/* [P20-c] original: {rechargeAmt} € (igual en inglés) */}</button>
           </div>
         )}
         {rechargeMsg&&<p className="ai-usage-notice">{t.ai_recharge_notice}</p>}
