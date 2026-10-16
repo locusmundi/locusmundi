@@ -917,14 +917,10 @@ const FAQ_EN = [
    a:"Locus Mundi does not sell or trade your data, in compliance with European GDPR. It only collects the data necessary to provide the service, and allows you to exercise your rights of access, rectification, objection or erasure under the regulation. More details in our Privacy Policy."}
 ];
 
-const SAMPLE = [
-  // [3a 15/10/2026] Muestra de Irene (id 1) quitada: su libro real es el Nº 1 en Supabase.
-  // [3b 16/10/2026] Muestra de Olegario (id 2) quitada: su libro real es el Nº 2 en Supabase.
-  // [3c 16/10/2026] Muestra de Pablo (id 3) quitada: su libro real es el Nº 3 en Supabase.
-  { id:4, name:"X. Batlle", title:"La vida escrita", born:1961, country:"España", flag:"🇪🇸", lang:"CA", profession:"filósofo", founder:false,
-    preview:"Este no va a ser un relato escrito a lo largo de mi vida, sino hacia el fondo de mí mismo.",
-    text:"ÍNDICE:\nPresentación: De Barcelona al mundo\nÁlbum de familia: 1998\nEl nuevo mundo: 2001\nCelebración del medio siglo: 2011\nEl año de la pandemia: 2020\nRoda al món i torna al Born: 2025\nComiat: La solitud del silici\n\n— — —\n\nEste no va a ser un relato escrito a lo largo de mi vida, sino hacia el fondo de mí mismo. Podría decirse que nací en una cuna dorada (tiempos de paz, familia acomodada, una ciudad hermosa que bebe en las aguas del Mediterráneo…) y que nada me faltó, porque mis padres y el resto de mi familia, además de nutrir bien mi cuerpo y regalarme una buena educación, me llenaron de ideas y de sueños. Quizá, demasiados sueños. Entre la curiosidad y la imaginación, algo me faltó siempre.\n\nDos amigos de juventud me han acompañado hasta el día de hoy: Imanol Lizarralde, otro «espíritu contemplativo» desubicado y lletraferit como yo, y Toni Alastuey, un «hombre de acción» cuyo aprecio y fortaleza me permitieron conocer aquello que era incapaz de vislumbrar con mis propios ojos, cuando no seguir adelante.\n\nEstudié Filosofía, y mi formación me permitió trabajar en una editorial (Ronsel, fundada por Olegario Sotelo Blanco) durante quince años, publicando a Dickens, Saramago y también a autores noveles como Miguel Herráez, Miguel Catalán o Asdrúbal Hernández, que con el paso de los años se convirtieron en amigos.\n\nEn ese momento de crecimiento personal nacieron mis dos hijos (Carlos y Àlex), y comencé a sufrir las primeras orfandades, lo que anunciaba un cambio de ciclo. Poco después de cumplir los cuarenta, me divorcié y mi vida se partió en dos. Dejé entonces mi trabajo, mi ciudad, mi pasado y salté al vacío.\n\nPor desgracia, a mí nunca me cuadraron las palabras de mi abuelo paterno: «¿Y cómo queréis que me haga rico si me paso el día trabajando?». Yo me paso el día pensando, soñando, escribiendo, y eso no da ni para ser pobre.", fullUrl:"javier-batlle.html", tags:["Barcelona","poesía","memoria"] },
-];
+// Muestras fijas del frontend: ya no queda ninguna (Fase B2, punto 2). Las cuatro son libros reales
+// en Supabase: Irene Nº 1 (3a, 15/10/2026), Olegario Nº 2 (3b), Pablo Nº 3 y X. Batlle Nº 4 (3c, 16/10/2026).
+// Se deja la lista vacía (y no se borra) porque la Biblioteca y la lectura aún la nombran.
+const SAMPLE = [];
 
 const T = {
   ES:{
@@ -1986,12 +1982,10 @@ function Header({view,setView:setViewRaw,lang,setLang,t,fsStep,setFsStep,fsSteps
 }
 
 function Home({autos,openAuto,setView,t}) {
-  // Solo los 3 publicados más recientes (04/10/2026): los reales por fecha de publicación (la última vez
-  // que pasaron a publicados), de más reciente a más antiguo; si hay menos de 3, se completan con las
-  // muestras en su orden fijo. Las cifras de arriba siguen contando todos.
-  const reales = autos.filter(a=>typeof a.id!=="number").sort((a,b)=>String(b.fecha||"").localeCompare(String(a.fecha||"")));
-  const muestras = autos.filter(a=>typeof a.id==="number").sort((a,b)=>a.id-b.id);
-  const recientes = [...reales,...muestras].slice(0,3);
+  // Solo los 3 publicados más recientes (04/10/2026): por fecha de publicación (la última vez que pasaron
+  // a publicados), de más reciente a más antiguo. Las cifras de arriba siguen contando todos.
+  // [3c 16/10/2026] Fuera el relleno con muestras: ya no queda ninguna (SAMPLE vacía).
+  const recientes = autos.filter(a=>typeof a.id!=="number").sort((a,b)=>String(b.fecha||"").localeCompare(String(a.fecha||""))).slice(0,3);
   return (
     <div>
       <section className="hero">
