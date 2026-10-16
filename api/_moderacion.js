@@ -1,4 +1,8 @@
 // api/_moderacion.js — Locus Mundi
+// Versión 1.2 · 16/10/2026 · LIMITE_IMAGENES_DIA pasa de 10 a 30 por Autor (Continuidad, sesión
+// "16/10/2026 (conversación 3b)"): un libro completo son 21 revisiones (portada + 20 fotos) y el
+// tope de 20 fotos por libro ya limita los huecos; el límite diario solo frena las sustituciones
+// sin fin (30 revisiones ≈ 0,012 €). Nada más cambia.
 // Versión 1.1 · 11/10/2026 · llamarGeminiJson admite un parámetro opcional "temperatura" (el
 // grado de azar de la respuesta; a 0, ante el mismo texto responde casi siempre lo mismo). Lo usa
 // api/moderar.js v3.4 en la revisión del texto (Continuidad, sesión "11/10/2026 (subida
@@ -6,7 +10,7 @@
 // Versión 1 · 08/10/2026 · Nuevo. Diseño de la moderación v10, §5, §7, §11.13 (puntos 6 y 9)
 // y §11.14. Archivo COMPARTIDO por api/moderar.js (v2) y api/foto-editor.js (v5): una sola
 // regla para revisar una imagen, para llamar a Gemini en la moderación y para los límites
-// (10 imágenes al día por Autor, fusible diario de 5 €). Vercel no convierte en función un
+// (10 imágenes al día por Autor —30 desde la v1.2—, fusible diario de 5 €). Vercel no convierte en función un
 // archivo de api/ que empieza por guion bajo.
 // (El plan v10, §11.14, lo llamaba "_revisar_imagen.js"; lleva también los límites y el
 // gasto, que comparten las dos funciones, y por eso se llama así.)
@@ -23,7 +27,7 @@ const PRECIOS_USD = {
 const DOLAR_A_EURO = 0.90;
 
 const FUSIBLE_MODERACION_EUROS_DIA = 5.00; // §7
-const LIMITE_IMAGENES_DIA = 10;            // §7, por Autor
+const LIMITE_IMAGENES_DIA = 30;            // §7, por Autor (v1.2: antes 10)
 const LIMITE_SUBIDAS_DIA = 5;              // §7, por Autor, solo las que necesitan revisión
 
 // Categorías de imagen rechazada (§5.1 y §11.13, punto 9).
