@@ -1,4 +1,5 @@
 // api/contador-historias.js — Locus Mundi
+// Versión 6 · 16/10/2026 · Fase B2, conversación 3c: X. Batlle ya está en Supabase (Nº 4); el +1 pasa a 0.
 // Versión 5 · 16/10/2026 · Fase B2, conversación 3c: Pablo ya está en Supabase (Nº 3); el +2 pasa a +1.
 // Versión 4 · 16/10/2026 · Fase B2, conversación 3b: Olegario ya está en Supabase (Nº 2); el +3 pasa a +2.
 // Versión 3 · 15/10/2026 · Fase B2, conversación 3a: Irene ya está en Supabase (Nº 1); el +4 pasa a +3.
@@ -11,11 +12,10 @@ module.exports = async function handler(req, res) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  // +1 fijo: la historia de muestra que aún vive como dato fijo en el frontend
-  // (La vida escrita). Irene (15/10/2026), Olegario y Pablo (16/10/2026) ya están
-  // en Supabase. Pendiente: bajar a 0 cuando se publique X. Batlle (conversación 3c;
-  // Hoja de Ruta, Fase B2, punto 2).
-  const HISTORIAS_MUESTRA_REALES = 1;
+  // 0: ya no queda ninguna historia de muestra fija en el frontend. Las cuatro (Irene, Olegario,
+  // Pablo y X. Batlle) están en Supabase y se cuentan en publicaciones (Fase B2, punto 2, 16/10/2026).
+  // Se deja la constante a 0 (y no se borra) por si vuelve a hacer falta.
+  const HISTORIAS_MUESTRA_REALES = 0;
 
   try {
     const resp = await fetch(
