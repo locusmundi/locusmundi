@@ -1,4 +1,15 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.6 · 16/10/2026 · Criterio de salud e identificación (Fase B2, punto 21; Continuidad,
+// sesión "16/10/2026 (conversación 4: criterio)"). Decisiones de Javier, tras la consulta jurídica:
+//   - Salud de terceros: pasa la dolencia corriente que no marca a la persona (infarto, covid, una
+//     operación, una gripe) y la enfermedad grave contada como historia acabada (vencida o
+//     terminada con la muerte). Se señala la enfermedad grave presente, la salud mental, las
+//     adicciones y la salud sexual o reproductiva (estas cuatro, también en pasado).
+//   - "Una de mis tías", "uno de mis primos", "un tío mío" (uno entre varios, sin decir cuál)
+//     cuentan como referencia vaga. "Mi tía", "mi tía Rosa", con nombre, siguen identificando.
+//   - Las opiniones políticas presentes de una persona viva siguen en el criterio (sin cambios).
+//   - VERSION_CRITERIO nueva. Nada más cambia (memoria de frases, confirmación, límites).
+//   - (17/10/2026, punto 19 (c)) Los modelos se leen de api/_modelos.js.
 // Versión 3.5 · 11/10/2026 · Memoria de frases aprobadas (idea de Javier: "si ya pasó el filtro
 // una vez, que sirva para siempre"). En el TEST real, una frase que había pasado ("Mi primo Luis
 // vota…") se señaló al cambiar sus vecinas: Flash-Lite juzga cada frase según su contexto.
@@ -104,11 +115,13 @@ const MARGEN_LIMPIEZA_MS = 60 * 60 * 1000; // una hora (§11.4)
 // Versión del criterio (§11.13, punto 6). Cambiarla obliga a revisar de nuevo todos los
 // tramos en la siguiente subida de cada libro. Cambiarla SIEMPRE que cambien las
 // instrucciones de la IA de más abajo.
-const VERSION_CRITERIO = 'texto-2026-10-11e';
+const VERSION_CRITERIO = 'texto-2026-10-16';
 
 // v3.3: la revisión del texto la hace Flash-Lite (mod.MODELO_MODERACION, el de las imágenes) y
 // Flash solo confirma lo señalado. Los dos precios están en la tabla de _moderacion.js.
-const MODELO_CONFIRMACION = 'gemini-3.5-flash';
+const M = require('./_modelos'); // v3.6, punto 19 (c)
+const MODELO_REVISION = M.MODELOS.moderacion;
+const MODELO_CONFIRMACION = M.MODELOS.confirmacion;
 
 const TIPOS = ['duro', 'tercero', 'menor', 'colectivo', 'sexual'];
 const UMBRAL_CAPITULOS = 3;  // §6.1
@@ -154,7 +167,7 @@ function instruccionesTexto(idioma, fase) {
     '2. Inciting violence against people or groups, or praising such violence.',
     '',
     'FLAG, passage by passage:',
-    '- "tercero": serious private facts about ANOTHER living, identifiable person: attributing to them a crime or seriously reprehensible conduct with no public record; their physical or mental health; their sexuality or intimate life; their addictions; their ethnic origin, religious beliefs or political opinions.',
+    '- "tercero": serious private facts about ANOTHER living, identifiable person: attributing to them a crime or seriously reprehensible conduct with no public record; their health, ONLY in these cases: any mental health matter, any addiction, any sexual or reproductive health matter (abortion, infertility, sexually transmitted infections) — these even if told in the past —, or a serious illness they are suffering NOW (cancer, HIV, dementia, a terminal or degenerative disease, a disability); their sexuality or intimate life; their addictions; their ethnic origin, religious beliefs or political opinions.',
     '- "menor": any private fact about an identifiable person who is a minor TODAY (not an adult remembered as a child).',
     '- "colectivo": offensive or discriminatory language against a group of people, EXCEPT historical testimony (how people spoke in another era, or what someone said, quoted as such).',
     '- "sexual": explicit sexual description of anyone. The topic is fine; the graphic detail is not.',
@@ -166,11 +179,13 @@ function instruccionesTexto(idioma, fase) {
     '- Ordinary private matters of shared life: quarrels, estrangement, character.',
     '- Deceased people (except the hard limit).',
     '- Facts about someone referred to only vaguely or by a nickname or invented name meant to hide who they are ("a relative", "an acquaintance", "a neighbour", "a person", "Mr Bear"; in Spanish "un familiar", "un conocido", "un vecino", "una persona", "el señor Oso"): nobody can be identified, even if the fact is private.',
+    '- Ordinary ailments that do not mark a person (a heart attack, covid, an operation, the flu, a broken bone), and a serious illness told as a finished story: overcome ("my aunt had cancer and beat it") or ended by death.',
+    '- Facts about one unspecified person among several ("one of my aunts", "one of my cousins", "an uncle of mine"; in Spanish "una de mis tías", "uno de mis primos", "un tío mío"), with no name: it is not said which one, so nobody is identified.',
     '- Political or union activity, and persecution, trial, imprisonment, exile or repression for political reasons in the past (for example under a dictatorship or during a war), told as historical testimony: these are public, historical facts, even if they reveal the person\'s ideology. Do flag a living person\'s present, private political opinions or vote.',
     '- Whether the story is true, its literary quality, spelling or format.',
     '',
     'PRACTICAL RULES:',
-    '- Identifiable: anyone named, or with a specific family relationship or tie to the author ("my brother-in-law", "my aunt", "my neighbour on the third floor"), because the book is signed. A vague reference ("a relative", "an acquaintance", "a neighbour", "a person") does not identify anyone, unless the context makes clear who it is.',
+    '- Identifiable: anyone named, or with a specific family relationship or tie to the author ("my brother-in-law", "my aunt", "my neighbour on the third floor"), because the book is signed. A vague reference ("a relative", "an acquaintance", "a neighbour", "a person", "one of my aunts") does not identify anyone, unless the context makes clear who it is (a name, or a detail that singles the person out).',
     '- Living: presume the person is alive unless the text makes clear they have died.',
     confirmacion
       ? '- When in doubt, do not flag. Only clear, manifest cases count.'
@@ -410,7 +425,7 @@ async function revisarUnidad(unidad, idioma) {
   let coste = 0;
   for (let intento = 0; intento < 2; intento++) {
     const r = await mod.llamarGeminiJson({
-      modelo: mod.MODELO_MODERACION,
+      modelo: MODELO_REVISION,
       sistema: instruccionesTexto(idioma, 'revision'),
       temperatura: 0,
       partes: [{ text: unidad.clase === 'cabecera'
@@ -467,7 +482,7 @@ async function confirmar(pasajes, unidad, idioma) {
   const sistema = instruccionesTexto(idioma, 'confirmacion') + '\n\n' + [
     'CONFIRMATION TASK (this replaces the OUTPUT section above): another reviewer flagged the sentences below.',
     'For each one, decide only whether it is a clear, manifest case under the criteria above: the person is clearly identifiable (named, or with a specific relationship to the author) and the fact is clearly private and serious (or, for the other types, clearly offensive or explicit).',
-    'Vague references, nicknames, deceased people, public facts, what others did to the author, and past political repression told as historical testimony are NOT clear cases. When in doubt, "claro": false.',
+    'Vague references (including "one of my aunts"), nicknames, ordinary ailments, serious illnesses told as overcome or ended, deceased people, public facts, what others did to the author, and past political repression told as historical testimony are NOT clear cases. When in doubt, "claro": false.',
     'Return only JSON: {"decisiones": [ {"n": 1, "claro": true} ]}, one item per sentence.'
   ].join('\n');
   let r;
@@ -582,7 +597,7 @@ async function subir(body, autorId, ip, res) {
     }
   }
   const anotarSubida = (detalle) => mod.anotarGasto('subida', autorId, h.id, 0, {
-    version: 'moderar v3', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
+    version: 'moderar v3.6', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
   });
 
   // 6. Imágenes sin revisar (§5.2): la portada y las fotos colocadas.
