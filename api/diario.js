@@ -8,13 +8,15 @@
 //     nada), que Supabase responde, que la web carga y que la última copia de R2 tiene menos de
 //     8 días. Si algo falla, avisa por correo; cada lunes manda además un "todo bien", para saber
 //     que el propio vigía sigue vivo.
-// Modelos: cuando exista api/_modelos.js (punto 19 (c), conversación 6), leerlos de allí.
+// Versión 1.1 · 17/10/2026 · Punto 19 (c): los modelos se leen de api/_modelos.js, y el vigía
+// avisa también si a un modelo de texto le falta su precio.
 
 const purgar = require('./purgar-borrados');
 const { leerTexto } = require('./_r2');
 const { avisar } = require('./_aviso');
 
-const MODELOS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-image-preview'];
+const { modelosEnUso, modelosSinPrecio } = require('./_modelos'); // v1.1
+const MODELOS = modelosEnUso();
 const WEB = 'https://locusmundi.vercel.app/';
 const DIAS_MAXIMOS_COPIA = 8;
 
@@ -63,6 +65,11 @@ module.exports = async function handler(req, res) {
       if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
     });
   }
+
+  await comprobar('Precios de los modelos', async () => {
+    const sin = modelosSinPrecio();
+    if (sin.length) throw new Error(`falta el precio de ${sin.join(', ')} en api/_modelos.js`);
+  });
 
   // 3. Supabase.
   await comprobar('Supabase', async () => {

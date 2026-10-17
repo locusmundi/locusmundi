@@ -1,4 +1,6 @@
 // api/foto-editor.js — Editor de fotos con IA (Locus Mundi, pieza 5)
+// Versión 5.1 · 17/10/2026 · Fase B2, punto 19 (c): el nombre del modelo se lee de
+// api/_modelos.js. Nada más cambia.
 // Versión 5 · 08/10/2026 · Diseño de la moderación v10, §5.2 y §11.13, punto 9. Cambios
 // respecto a la v4: "aceptar" y "guardarTono" REVISAN la imagen que envía el navegador antes
 // de guardarla (regla compartida con api/moderar.js en api/_moderacion.js), con el límite de
@@ -63,7 +65,7 @@
 // ediciones y la columna del original (no lo hace el disparador).
 
 const LIMITE_EDICIONES = 4; // único sitio donde vive el 4
-const MODELO = "gemini-3.1-flash-image-preview"; // Nano Banana 2
+const MODELO = require("./_modelos").MODELOS.fotos; // Nano Banana 2 (v5.1)
 const TAMANO_IMAGEN = "2K";
 const crypto = require("crypto");
 const almacen = require("./_almacen"); // compartido con api/moderar.js

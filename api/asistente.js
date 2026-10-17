@@ -1,4 +1,6 @@
 // api/asistente.js — Locus Mundi
+// Versión 8.4 · 17/10/2026 · Fase B2, punto 19 (c): modelos, precios y cambio dólar/euro, leídos
+// de api/_modelos.js. Nada más cambia.
 // Versión 8.3 · 13/10/2026 · Hoja de Ruta, Fase B2, punto 20 (a); Continuidad, sesión
 // "13/10/2026 (Agente Editorial V7.4 y plan)"; Agente Editorial V7.4, 2.11. En el TEST D la
 // explicación del modo de pasajes todavía decía "las normas de la Biblioteca". Cambios
@@ -81,23 +83,12 @@
 
 // ─── Constantes (todo lo que puede cambiar, en un solo sitio) ───────────
 
+const M = require('./_modelos'); // v8.4
 const MODELOS = {
-  dictado:      'gemini-3.5-flash-lite',
-  revision:     'gemini-3.5-flash-lite',
-  conversacion: 'gemini-3.5-flash'
+  dictado:      M.MODELOS.dictado,
+  revision:     M.MODELOS.revision,
+  conversacion: M.MODELOS.conversacion
 };
-
-// Dólares por millón de tokens (precio oficial de Google). Los tokens de
-// "pensamiento" se cobran como salida.
-// OJO: duplicado en api/traducir.js; si cambian los precios, cambiarlos en los dos.
-const PRECIOS_USD = {
-  'gemini-3.5-flash':      { entrada: 1.50, salida: 9.00 },
-  'gemini-3.5-flash-lite': { entrada: 0.30, salida: 2.50 }
-};
-
-// Cambio dólar → euro. Algo por encima del real: mejor restar de más
-// que de menos. Revisar de vez en cuando.
-const DOLAR_A_EURO = 0.90;
 
 // Tamaño máximo de todo lo enviado (caracteres),
 // para que una petición no pueda vaciar la tinta de golpe por error.
@@ -205,13 +196,7 @@ async function restarTinta(autorId, costeEuros) {
 
 // ─── Gemini ─────────────────────────────────────────────────────────────
 
-function costeEnEuros(modelo, uso) {
-  const p = PRECIOS_USD[modelo];
-  const entrada = uso?.promptTokenCount || 0;
-  const salida = (uso?.candidatesTokenCount || 0) + (uso?.thoughtsTokenCount || 0);
-  const dolares = (entrada * p.entrada + salida * p.salida) / 1e6;
-  return dolares * DOLAR_A_EURO;
-}
+const costeEnEuros = M.costeEnEuros; // v8.4
 
 async function llamarGemini(modelo, sistema, historial, mensaje) {
   const contents = [
@@ -250,7 +235,7 @@ async function llamarGemini(modelo, sistema, historial, mensaje) {
 
 // ─── v7: modo "Revisar los pasajes señalados" (operación "pasaje") ──────
 
-const MODELO_PASAJE = 'gemini-3.5-flash';
+const MODELO_PASAJE = M.MODELOS.pasaje; // v8.4
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const IDIOMAS_LIBRO = {

@@ -1,4 +1,7 @@
 // api/_moderacion.js — Locus Mundi
+// Versión 1.3 · 17/10/2026 · Fase B2, punto 19 (c): modelo, precios y cambio, leídos de
+// api/_modelos.js. Sigue exportando MODELO_MODERACION, PRECIOS_USD, DOLAR_A_EURO y costeEnEuros
+// (compatibilidad con moderar.js v3.5). Nada más cambia.
 // Versión 1.2 · 16/10/2026 · LIMITE_IMAGENES_DIA pasa de 10 a 30 por Autor (Continuidad, sesión
 // "16/10/2026 (conversación 3b)"): un libro completo son 21 revisiones (portada + 20 fotos) y el
 // tope de 20 fotos por libro ya limita los huecos; el límite diario solo frena las sustituciones
@@ -17,14 +20,10 @@
 
 // ─── Constantes (todo lo que puede cambiar, en un solo sitio) ───────────
 
-const MODELO_MODERACION = 'gemini-3.5-flash-lite'; // §7 y §11.13: la paga la plataforma
-
-// Dólares por millón de tokens. OJO: duplicado en api/asistente.js y api/traducir.js.
-const PRECIOS_USD = {
-  'gemini-3.5-flash':      { entrada: 1.50, salida: 9.00 },
-  'gemini-3.5-flash-lite': { entrada: 0.30, salida: 2.50 }
-};
-const DOLAR_A_EURO = 0.90;
+const M = require('./_modelos'); // v1.3
+const MODELO_MODERACION = M.MODELOS.moderacion; // §7 y §11.13: la paga la plataforma
+const PRECIOS_USD = M.PRECIOS_USD;
+const DOLAR_A_EURO = M.DOLAR_A_EURO;
 
 const FUSIBLE_MODERACION_EUROS_DIA = 5.00; // §7
 const LIMITE_IMAGENES_DIA = 30;            // §7, por Autor (v1.2: antes 10)
@@ -117,12 +116,7 @@ async function anotarGasto(servicio, autorId, historiaId, coste, detalle) {
 
 // ─── Gemini ─────────────────────────────────────────────────────────────
 
-function costeEnEuros(modelo, uso) {
-  const p = PRECIOS_USD[modelo];
-  const entrada = uso?.promptTokenCount || 0;
-  const salida = (uso?.candidatesTokenCount || 0) + (uso?.thoughtsTokenCount || 0);
-  return ((entrada * p.entrada + salida * p.salida) / 1e6) * DOLAR_A_EURO;
-}
+const costeEnEuros = M.costeEnEuros; // v1.3
 
 // Los filtros de Google que se pueden apagar, apagados: decide nuestro criterio, no el suyo.
 // Lo que Google bloquea de todos modos (p. ej. PROHIBITED_CONTENT) llega como "bloqueo".

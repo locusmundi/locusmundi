@@ -1,4 +1,6 @@
 // api/traducir.js — Locus Mundi
+// Versión 3.1 · 17/10/2026 · Fase B2, punto 19 (c): modelo, precios y cambio, leídos de
+// api/_modelos.js. Nada más cambia.
 // Versión 3 · 06/10/2026 · Sustituye a la versión 2 (commit 1daaf77).
 // Diseño: LOCUS_MUNDI_DISENO_MODERACION.md v6, §11.2, §11.4, §11.6 y §11.8 (dos versiones
 // de cada libro). Cambios de la v3:
@@ -45,15 +47,8 @@ const {
 
 // ─── Constantes (todo lo que puede cambiar, en un solo sitio) ───────────
 
-const MODELO = 'gemini-3.5-flash-lite';
-
-// Dólares por millón de tokens. OJO: duplicado de api/asistente.js;
-// si cambian los precios, cambiarlos en los dos archivos.
-const PRECIOS_USD = {
-  'gemini-3.5-flash':      { entrada: 1.50, salida: 9.00 },
-  'gemini-3.5-flash-lite': { entrada: 0.30, salida: 2.50 }
-};
-const DOLAR_A_EURO = 0.90;
+const M = require('./_modelos'); // v3.1
+const MODELO = M.MODELOS.traduccion;
 
 // Fusible: gasto máximo diario en traducciones NUEVAS (euros). Decisión de
 // Javier, 03/10/2026. Lo ya guardado en la caché se sirve siempre.
@@ -183,12 +178,7 @@ async function guardarEnCache(fila) {
 
 // ─── Gemini ─────────────────────────────────────────────────────────────
 
-function costeEnEuros(uso) {
-  const p = PRECIOS_USD[MODELO];
-  const entrada = uso?.promptTokenCount || 0;
-  const salida = (uso?.candidatesTokenCount || 0) + (uso?.thoughtsTokenCount || 0);
-  return ((entrada * p.entrada + salida * p.salida) / 1e6) * DOLAR_A_EURO;
-}
+const costeEnEuros = uso => M.costeEnEuros(MODELO, uso); // v3.1
 
 async function llamarGemini(sistema, mensaje, json) {
   const body = {
