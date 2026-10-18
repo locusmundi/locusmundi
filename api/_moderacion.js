@@ -1,4 +1,7 @@
 // api/_moderacion.js — Locus Mundi
+// Versión 1.4 · 18/10/2026 · Fase B2, punto 12 (conversación 9): el fusible diario de 5 € suma también
+// la traducción de la tarjeta al publicar (servicio 'traduccion_tarjeta', api/moderar.js v3.7), que
+// paga la plataforma. Nada más cambia.
 // Versión 1.3 · 17/10/2026 · Fase B2, punto 19 (c): modelo, precios y cambio, leídos de
 // api/_modelos.js. Sigue exportando MODELO_MODERACION, PRECIOS_USD, DOLAR_A_EURO y costeEnEuros
 // (compatibilidad con moderar.js v3.5). Nada más cambia.
@@ -60,10 +63,11 @@ function inicioDeHoy() {
 
 // ─── Gasto, límites y fusible (registro_gasto, §11.6) ───────────────────
 
-// Lo gastado hoy en moderación (texto e imágenes), para el fusible de 5 €.
+// Lo gastado hoy en moderación (texto e imágenes) y, desde la v1.4, en traducir tarjetas al
+// publicar, para el fusible de 5 €.
 async function gastoModeracionDeHoy() {
   const filas = await leerFilas(
-    `registro_gasto?servicio=in.(moderacion_texto,moderacion_imagen)&fecha=gte.${inicioDeHoy()}` +
+    `registro_gasto?servicio=in.(moderacion_texto,moderacion_imagen,traduccion_tarjeta)&fecha=gte.${inicioDeHoy()}` +
     `&select=coste_euros&limit=100000`
   );
   return filas.reduce((n, f) => n + (Number(f.coste_euros) || 0), 0);

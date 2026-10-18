@@ -1,4 +1,17 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.7 · 18/10/2026 · Tarjeta traducida (Fase B2, punto 12; Continuidad, sesión
+// "18/10/2026 (conversación 9: tarjeta traducida)"). Decisiones de Javier (conversación 8, 5 a y b):
+//   - Tras publicar, en la misma subida, la tarjeta (título, subtítulo, país, ciudad, profesión y
+//     concepto) se traduce UNA vez a los 14 idiomas de la web (IDIOMAS_WEB) en una sola llamada;
+//     el extracto, solo al inglés (lo único que se muestra; la búsqueda no mira el extracto).
+//     El nombre del Autor no se traduce.
+//   - Se guarda en publicaciones.tarjeta_traducida (solo del servidor), con la huella de la
+//     tarjeta original: si no cambió, no se traduce ni se gasta nada.
+//   - El disparador de publicaciones añade las 14 versiones a la búsqueda y vacía la traducción
+//     si cambia la tarjeta sin traducirla a la vez (también con "Modificar").
+//   - Nunca tumba la publicación: si falla, salta el fusible o no queda tiempo, el libro queda
+//     publicado y la tarjeta se ve en su idioma original hasta la siguiente subida.
+//   - Gasto anotado en registro_gasto ('traduccion_tarjeta'). Modelo: M.MODELOS.traduccion.
 // Versión 3.6 · 16/10/2026 · Criterio de salud e identificación (Fase B2, punto 21; Continuidad,
 // sesión "16/10/2026 (conversación 4: criterio)"). Decisiones de Javier, tras la consulta jurídica:
 //   - Salud de terceros: pasa la dolencia corriente que no marca a la persona (infarto, covid, una
@@ -151,6 +164,16 @@ const IDIOMAS = {
   PT: 'Portuguese', NL: 'Dutch', PL: 'Polish', RO: 'Romanian', RU: 'Russian', AR: 'Arabic',
   ZH: 'Chinese', JA: 'Japanese', KO: 'Korean', HI: 'Hindi'
 };
+
+// v3.7: los 14 idiomas de la web (LANGS_UI de index.html). Si un día hay más, se amplía aquí y
+// se cambia VERSION_TARJETA: cada tarjeta se retraduce en su siguiente subida.
+const IDIOMAS_WEB = ['ES', 'EN', 'FR', 'DE', 'IT', 'PT-PT', 'PT-BR', 'ZH', 'AR', 'JA', 'RU', 'HI', 'GL', 'CA'];
+const VERSION_TARJETA = 'tarjeta-2026-10-18';
+const CAMPOS_TARJETA = ['title', 'subtitle', 'country', 'pubCity', 'pubProfession', 'pubConcept'];
+const MODELO_TARJETA = M.MODELOS.traduccion;
+const MAX_CAMPO_TARJETA = 400;
+// Si la subida ya ha gastado más que esto, no se empieza la traducción (límite de 60 s).
+const TIEMPO_MAX_PARA_TARJETA_MS = 40 * 1000;
 
 // ─── Instrucciones de la IA (criterio de §4.4; §11.4 y §11.13, punto 8) ──
 
@@ -522,6 +545,120 @@ async function enParalelo(items, n, plazo, fn) {
   return { hechos, fallos, quedan: items.length - hechos.length - fallos.length };
 }
 
+// ─── Tarjeta traducida (v3.7) ───────────────────────────────────────────
+
+const ESQUEMA_TARJETA = {
+  type: 'OBJECT',
+  properties: {
+    idiomas: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          codigo: { type: 'STRING' },
+          title: { type: 'STRING' }, subtitle: { type: 'STRING' }, country: { type: 'STRING' },
+          pubCity: { type: 'STRING' }, pubProfession: { type: 'STRING' }, pubConcept: { type: 'STRING' },
+          extracto: { type: 'STRING' }
+        },
+        required: ['codigo']
+      }
+    }
+  },
+  required: ['idiomas']
+};
+
+function instruccionesTarjeta(idioma, destinos, campos) {
+  const lengua = IDIOMAS[idioma] || 'the language of the text';
+  return [
+    'You translate the library card of a published autobiography. The card is written in ' + lengua + '.',
+    'Translate it into each of these languages (codes): ' + destinos.map(d => `${d} (${IDIOMAS[d]})`).join(', ') + '.',
+    'Fields: ' + campos.join(', ') + '. "pubCity" is a city or place: use its usual name in each language (exonym) if it has one, otherwise keep it. "country" is a country name. "extracto" is the opening of the book, cut short; keep its final "…" and translate it ONLY for EN.',
+    'Translate faithfully and naturally, as a publisher would for a book card: no additions, no explanations, no quotation marks that are not in the original. Keep proper names of people unchanged.',
+    'Return only JSON: {"idiomas": [ {"codigo": "EN", "title": "...", ...} ]}, one item per language code, with exactly the fields given (and "extracto" only in EN).'
+  ].join('\n');
+}
+
+// Tarjeta original: los campos de la ficha publicada que no estén vacíos, y el extracto que se ve.
+function tarjetaOriginal(titulo, contenido, extracto) {
+  const t = {};
+  const valor = k => String((k === 'title' ? (titulo || contenido.title) : contenido[k]) || '').trim();
+  for (const k of CAMPOS_TARJETA) if (valor(k)) t[k] = valor(k).slice(0, MAX_CAMPO_TARJETA);
+  if (String(extracto || '').trim()) t.extracto = String(extracto).trim().slice(0, MAX_CAMPO_TARJETA);
+  return t;
+}
+
+// Valida la respuesta: solo los idiomas pedidos, solo los campos de la tarjeta original, texto plano.
+function tarjetaValida(json, destinos, original) {
+  const lista = json && Array.isArray(json.idiomas) ? json.idiomas : null;
+  if (!lista) return null;
+  const idiomas = {};
+  for (const item of lista) {
+    const cod = String(item && item.codigo || '').toUpperCase();
+    if (!destinos.includes(cod) || idiomas[cod]) continue;
+    const o = {};
+    for (const k of Object.keys(original)) {
+      if (k === 'extracto' && cod !== 'EN') continue;
+      const v = String(item[k] == null ? '' : item[k]).replace(/\s+/g, ' ').trim();
+      if (v) o[k] = v.slice(0, MAX_CAMPO_TARJETA);
+    }
+    if (Object.keys(o).length) idiomas[cod] = o;
+  }
+  // Mínimo exigido: el inglés (lo que se ve) y casi todos los demás.
+  if (destinos.includes('EN') && !idiomas.EN) return null;
+  if (Object.keys(idiomas).length < Math.ceil(destinos.length * 0.8)) return null;
+  return idiomas;
+}
+
+// Nunca lanza: lo peor que pasa es que la tarjeta se vea solo en su idioma original.
+async function traducirTarjeta(historiaId, autorId, idioma, titulo, contenido, fechaActualizacion, inicio) {
+  try {
+    const fila = (await leer(
+      `publicaciones?historia_id=eq.${historiaId}&select=extracto,extracto_elegido,tarjeta_traducida&limit=1`
+    ))[0];
+    if (!fila) return 'sin_fila';
+    const original = tarjetaOriginal(titulo, contenido, fila.extracto_elegido || fila.extracto);
+    if (!Object.keys(original).length) return 'vacia';
+    const huella = crypto.createHash('sha256')
+      .update(JSON.stringify({ v: VERSION_TARJETA, idioma, original })).digest('hex');
+    if (fila.tarjeta_traducida && fila.tarjeta_traducida.huella === huella) return 'igual';
+
+    if (Date.now() - inicio > TIEMPO_MAX_PARA_TARJETA_MS) return 'sin_tiempo';
+    if (await mod.fusibleSaltado()) return 'fusible';
+
+    const destinos = IDIOMAS_WEB.filter(d => d !== idioma);
+    const campos = Object.keys(original);
+    let coste = 0;
+    let idiomas = null;
+    for (let intento = 0; intento < 2 && !idiomas; intento++) {
+      if (intento && Date.now() - inicio > TIEMPO_MAX_PARA_TARJETA_MS) break;
+      try {
+        const r = await mod.llamarGeminiJson({
+          modelo: MODELO_TARJETA, sistema: instruccionesTarjeta(idioma, destinos, campos), temperatura: 0,
+          partes: [{ text: JSON.stringify(original) }], esquema: ESQUEMA_TARJETA
+        });
+        coste += r.coste || 0;
+        if (!r.bloqueo) idiomas = tarjetaValida(r.json, destinos, original);
+      } catch (e) {
+        coste += e.coste || 0;
+        console.error('moderar: traducción de la tarjeta', e.message);
+      }
+    }
+    await mod.anotarGasto('traduccion_tarjeta', autorId, historiaId, coste,
+      { version: VERSION_TARJETA, idiomas: idiomas ? Object.keys(idiomas).length : 0, fallo: !idiomas });
+    if (!idiomas) return 'fallo';
+
+    // Solo si nadie ha vuelto a publicar entretanto (misma fecha de actualización).
+    await actualizar(
+      `publicaciones?historia_id=eq.${historiaId}&fecha_actualizacion=eq.${encodeURIComponent(fechaActualizacion)}`,
+      { tarjeta_traducida: { huella, version: VERSION_TARJETA, modelo: MODELO_TARJETA, fecha: new Date().toISOString(), idiomas } }
+    );
+    return 'traducida';
+  } catch (e) {
+    console.error('moderar: tarjeta traducida', e.message);
+    return 'error';
+  }
+}
+
 // ─── Subir ──────────────────────────────────────────────────────────────
 
 async function subir(body, autorId, ip, res) {
@@ -597,7 +734,7 @@ async function subir(body, autorId, ip, res) {
     }
   }
   const anotarSubida = (detalle) => mod.anotarGasto('subida', autorId, h.id, 0, {
-    version: 'moderar v3.6', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
+    version: 'moderar v3.7', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
   });
 
   // 6. Imágenes sin revisar (§5.2): la portada y las fotos colocadas.
@@ -726,7 +863,10 @@ async function subir(body, autorId, ip, res) {
       historia_id: h.id, fecha: new Date().toISOString(), resultado: 'publicado', pasajes: [], aviso_enviado_en: null
     }, 'historia_id');
   } catch (e) { console.error('moderar: moderaciones', e.message); }
-  await anotarSubida({ resultado: 'publicado', nueva: !!publicado.nueva });
+  // 12 bis (v3.7). La tarjeta traducida: nunca tumba la publicación.
+  const tarjeta = await traducirTarjeta(h.id, autorId, idioma, String(h.titulo || ''), contenido,
+    publicado.fecha_actualizacion, inicio);
+  await anotarSubida({ resultado: 'publicado', nueva: !!publicado.nueva, tarjeta });
   try {
     await insertar('registro_lssi', { autor_id: autorId, accion: 'publicacion', ip });
   } catch (e) { console.error('moderar: registro_lssi', e.message); }
