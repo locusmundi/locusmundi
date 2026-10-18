@@ -1,4 +1,7 @@
 // api/_moderacion.js — Locus Mundi
+// Versión 1.5 · 18/10/2026 · llamarGeminiJson admite un parámetro opcional "maxTokens" (tope de la
+// respuesta, maxOutputTokens). Lo usa la tarjeta traducida de api/moderar.js v3.8, tras el TEST real
+// (una respuesta sin tope se alargó hasta el máximo de Google: 2 minutos y 0,15 €). Sin él, todo igual.
 // Versión 1.4 · 18/10/2026 · Fase B2, punto 12 (conversación 9): el fusible diario de 5 € suma también
 // la traducción de la tarjeta al publicar (servicio 'traduccion_tarjeta', api/moderar.js v3.7), que
 // paga la plataforma. Nada más cambia.
@@ -135,14 +138,15 @@ const MOTIVOS_DE_BLOQUEO = ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'IMAGE_
 //   bloqueo = null, o { motivo, categorias } si Google se ha negado a responder.
 //   json = null si la respuesta no se ha podido leer (y no es un bloqueo).
 // Lanza un error solo si Gemini falla (red, 5xx…): eso no es un veredicto.
-async function llamarGeminiJson({ modelo, sistema, partes, esquema, temperatura }) {
+async function llamarGeminiJson({ modelo, sistema, partes, esquema, temperatura, maxTokens }) {
   const body = {
     system_instruction: { parts: [{ text: sistema }] },
     contents: [{ role: 'user', parts: partes }],
     generationConfig: {
       responseMimeType: 'application/json',
       ...(esquema ? { responseSchema: esquema } : {}),
-      ...(typeof temperatura === 'number' ? { temperature: temperatura } : {})
+      ...(typeof temperatura === 'number' ? { temperature: temperatura } : {}),
+      ...(typeof maxTokens === 'number' ? { maxOutputTokens: maxTokens } : {})
     },
     safetySettings: SIN_FILTROS
   };
