@@ -1,4 +1,11 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.8 · 18/10/2026 · Corrige la tarjeta traducida de la v3.7 tras el TEST real: la respuesta
+// (una lista sin límite) se alargó hasta el máximo de Google (2 minutos, 0,15 €, ilegible). Ahora:
+//   - La respuesta es un objeto con un apartado fijo por idioma y campos fijos (no una lista): no
+//     puede repetirse sin fin.
+//   - Tope de respuesta (MAX_TOKENS_TARJETA, con _moderacion.js v1.5): como mucho unos 2 céntimos.
+//   - Un solo intento por subida (la siguiente subida vuelve a intentarlo).
+//   - Temperatura por defecto (a 0, un texto largo y repetitivo en 13 idiomas se atasca más).
 // Versión 3.7 · 18/10/2026 · Tarjeta traducida (Fase B2, punto 12; Continuidad, sesión
 // "18/10/2026 (conversación 9: tarjeta traducida)"). Decisiones de Javier (conversación 8, 5 a y b):
 //   - Tras publicar, en la misma subida, la tarjeta (título, subtítulo, país, ciudad, profesión y
@@ -547,25 +554,16 @@ async function enParalelo(items, n, plazo, fn) {
 
 // ─── Tarjeta traducida (v3.7) ───────────────────────────────────────────
 
-const ESQUEMA_TARJETA = {
-  type: 'OBJECT',
-  properties: {
-    idiomas: {
-      type: 'ARRAY',
-      items: {
-        type: 'OBJECT',
-        properties: {
-          codigo: { type: 'STRING' },
-          title: { type: 'STRING' }, subtitle: { type: 'STRING' }, country: { type: 'STRING' },
-          pubCity: { type: 'STRING' }, pubProfession: { type: 'STRING' }, pubConcept: { type: 'STRING' },
-          extracto: { type: 'STRING' }
-        },
-        required: ['codigo']
-      }
-    }
-  },
-  required: ['idiomas']
-};
+// v3.8: objeto con un apartado fijo por idioma y campos fijos (la v3.7 usaba una lista sin límite).
+function esquemaTarjeta(destinos, campos) {
+  const props = {};
+  for (const d of destinos) {
+    const cs = campos.filter(k => k !== 'extracto' || d === 'EN');
+    props[d] = { type: 'OBJECT', properties: Object.fromEntries(cs.map(k => [k, { type: 'STRING' }])), required: cs };
+  }
+  return { type: 'OBJECT', properties: props, required: destinos };
+}
+const MAX_TOKENS_TARJETA = 6000;
 
 function instruccionesTarjeta(idioma, destinos, campos) {
   const lengua = IDIOMAS[idioma] || 'the language of the text';
@@ -574,7 +572,7 @@ function instruccionesTarjeta(idioma, destinos, campos) {
     'Translate it into each of these languages (codes): ' + destinos.map(d => `${d} (${IDIOMAS[d]})`).join(', ') + '.',
     'Fields: ' + campos.join(', ') + '. "pubCity" is a city or place: use its usual name in each language (exonym) if it has one, otherwise keep it. "country" is a country name. "extracto" is the opening of the book, cut short; keep its final "…" and translate it ONLY for EN.',
     'Translate faithfully and naturally, as a publisher would for a book card: no additions, no explanations, no quotation marks that are not in the original. Keep proper names of people unchanged.',
-    'Return only JSON: {"idiomas": [ {"codigo": "EN", "title": "...", ...} ]}, one item per language code, with exactly the fields given (and "extracto" only in EN).'
+    'Return only JSON: one object per language code, {"EN": {"title": "...", ...}, "FR": {...}, ...}, each with exactly the fields given (and "extracto" only in EN). Each language once; nothing else.'
   ].join('\n');
 }
 
@@ -589,8 +587,10 @@ function tarjetaOriginal(titulo, contenido, extracto) {
 
 // Valida la respuesta: solo los idiomas pedidos, solo los campos de la tarjeta original, texto plano.
 function tarjetaValida(json, destinos, original) {
-  const lista = json && Array.isArray(json.idiomas) ? json.idiomas : null;
-  if (!lista) return null;
+  if (!json || typeof json !== 'object') return null;
+  // v3.8: objeto por idioma ({"EN": {...}}); se admite también la lista de la v3.7.
+  const lista = Array.isArray(json.idiomas) ? json.idiomas
+    : Object.entries(json).map(([codigo, o]) => ({ ...(o && typeof o === 'object' ? o : {}), codigo }));
   const idiomas = {};
   for (const item of lista) {
     const cod = String(item && item.codigo || '').toUpperCase();
@@ -629,12 +629,12 @@ async function traducirTarjeta(historiaId, autorId, idioma, titulo, contenido, f
     const campos = Object.keys(original);
     let coste = 0;
     let idiomas = null;
-    for (let intento = 0; intento < 2 && !idiomas; intento++) {
-      if (intento && Date.now() - inicio > TIEMPO_MAX_PARA_TARJETA_MS) break;
+    for (let intento = 0; intento < 1 && !idiomas; intento++) { // v3.8: un solo intento
       try {
         const r = await mod.llamarGeminiJson({
-          modelo: MODELO_TARJETA, sistema: instruccionesTarjeta(idioma, destinos, campos), temperatura: 0,
-          partes: [{ text: JSON.stringify(original) }], esquema: ESQUEMA_TARJETA
+          modelo: MODELO_TARJETA, sistema: instruccionesTarjeta(idioma, destinos, campos),
+          partes: [{ text: JSON.stringify(original) }], esquema: esquemaTarjeta(destinos, campos),
+          maxTokens: MAX_TOKENS_TARJETA
         });
         coste += r.coste || 0;
         if (!r.bloqueo) idiomas = tarjetaValida(r.json, destinos, original);
@@ -734,7 +734,7 @@ async function subir(body, autorId, ip, res) {
     }
   }
   const anotarSubida = (detalle) => mod.anotarGasto('subida', autorId, h.id, 0, {
-    version: 'moderar v3.7', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
+    version: 'moderar v3.8', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
   });
 
   // 6. Imágenes sin revisar (§5.2): la portada y las fotos colocadas.
