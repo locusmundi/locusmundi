@@ -1911,7 +1911,13 @@ function FaqItem({q,a}) {
   );
 }
 
-function AutoCard({a,onClick,t}) {
+function AutoCard({a:a0,onClick,t,lang}) {
+  // [P12 C9 18/10/2026] Tarjeta traducida: con la web en inglés, la versión inglesa (api/moderar.js v3.7,
+  // publicaciones.tarjeta_traducida); campo a campo, lo que falte se ve en el original. El nombre, nunca.
+  const en = (lang==="EN" && a0.lang!=="EN" && a0.en) ? a0.en : null;
+  const a = en ? {...a0, title:en.title||a0.title, subtitle:en.subtitle||a0.subtitle, country:en.country||a0.country,
+    preview:en.extracto||a0.preview, city:en.pubCity||a0.city, profession:en.pubProfession||a0.profession,
+    concept:en.pubConcept||a0.concept} : a0;
   // Muestras de SAMPLE: su propio número (id 1–4). Libros reales: historias.numero_autor (04/10/2026).
   const raw = ("numero" in a) ? a.numero : a.id;
   const num = raw==null ? "—" : String(raw).padStart(4,"0");
@@ -1983,7 +1989,7 @@ function Header({view,setView:setViewRaw,lang,setLang,t,fsStep,setFsStep,fsSteps
   );
 }
 
-function Home({recientes,cifras,openAuto,setView,t}) {
+function Home({recientes,cifras,openAuto,setView,t,lang}) {
   // Solo los 3 publicados más recientes (04/10/2026), por fecha de publicación.
   // [P12 18/10/2026] Los 3 llegan ya ordenados del servidor (función biblioteca, sin el texto) y las
   // cifras se cuentan en el servidor (api/contador-historias.js v7); mientras llegan, "—".
@@ -2011,7 +2017,7 @@ function Home({recientes,cifras,openAuto,setView,t}) {
       <section className="sec">
         <div className="sec-lbl">{t.recent_lbl}</div>
         <div className="sec-h">{t.recent_h}</div>
-        <div className="grid grid-3">{recientes.map(a=><AutoCard key={a.id} a={a} onClick={()=>openAuto(a)} t={t}/>)}</div>
+        <div className="grid grid-3">{recientes.map(a=><AutoCard key={a.id} a={a} onClick={()=>openAuto(a)} t={t} lang={lang}/>)}</div>
         <div style={{textAlign:"center",marginTop:"1.8rem"}}>
           <button className="btn-navy-fill" onClick={()=>setView("library")}>{t.see_all}</button>
         </div>
@@ -2037,7 +2043,7 @@ function Home({recientes,cifras,openAuto,setView,t}) {
 // página por clave); buscador en el servidor sobre la ficha (nombre, título, subtítulo, país, ciudad,
 // profesión, concepto; nunca el texto), sin acentos ni mayúsculas, trozos de palabra, todas las palabras;
 // filtro de idioma. Antes: descargaba todos los libros enteros y buscaba en el navegador.
-function Library({cifras,openAuto,t}) {
+function Library({cifras,openAuto,t,lang}) {
   const [q,setQ]=useState("");
   const [idioma,setIdioma]=useState("");
   const [items,setItems]=useState([]);
@@ -2081,7 +2087,7 @@ function Library({cifras,openAuto,t}) {
           {LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
       </div>
-      {items.length>0&&<div className="grid">{items.map(a=><AutoCard key={a.id} a={a} onClick={()=>openAuto(a)} t={t}/>)}</div>}
+      {items.length>0&&<div className="grid">{items.map(a=><AutoCard key={a.id} a={a} onClick={()=>openAuto(a)} t={t} lang={lang}/>)}</div>}
       {items.length===0&&!cargando&&<p style={{fontFamily:"var(--body)",color:"var(--muted)",fontStyle:"italic"}}>{t.no_results}</p>}
       {cargando&&<p style={{fontFamily:"var(--body)",color:"var(--muted)",fontStyle:"italic",textAlign:"center",marginTop:"1.2rem"}}>{t.lib_loading}</p>}
       {!cargando&&hayMas&&<div style={{textAlign:"center",marginTop:"1.8rem"}}><button className="btn-navy-fill" onClick={verMas}>{t.lib_more}</button></div>}
@@ -3806,6 +3812,7 @@ function fichaToAuto(row){
     text: null,
     tags: ["memoria"],
     city: c.pubCity || "", profession: c.pubProfession || "", concept: c.pubConcept || "",
+    en: (c.traduccion_en && typeof c.traduccion_en==="object") ? c.traduccion_en : null, // [P12 C9] tarjeta inglesa
     cursor: { p: row.prioridad ?? 0, f: row.fecha_publicacion, id: row.historia_id } // paso de página por clave
   };
 }
@@ -6939,9 +6946,9 @@ function App() {
       {linkMsg==="opening"
         ? <div className="read-wrap fu"><p style={{fontFamily:"var(--body)",fontSize:"0.95rem",color:"var(--muted)",textAlign:"center",margin:"3rem 0"}}>{t.link_opening}</p></div>
         : <>
-          {view==="home"&&<Home recientes={recientes} cifras={cifras} openAuto={open} setView={setView} t={t}/>}
+          {view==="home"&&<Home recientes={recientes} cifras={cifras} openAuto={open} setView={setView} t={t} lang={lang}/>}
           {view==="library"&&linkMsg==="missing"&&<div role="status" style={{maxWidth:"760px",margin:"1.2rem auto 0",padding:"0.7rem 0.9rem",background:"var(--bg3)",borderLeft:"3px solid var(--gold)",fontFamily:"var(--body)",fontSize:"0.9rem",color:"var(--ink)"}}>{t.link_missing}</div>}
-          {view==="library"&&<Library cifras={cifras} openAuto={open} t={t}/>}
+          {view==="library"&&<Library cifras={cifras} openAuto={open} t={t} lang={lang}/>}
           {view==="read"&&<Read auto={sel} setView={setView} t={t} volverEditor={desdeEditor?()=>{setView("write");window.scrollTo(0,0);}:null}/>}
         </>}
       {view==="write"&&<Write setView={setView} onPublish={()=>{}} onUnpublish={()=>{}} t={t} lang={lang} onLegal={()=>setShowLegal("condiciones")} recoveryMode={recoveryMode} onRecoveryDone={()=>setRecoveryMode(false)} enlaceCorreo={enlaceCorreo} onVerBiblioteca={verDesdeEditor}/>}
