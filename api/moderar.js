@@ -1,4 +1,10 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.9 · 19/10/2026 · Lista cerrada de países (Fase B2, punto 10; Continuidad, sesión
+// "19/10/2026 (conversación 10: lista cerrada de países)"). Único cambio: la copia a lo publicado
+// lleva también 'countryCode' (código fijo de dos letras, tabla paises de Supabase), en
+// mayúsculas; si no tiene forma de código (dos letras A–Z), no se copia. Un código bien formado
+// pero inexistente no hace daño: el disparador de la búsqueda no le encuentra nombres y la web
+// no lo muestra. Nada más cambia (moderación, tarjeta traducida, límites).
 // Versión 3.8 · 18/10/2026 · Corrige la tarjeta traducida de la v3.7 tras el TEST real: la respuesta
 // (una lista sin límite) se alargó hasta el máximo de Google (2 minutos, 0,15 €, ilegible). Ahora:
 //   - La respuesta es un objeto con un apartado fijo por idioma y campos fijos (no una lista): no
@@ -156,7 +162,7 @@ const REVISIONES_A_LA_VEZ = 6;
 // Decisión 9: lo único del contenido del editor que se copia a lo publicado.
 const CAMPOS_PUBLICADOS = [
   'name', 'born', 'country', 'lang', 'title', 'subtitle', 'text',
-  'pubCity', 'pubProfession', 'pubConcept'
+  'pubCity', 'pubProfession', 'pubConcept', 'countryCode' // v3.9: código fijo del país
 ];
 
 // Campos de texto libre publicados que se revisan como "cabecera" (con los pies de foto).
@@ -734,7 +740,7 @@ async function subir(body, autorId, ip, res) {
     }
   }
   const anotarSubida = (detalle) => mod.anotarGasto('subida', autorId, h.id, 0, {
-    version: 'moderar v3.8', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
+    version: 'moderar v3.9', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
   });
 
   // 6. Imágenes sin revisar (§5.2): la portada y las fotos colocadas.
@@ -836,6 +842,11 @@ async function subir(body, autorId, ip, res) {
   // 10. La copia: lista cerrada de campos y solo las fotos colocadas.
   const contenido = {};
   for (const k of CAMPOS_PUBLICADOS) if (c[k] !== undefined) contenido[k] = c[k];
+  // v3.9: el código del país, solo con forma de código (dos letras); si no, fuera.
+  if (contenido.countryCode !== undefined) {
+    const cc = String(contenido.countryCode || '').trim().toUpperCase();
+    if (/^[A-Z]{2}$/.test(cc)) contenido.countryCode = cc; else delete contenido.countryCode;
+  }
   contenido.fotos = fotosPub.map(f => ({ id: f.id, orden: f.orden, url: f.url, pie_foto: f.pie_foto || '' }));
 
   // 11. Publicar de una sola vez (bloquea el libro; todo o nada).
