@@ -813,6 +813,90 @@ const LANGS_UI = [
 // Idioma del libro (04/10/2026, tarde): etiqueta para el navegador (corrector) y nombre en el idioma de la interfaz.
 const LANG_TAG = {ES:"es",EN:"en",FR:"fr",DE:"de",IT:"it","PT-PT":"pt-PT","PT-BR":"pt-BR",PT:"pt",ZH:"zh",AR:"ar",JA:"ja",RU:"ru",HI:"hi",GL:"gl",CA:"ca"};
 function bookLangTag(code){ return LANG_TAG[String(code||"ES").toUpperCase()]||"es"; }
+// [P10 19/10/2026] Lista cerrada de países (Fase B2, punto 10; Continuidad, sesión "19/10/2026
+// (conversación 10: lista cerrada de países)"). El país se guarda con un código fijo de dos letras
+// (contenido.countryCode), el MISMO de la tabla paises de Supabase (243: estándar ISO 3166-1 y
+// Kosovo, sin los territorios deshabitados), y su nombre (contenido.country), como antes. El nombre
+// se muestra siempre en el idioma de la web (Intl.DisplayNames del navegador; si no lo tiene, la
+// lista castellana o inglesa de abajo). Las regiones solo las usa la búsqueda, en Supabase.
+const PAISES_NOMBRES = {"ES":"AD:Andorra|AE:Emiratos Árabes Unidos|AF:Afganistán|AG:Antigua y Barbuda|AI:Anguila|AL:Albania|AM:Armenia|AO:Angola|AR:Argentina|AS:Samoa Americana|AT:Austria|AU:Australia|AW:Aruba|AX:Islas Aland|AZ:Azerbaiyán|BA:Bosnia y Herzegovina|BB:Barbados|BD:Bangladés|BE:Bélgica|BF:Burkina Faso|BG:Bulgaria|BH:Baréin|BI:Burundi|BJ:Benín|BL:San Bartolomé|BM:Bermudas|BN:Brunéi|BO:Bolivia|BQ:Caribe neerlandés|BR:Brasil|BS:Bahamas|BT:Bután|BW:Botsuana|BY:Bielorrusia|BZ:Belice|CA:Canadá|CC:Islas Cocos|CD:República Democrática del Congo|CF:República Centroafricana|CG:Congo|CH:Suiza|CI:Côte d’Ivoire|CK:Islas Cook|CL:Chile|CM:Camerún|CN:China|CO:Colombia|CR:Costa Rica|CU:Cuba|CV:Cabo Verde|CW:Curazao|CX:Isla de Navidad|CY:Chipre|CZ:Chequia|DE:Alemania|DJ:Yibuti|DK:Dinamarca|DM:Dominica|DO:República Dominicana|DZ:Argelia|EC:Ecuador|EE:Estonia|EG:Egipto|EH:Sáhara Occidental|ER:Eritrea|ES:España|ET:Etiopía|FI:Finlandia|FJ:Fiyi|FK:Islas Malvinas|FM:Micronesia|FO:Islas Feroe|FR:Francia|GA:Gabón|GB:Reino Unido|GD:Granada|GE:Georgia|GF:Guayana Francesa|GG:Guernesey|GH:Ghana|GI:Gibraltar|GL:Groenlandia|GM:Gambia|GN:Guinea|GP:Guadalupe|GQ:Guinea Ecuatorial|GR:Grecia|GT:Guatemala|GU:Guam|GW:Guinea-Bisáu|GY:Guyana|HK:RAE de Hong Kong (China)|HN:Honduras|HR:Croacia|HT:Haití|HU:Hungría|ID:Indonesia|IE:Irlanda|IL:Israel|IM:Isla de Man|IN:India|IQ:Irak|IR:Irán|IS:Islandia|IT:Italia|JE:Jersey|JM:Jamaica|JO:Jordania|JP:Japón|KE:Kenia|KG:Kirguistán|KH:Camboya|KI:Kiribati|KM:Comoras|KN:San Cristóbal y Nieves|KP:Corea del Norte|KR:Corea del Sur|KW:Kuwait|KY:Islas Caimán|KZ:Kazajistán|LA:Laos|LB:Líbano|LC:Santa Lucía|LI:Liechtenstein|LK:Sri Lanka|LR:Liberia|LS:Lesoto|LT:Lituania|LU:Luxemburgo|LV:Letonia|LY:Libia|MA:Marruecos|MC:Mónaco|MD:Moldavia|ME:Montenegro|MF:San Martín|MG:Madagascar|MH:Islas Marshall|MK:Macedonia del Norte|ML:Mali|MM:Myanmar (Birmania)|MN:Mongolia|MO:RAE de Macao (China)|MP:Islas Marianas del Norte|MQ:Martinica|MR:Mauritania|MS:Montserrat|MT:Malta|MU:Mauricio|MV:Maldivas|MW:Malaui|MX:México|MY:Malasia|MZ:Mozambique|NA:Namibia|NC:Nueva Caledonia|NE:Níger|NF:Isla Norfolk|NG:Nigeria|NI:Nicaragua|NL:Países Bajos|NO:Noruega|NP:Nepal|NR:Nauru|NU:Niue|NZ:Nueva Zelanda|OM:Omán|PA:Panamá|PE:Perú|PF:Polinesia Francesa|PG:Papúa Nueva Guinea|PH:Filipinas|PK:Pakistán|PL:Polonia|PM:San Pedro y Miquelón|PN:Islas Pitcairn|PR:Puerto Rico|PS:Territorios Palestinos|PT:Portugal|PW:Palaos|PY:Paraguay|QA:Catar|RE:Reunión|RO:Rumanía|RS:Serbia|RU:Rusia|RW:Ruanda|SA:Arabia Saudí|SB:Islas Salomón|SC:Seychelles|SD:Sudán|SE:Suecia|SG:Singapur|SH:Santa Elena|SI:Eslovenia|SJ:Svalbard y Jan Mayen|SK:Eslovaquia|SL:Sierra Leona|SM:San Marino|SN:Senegal|SO:Somalia|SR:Surinam|SS:Sudán del Sur|ST:Santo Tomé y Príncipe|SV:El Salvador|SX:Sint Maarten|SY:Siria|SZ:Esuatini|TC:Islas Turcas y Caicos|TD:Chad|TG:Togo|TH:Tailandia|TJ:Tayikistán|TK:Tokelau|TL:Timor-Leste|TM:Turkmenistán|TN:Túnez|TO:Tonga|TR:Turquía|TT:Trinidad y Tobago|TV:Tuvalu|TW:Taiwán|TZ:Tanzania|UA:Ucrania|UG:Uganda|US:Estados Unidos|UY:Uruguay|UZ:Uzbekistán|VA:Ciudad del Vaticano|VC:San Vicente y las Granadinas|VE:Venezuela|VG:Islas Vírgenes Británicas|VI:Islas Vírgenes de EE. UU.|VN:Vietnam|VU:Vanuatu|WF:Wallis y Futuna|WS:Samoa|XK:Kosovo|YE:Yemen|YT:Mayotte|ZA:Sudáfrica|ZM:Zambia|ZW:Zimbabue","EN":"AD:Andorra|AE:United Arab Emirates|AF:Afghanistan|AG:Antigua & Barbuda|AI:Anguilla|AL:Albania|AM:Armenia|AO:Angola|AR:Argentina|AS:American Samoa|AT:Austria|AU:Australia|AW:Aruba|AX:Åland Islands|AZ:Azerbaijan|BA:Bosnia & Herzegovina|BB:Barbados|BD:Bangladesh|BE:Belgium|BF:Burkina Faso|BG:Bulgaria|BH:Bahrain|BI:Burundi|BJ:Benin|BL:St. Barthélemy|BM:Bermuda|BN:Brunei|BO:Bolivia|BQ:Caribbean Netherlands|BR:Brazil|BS:Bahamas|BT:Bhutan|BW:Botswana|BY:Belarus|BZ:Belize|CA:Canada|CC:Cocos (Keeling) Islands|CD:Congo - Kinshasa|CF:Central African Republic|CG:Congo - Brazzaville|CH:Switzerland|CI:Côte d’Ivoire|CK:Cook Islands|CL:Chile|CM:Cameroon|CN:China|CO:Colombia|CR:Costa Rica|CU:Cuba|CV:Cape Verde|CW:Curaçao|CX:Christmas Island|CY:Cyprus|CZ:Czechia|DE:Germany|DJ:Djibouti|DK:Denmark|DM:Dominica|DO:Dominican Republic|DZ:Algeria|EC:Ecuador|EE:Estonia|EG:Egypt|EH:Western Sahara|ER:Eritrea|ES:Spain|ET:Ethiopia|FI:Finland|FJ:Fiji|FK:Falkland Islands|FM:Micronesia|FO:Faroe Islands|FR:France|GA:Gabon|GB:United Kingdom|GD:Grenada|GE:Georgia|GF:French Guiana|GG:Guernsey|GH:Ghana|GI:Gibraltar|GL:Greenland|GM:Gambia|GN:Guinea|GP:Guadeloupe|GQ:Equatorial Guinea|GR:Greece|GT:Guatemala|GU:Guam|GW:Guinea-Bissau|GY:Guyana|HK:Hong Kong SAR China|HN:Honduras|HR:Croatia|HT:Haiti|HU:Hungary|ID:Indonesia|IE:Ireland|IL:Israel|IM:Isle of Man|IN:India|IQ:Iraq|IR:Iran|IS:Iceland|IT:Italy|JE:Jersey|JM:Jamaica|JO:Jordan|JP:Japan|KE:Kenya|KG:Kyrgyzstan|KH:Cambodia|KI:Kiribati|KM:Comoros|KN:St. Kitts & Nevis|KP:North Korea|KR:South Korea|KW:Kuwait|KY:Cayman Islands|KZ:Kazakhstan|LA:Laos|LB:Lebanon|LC:St. Lucia|LI:Liechtenstein|LK:Sri Lanka|LR:Liberia|LS:Lesotho|LT:Lithuania|LU:Luxembourg|LV:Latvia|LY:Libya|MA:Morocco|MC:Monaco|MD:Moldova|ME:Montenegro|MF:St. Martin|MG:Madagascar|MH:Marshall Islands|MK:North Macedonia|ML:Mali|MM:Myanmar (Burma)|MN:Mongolia|MO:Macao SAR China|MP:Northern Mariana Islands|MQ:Martinique|MR:Mauritania|MS:Montserrat|MT:Malta|MU:Mauritius|MV:Maldives|MW:Malawi|MX:Mexico|MY:Malaysia|MZ:Mozambique|NA:Namibia|NC:New Caledonia|NE:Niger|NF:Norfolk Island|NG:Nigeria|NI:Nicaragua|NL:Netherlands|NO:Norway|NP:Nepal|NR:Nauru|NU:Niue|NZ:New Zealand|OM:Oman|PA:Panama|PE:Peru|PF:French Polynesia|PG:Papua New Guinea|PH:Philippines|PK:Pakistan|PL:Poland|PM:St. Pierre & Miquelon|PN:Pitcairn Islands|PR:Puerto Rico|PS:Palestinian Territories|PT:Portugal|PW:Palau|PY:Paraguay|QA:Qatar|RE:Réunion|RO:Romania|RS:Serbia|RU:Russia|RW:Rwanda|SA:Saudi Arabia|SB:Solomon Islands|SC:Seychelles|SD:Sudan|SE:Sweden|SG:Singapore|SH:St. Helena|SI:Slovenia|SJ:Svalbard & Jan Mayen|SK:Slovakia|SL:Sierra Leone|SM:San Marino|SN:Senegal|SO:Somalia|SR:Suriname|SS:South Sudan|ST:São Tomé & Príncipe|SV:El Salvador|SX:Sint Maarten|SY:Syria|SZ:Eswatini|TC:Turks & Caicos Islands|TD:Chad|TG:Togo|TH:Thailand|TJ:Tajikistan|TK:Tokelau|TL:Timor-Leste|TM:Turkmenistan|TN:Tunisia|TO:Tonga|TR:Türkiye|TT:Trinidad & Tobago|TV:Tuvalu|TW:Taiwan|TZ:Tanzania|UA:Ukraine|UG:Uganda|US:United States|UY:Uruguay|UZ:Uzbekistan|VA:Vatican City|VC:St. Vincent & Grenadines|VE:Venezuela|VG:British Virgin Islands|VI:U.S. Virgin Islands|VN:Vietnam|VU:Vanuatu|WF:Wallis & Futuna|WS:Samoa|XK:Kosovo|YE:Yemen|YT:Mayotte|ZA:South Africa|ZM:Zambia|ZW:Zimbabwe"};
+const PAISES = PAISES_NOMBRES.ES.split("|").map(x=>x.slice(0,2));
+const PAISES_SET = new Set(PAISES);
+const _paisesFijos = {};
+const _paisesDN = {};
+function codigoPais(v){ const c=String(v||"").trim().toUpperCase(); return PAISES_SET.has(c)?c:""; }
+function nombrePais(code, lang){
+  const c=codigoPais(code); if(!c) return "";
+  const L=String(lang||"ES").toUpperCase();
+  try{
+    const tag=LANG_TAG[L]||"es";
+    if(!(tag in _paisesDN)) _paisesDN[tag]=(typeof Intl!=="undefined"&&Intl.DisplayNames)?new Intl.DisplayNames([tag],{type:"region"}):null;
+    const n=_paisesDN[tag]&&_paisesDN[tag].of(c);
+    if(n&&n!==c) return n;
+  }catch(e){}
+  const k=L==="EN"?"EN":"ES";
+  if(!_paisesFijos[k]) _paisesFijos[k]=Object.fromEntries(PAISES_NOMBRES[k].split("|").map(x=>[x.slice(0,2),x.slice(3)]));
+  return _paisesFijos[k][c]||c;
+}
+function textoComparable(s){
+  return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase()
+    .replace(/[.'’"()]/g,"").replace(/[-‐–—_,]/g," ").replace(/\s+/g," ").trim();
+}
+// Lista alfabética en el idioma de la web.
+const _paisesOrden = {};
+function listaPaises(lang){
+  const L=String(lang||"ES").toUpperCase();
+  if(!_paisesOrden[L]){
+    const tag=LANG_TAG[L]||"es";
+    _paisesOrden[L]=PAISES.map(c=>({c,n:nombrePais(c,L)}))
+      .sort((a,b)=>{ try{ return a.n.localeCompare(b.n,tag); }catch(e){ return a.n<b.n?-1:1; } });
+  }
+  return _paisesOrden[L];
+}
+// Un país escrito a mano (libros anteriores a la lista) → su código, si coincide sin mayúsculas ni
+// acentos con su nombre en alguno de los 14 idiomas o con un nombre corriente; si no, "" (el editor
+// pide al Autor que lo elija en la lista: propuesta de Javier, 04/10/2026).
+const PAISES_ALIAS = {"eeuu":"US","ee uu":"US","usa":"US","estados unidos de america":"US","united states of america":"US",
+  "holanda":"NL","inglaterra":"GB","gran bretana":"GB","uk":"GB","costa de marfil":"CI","birmania":"MM",
+  "republica checa":"CZ","czech republic":"CZ","rusia":"RU","corea":"KR","vaticano":"VA","palestina":"PS"};
+let _paisesTexto = null;
+function paisDesdeTexto(txt){
+  const t=textoComparable(txt); if(!t) return "";
+  if(!_paisesTexto){
+    _paisesTexto={...PAISES_ALIAS};
+    const idiomas=Object.keys(LANG_TAG);
+    for(const c of PAISES) for(const L of idiomas){ const k=textoComparable(nombrePais(c,L)); if(k&&!(k in _paisesTexto)) _paisesTexto[k]=c; }
+    for(const k of ["ES","EN"]) PAISES_NOMBRES[k].split("|").forEach(x=>{ const n=textoComparable(x.slice(3)); if(n&&!(n in _paisesTexto)) _paisesTexto[n]=x.slice(0,2); });
+  }
+  return _paisesTexto[t]||"";
+}
+// Contenido de un libro leído de Supabase: si el país está escrito y no tiene código, se le pone
+// si coincide con la lista (los libros ya publicados los normaliza una orden en Supabase).
+function conCodigoPais(c){
+  if(!c||codigoPais(c.countryCode)||!String(c.country||"").trim()) return {};
+  const cc=paisDesdeTexto(c.country);
+  return cc?{countryCode:cc}:{};
+}
+function tienePais(fv){ return !!codigoPais(fv&&fv.countryCode); }
+// Banderas: solo si el aparato sabe dibujarlas (Windows, por ejemplo, pone dos letras: "ES"); si
+// no, no se pone nada. Prueba: la bandera dibujada no debe ser igual que sus dos letras por separado.
+let _banderasOk = null;
+function banderasVisibles(){
+  if(_banderasOk!==null) return _banderasOk;
+  _banderasOk=false;
+  try{
+    const cv=document.createElement("canvas"); cv.width=64; cv.height=32;
+    const ctx=cv.getContext("2d"); if(!ctx) return false;
+    const pinta=s=>{ ctx.clearRect(0,0,64,32); ctx.font="24px sans-serif"; ctx.textBaseline="top"; ctx.fillStyle="#000"; ctx.fillText(s,0,2); return Array.from(ctx.getImageData(0,0,64,32).data).join(","); };
+    const junta=pinta("🇪🇸"), separada=pinta("🇪‌🇸");
+    _banderasOk = junta!==separada && /[1-9]/.test(junta);
+  }catch(e){ _banderasOk=false; }
+  return _banderasOk;
+}
+function banderaPais(code){
+  const c=codigoPais(code); if(!c||!banderasVisibles()) return "";
+  return String.fromCodePoint(...[...c].map(ch=>0x1F1E6+ch.charCodeAt(0)-65));
+}
 // Dictado (05/10/2026, Pendientes del Asistente §4.C): por defecto se escucha en el idioma del libro.
 const DICT_TAG = {ES:"es-ES",EN:"en-US",FR:"fr-FR",DE:"de-DE",IT:"it-IT","PT-PT":"pt-PT","PT-BR":"pt-BR",PT:"pt-PT",
   ZH:"zh-CN",AR:"ar-SA",JA:"ja-JP",RU:"ru-RU",HI:"hi-IN",GL:"gl-ES",CA:"ca-ES"};
@@ -1040,6 +1124,8 @@ const T = {
     ed_book_lang_confirm:"¿Tu libro está escrito en {idioma}? El Asistente te hablará y revisará tu texto en ese idioma, y la Biblioteca lo presentará así. Si solo escribes algún fragmento en otro idioma, no lo cambies.",
     ed_loading:"Cargando tu libro…",ed_saved_published:"Tus cambios ya están en la Biblioteca.",
     pub_country_needed:"Necesitamos tu país para publicar tu libro.",
+    pais_ph:"Escribe para buscar tu país…",pais_none:"Ningún país coincide.", // [P10]
+    pais_aviso:"Habías escrito «{x}». Elige tu país en la lista: se guardará el que elijas.",
     addon_pdf_unpub:"Podrás crear el archivo PDF de tu libro cuando lo publiques.",
     privacy_home_btn:"Ir al inicio",
     ed_blocks_h:"Orden del libro — sube, baja, renombra o borra. Si no divides, todo vive en el Capítulo 1.",
@@ -1464,6 +1550,8 @@ const T = {
     ed_book_lang_confirm:"Is your book written in {idioma}? The Assistant will talk to you and review your text in that language, and the Library will present it that way. If you only write the odd passage in another language, don't change it.",
     ed_loading:"Loading your book…",ed_saved_published:"Your changes are already in the Library.",
     pub_country_needed:"We need your country to publish your book.",
+    pais_ph:"Type to find your country…",pais_none:"No country matches.", // [P10]
+    pais_aviso:"You had written “{x}”. Choose your country from the list: the one you choose will be saved.",
     addon_pdf_unpub:"You'll be able to create the PDF of your book once you publish it.",
     privacy_home_btn:"Go to the home page",
     ed_blocks_h:"Book order — move up, down, rename or delete. If you don't split it, everything lives in Chapter 1.",
@@ -1926,7 +2014,7 @@ function AutoCard({a:a0,onClick,t,lang}) {
       {a.founder&&<div className="founder-ribbon">{t.card_founder}</div>}{/* [P16-B1-4] */}
       <div className="c-num">Nº {num}</div>
       {a.cover&&<img src={a.cover} className="card-cover" alt={a.title||a.name}/>}
-      <div className="c-meta"><span className="c-orig">{a.flag?a.flag+" ":""}{a.country}</span></div>
+      <div className="c-meta"><span className="c-orig">{a.flag?a.flag+" ":""}{nombrePais(a.countryCode,lang)||a.country}</span></div>
       <div className="c-name">{a.title||a.name}</div>
       {a.title&&<div style={{fontFamily:"var(--body)",fontSize:"0.92rem",fontWeight:"700",color:"var(--ink)",marginTop:"-0.2rem",marginBottom:"0.3rem"}}>{a.name}</div>}
       {a.subtitle&&<div style={{fontFamily:"var(--body)",fontSize:"0.78rem",fontStyle:"italic",color:"var(--muted)",marginBottom:"0.3rem"}}>{a.subtitle}</div>}
@@ -2123,7 +2211,7 @@ async function callTraducir(historia_id, idioma, parte){
   return d;
 }
 
-function Read({auto,setView,t,volverEditor}) { // [P16-B8] volverEditor: se llega desde el editor (móvil)
+function Read({auto,setView,t,volverEditor,uiLang}) { // [P16-B8] volverEditor: se llega desde el editor (móvil)
   const originalLang=auto&&LANGS_UI.find(l=>l.code===auto.lang);
   const otherLangs=auto?LANGS_UI.filter(l=>l.code!==auto.lang):LANGS_UI;
   // Solo los libros de Supabase se traducen; las muestras de SAMPLE (id numérico), no,
@@ -2254,7 +2342,7 @@ function Read({auto,setView,t,volverEditor}) { // [P16-B8] volverEditor: se lleg
       {auto.cover
         ? <img src={auto.cover} alt={title} className="r-cover"/>
         : (auto.flag?<div style={{fontSize:"1.8rem",marginBottom:"0.45rem"}}>{auto.flag}</div>:null)}{/* [P16-B1-5] */}
-      <div className="r-orig">{auto.country} · {langLabel}{extra}</div>
+      <div className="r-orig">{nombrePais(auto.countryCode,uiLang)||auto.country} · {langLabel}{extra}</div>
       <h1 className="r-name">{title}</h1>
       {subtitle&&<div className="r-sub">{subtitle}</div>}
       <div className="r-meta">{t.by_author} {auto.name}</div>
@@ -3772,7 +3860,8 @@ function publicacionToAuto(row){
     name: c.name || "",
     born: parseInt(c.born) || 0,
     country: c.country || "—",
-    flag: "", // [P16-B1-5] antes "🌍": el país es texto libre; las banderas, con la lista cerrada de países (Fase B2)
+    countryCode: codigoPais(c.countryCode), // [P10] el nombre se muestra en el idioma de la web
+    flag: banderaPais(c.countryCode), // [P10] solo donde se ve la bandera (antes "": el país era texto libre)
     lang: (row.idioma_original || c.lang || "ES").toUpperCase(),
     title: row.titulo || c.title || c.name || "",
     subtitle: c.subtitle || "",
@@ -3798,7 +3887,8 @@ function fichaToAuto(row){
     name: c.name || "",
     born: parseInt(c.born) || 0,
     country: c.country || "—",
-    flag: "",
+    countryCode: codigoPais(c.countryCode), // [P10]
+    flag: banderaPais(c.countryCode), // [P10]
     lang: (row.idioma_original || c.lang || "ES").toUpperCase(),
     title: row.titulo || c.title || c.name || "",
     subtitle: c.subtitle || "",
@@ -3828,7 +3918,7 @@ async function pedirTarjetas({q="", idioma="", limite=LIB_PAGE, tras=null}={}){
 }
 // Lista cerrada de lo que se copia a lo publicado: la MISMA que CAMPOS_PUBLICADOS de
 // api/moderar.js v1 (diseño §11.8, decisión 9). Si cambia allí, cambia aquí.
-const CAMPOS_PUBLICADOS=["name","born","country","lang","title","subtitle","text","pubCity","pubProfession","pubConcept"];
+const CAMPOS_PUBLICADOS=["name","born","country","lang","title","subtitle","text","pubCity","pubProfession","pubConcept","countryCode"]; // [P10] countryCode, con api/moderar.js v3.9
 // Forma comparable de una versión (la que se escribe o la publicada), para saber si hay
 // cambios sin subir. Mismos datos que copia api/moderar.js: título, campos de la lista,
 // portada, idioma y fotos con imagen (id, orden, url, pie), ordenadas por orden.
@@ -3888,6 +3978,32 @@ function Write({setView,onPublish,onUnpublish,t,lang,onLegal,recoveryMode,onReco
   </>);
 }
 
+// [P10 19/10/2026] Elección del país: lista alfabética en el idioma de la web, con búsqueda al
+// escribir (sin mayúsculas ni acentos). Guarda el código y el nombre. Si el libro trae un país
+// escrito a mano que no está en la lista, se avisa de que se cambiará por el que se elija.
+function PaisSelector({code,texto,lang,t,onChange}){
+  const [q,setQ]=useState(null); // null: no se está escribiendo
+  const ref=useRef(null);
+  const cc=codigoPais(code);
+  const visible=q!==null?q:(cc?nombrePais(cc,lang):"");
+  const qq=textoComparable(q||"");
+  const lista=q===null?[]:listaPaises(lang).filter(p=>!qq||textoComparable(p.n).includes(qq))
+    .sort((a,b)=>qq?(textoComparable(b.n).startsWith(qq)-textoComparable(a.n).startsWith(qq)):0);
+  const elegir=c=>{ setQ(null); onChange(c,nombrePais(c,lang)); if(ref.current) ref.current.blur(); };
+  return (<div>
+    <input ref={ref} className="inp" value={visible} placeholder={t.pais_ph} autoComplete="off"
+      onFocus={()=>setQ("")} onChange={e=>setQ(e.target.value)} onBlur={()=>setQ(null)}
+      onKeyDown={e=>{ if(e.key==="Enter"&&lista.length){ e.preventDefault(); elegir(lista[0].c); } else if(e.key==="Escape") e.target.blur(); }}/>
+    {q!==null&&<div style={{marginTop:"0.25rem",maxHeight:"230px",overflowY:"auto",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"6px",boxShadow:"0 6px 18px rgba(0,0,0,0.12)"}}>
+      {lista.length?lista.map(p=>{ const b=banderaPais(p.c); return (
+        <div key={p.c} onMouseDown={e=>{ e.preventDefault(); elegir(p.c); }}
+          style={{padding:"0.45rem 0.7rem",cursor:"pointer",fontFamily:"var(--body)",fontSize:"0.92rem",color:"var(--ink)",background:p.c===cc?"rgba(0,0,0,0.05)":"transparent"}}>
+          {b?b+" ":""}{p.n}</div>); })
+        :<div style={{padding:"0.45rem 0.7rem",fontFamily:"var(--body)",fontSize:"0.85rem",color:"var(--muted)"}}>{t.pais_none}</div>}
+    </div>}
+    {!cc&&String(texto||"").trim()&&<div style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"#8a5a00",marginTop:"0.3rem"}}>{(t.pais_aviso||"").replace("{x}",String(texto).trim())}</div>}
+  </div>);
+}
 function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLogout,onVerBiblioteca}) {
   // Un único libro por Autor: se carga (si existe) o se crea vacío, siempre bajo la misma
   // cuenta — nunca hay un botón para "crear otro libro".
@@ -3918,7 +4034,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     authorNumber:null,founder:false,blocks:[{id:crypto.randomUUID(),type:"chapter",title:"",num:1}],
     assistantActive:false,assistantTuUsted:null,assistantName:"",dictationLang:"",
     wizardDone:false,published:false,publishedId:null,
-    pubCity:"",pubProfession:"",pubConcept:""
+    pubCity:"",pubProfession:"",pubConcept:"",countryCode:""
   });
   const [fotosDb,setFotosDb]=useState([]); // filas reales de la tabla `fotos` (no viven en contenido/f)
   const fotoSaveTimers=useRef({}); // debounce del pie de foto, por id
@@ -3960,7 +4076,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
         const blocks = (c.blocks&&c.blocks.length?c.blocks:[{type:"chapter",title:"",num:1}])
           .map(b=>b.id?b:{...b,id:crypto.randomUUID()}); // bloques creados antes de tener id
         setF(p=>({
-          ...p, ...c,
+          ...p, ...c, ...conCodigoPais(c), // [P10] país escrito a mano → código, si está en la lista
           blocks,
           title: data.titulo || c.title || "",
           coverImg: data.portada_url || c.coverImg || null,
@@ -4080,7 +4196,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       revisionRef.current = Number(data.revision)||0;
       skipNextSaveRef.current = true; // la recarga no se vuelve a guardar
       historyRef.current = [];        // "↺ Deshacer" no debe devolver el texto retirado
-      setF(p=>({ ...p, ...c, blocks:(c.blocks&&c.blocks.length?c.blocks:p.blocks),
+      setF(p=>({ ...p, ...c, ...conCodigoPais(c), blocks:(c.blocks&&c.blocks.length?c.blocks:p.blocks),
         title: data.titulo || c.title || "", coverImg: data.portada_url || null }));
       const { data: pubData } = await supa.from("publicaciones").select(PUB_SELECT).eq("historia_id", id).maybeSingle();
       setPubRow(pubData || null);
@@ -5155,7 +5271,7 @@ ${capituloActual}
     const fv=fvIn||f;
     if(subiendo) return false;
     setSubirError("");
-    if(!fv.name||!fv.text||!String(fv.country||"").trim()){ setSubirError(mensajeSubir("FALTAN_DATOS")); return false; }
+    if(!fv.name||!fv.text||!tienePais(fv)){ setSubirError(mensajeSubir("FALTAN_DATOS")); return false; } // [P10] país de la lista
     if(pendingPhoto){ setSubirError(mensajeSubir("FOTO_SUBIENDO")); return false; }
     setSubiendo(true); setSubidaProgreso(null);
     try{
@@ -5479,12 +5595,12 @@ ${capituloActual}
   // de "Guardar y salir") o modo "editar" (línea "Tu ficha en la Biblioteca"). Original:
   // startUpload abría la ventana de "Guardar y salir" en el paso "fields".
   const [ficha,setFicha]=useState(null); // null | {modo:"publicar"|"editar", desde, d:{country,born,pubCity,pubProfession,pubConcept}}
-  const CAMPOS_FICHA=["country","born","pubCity","pubProfession","pubConcept"];
+  const CAMPOS_FICHA=["country","born","pubCity","pubProfession","pubConcept","countryCode"]; // [P10] + countryCode
   const abrirFicha=(modo,desde)=>{ setSubirError(""); const d={}; CAMPOS_FICHA.forEach(k=>d[k]=String(f[k]==null?"":f[k])); setFicha({modo,desde,d}); };
   const fichaDe=(fv)=>({...fv,...Object.fromEntries(CAMPOS_FICHA.map(k=>[k,ficha.d[k]]))});
   const guardarFicha=()=>{ if(!ficha) return; setF(p=>fichaDe(p)); setFicha(null); };
   const subirDesdeFicha=async()=>{
-    if(!ficha||!String(ficha.d.country||"").trim()) return;
+    if(!ficha||!tienePais(ficha.d)) return;
     const nf={...fichaDe(f),fichaConfirmada:true}; // se anota en el libro: no vuelve a preguntarse
     setF(nf);
     const desde=ficha.desde;
@@ -5493,7 +5609,7 @@ ${capituloActual}
   };
   // El formulario sale solo si falta el país o si el Autor nunca lo ha confirmado (un libro ya
   // publicado lo confirmó en su primera subida).
-  const pideFicha=(fv)=>!String(fv.country||"").trim() || (!fv.publishedId && !fv.fichaConfirmada);
+  const pideFicha=(fv)=>!tienePais(fv) || (!fv.publishedId && !fv.fichaConfirmada); // [P10] país de la lista
   // "Subir a la Biblioteca": la primera vez (o si falta el país) pide la ficha; después, directo.
   const startUpload=(desde)=>{
     if(!pideFicha(f)) publish(desde);
@@ -5889,7 +6005,7 @@ ${capituloActual}
           <div className="fld"><label className="lbl">{t.f_born}</label><input className="inp" type="number" placeholder="Ej. 1960" value={f.born} onChange={e=>up("born",e.target.value)}/></div>
         </div>
         <div className="frow">
-          <div className="fld"><label className="lbl">{t.f_country}</label><input className="inp" value={f.country} onChange={e=>up("country",e.target.value)}/></div>
+          <div className="fld"><label className="lbl">{t.f_country}</label><PaisSelector code={f.countryCode} texto={f.country} lang={lang} t={t} onChange={(c,n)=>setF(p=>({...p,countryCode:c,country:n}))}/></div>
           <div className="fld"><label className="lbl">{t.f_lang}</label><select className="inp" value={f.lang} onChange={e=>up("lang",e.target.value)}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select></div>
         </div>
         <div className="fld">
@@ -6068,8 +6184,8 @@ ${capituloActual}
             <div className="modal-h" style={{fontSize:"1.05rem"}}>{ficha.modo==="publicar"?t.pub_extra_h:t.ficha_h}</div>
             {ficha.modo==="editar"&&<p className="wr-sub" style={{margin:"0 0 0.7rem",fontSize:"0.82rem"}}>{t.ficha_note}</p>}
             {(()=>{ const set=(k,v)=>setFicha(x=>({...x,d:{...x.d,[k]:v}})); return (<>
-              <div className="fld"><label className="lbl">{t.f_country}</label><input className="inp" value={ficha.d.country} onChange={e=>set("country",e.target.value)}/>
-                {ficha.modo==="publicar"&&!String(ficha.d.country||"").trim()&&<div style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)",marginTop:"0.3rem"}}>{t.pub_country_needed}</div>}
+              <div className="fld"><label className="lbl">{t.f_country}</label><PaisSelector code={ficha.d.countryCode} texto={ficha.d.country} lang={lang} t={t} onChange={(c,n)=>setFicha(x=>({...x,d:{...x.d,countryCode:c,country:n}}))}/>
+                {ficha.modo==="publicar"&&!tienePais(ficha.d)&&!String(ficha.d.country||"").trim()&&<div style={{fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)",marginTop:"0.3rem"}}>{t.pub_country_needed}</div>}
               </div>
               {ficha.modo==="editar"&&<div className="fld"><label className="lbl">{t.f_born}</label><input className="inp" type="number" value={ficha.d.born} onChange={e=>set("born",e.target.value)}/></div>}
               <div className="fld"><label className="lbl">{t.pub_city}</label><input className="inp" value={ficha.d.pubCity} onChange={e=>set("pubCity",e.target.value)} placeholder={t.pub_city_ph}/></div>
@@ -6077,7 +6193,7 @@ ${capituloActual}
               <div className="fld"><label className="lbl">{t.pub_concept}</label><input className="inp" value={ficha.d.pubConcept} onChange={e=>set("pubConcept",e.target.value)} placeholder={t.pub_concept_ph}/></div>
             </>); })()}
             {ficha.modo==="publicar"
-              ? <button className="btn-pub" style={{width:"100%",marginTop:"0.6rem"}} disabled={!String(ficha.d.country||"").trim()||subiendo} onClick={subirDesdeFicha}>{subiendo?subiendoTexto():t.ed_save_upload}</button>
+              ? <button className="btn-pub" style={{width:"100%",marginTop:"0.6rem"}} disabled={!tienePais(ficha.d)||subiendo} onClick={subirDesdeFicha}>{subiendo?subiendoTexto():t.ed_save_upload}</button>
               : <button className="btn-pub" style={{width:"100%",marginTop:"0.6rem"}} onClick={guardarFicha}>{t.ficha_save}</button>}
             <button className="btn-out" style={{width:"100%"}} disabled={subiendo} onClick={()=>setFicha(null)}>{t.ficha_cancel}</button>
             {subirError&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginTop:"0.6rem"}}>{subirError}</p>}
@@ -6174,7 +6290,7 @@ ${capituloActual}
           {/* [P16-F7] "Tu ficha en la Biblioteca": discreta, como el idioma. */}
           <div id="lm-ficha" className="fld" style={{marginBottom:"0.9rem"}}>
             <label className="lbl">{t.ficha_h}</label>
-            {(()=>{ const vals=CAMPOS_FICHA.map(k=>String(f[k]==null?"":f[k]).trim()); const llenos=vals.filter(Boolean);
+            {(()=>{ const vals=CAMPOS_FICHA.filter(k=>k!=="countryCode").map(k=>k==="country"?(nombrePais(f.countryCode,lang)||String(f.country||"").trim()):String(f[k]==null?"":f[k]).trim()); const llenos=vals.filter(Boolean); /* [P10] país en el idioma de la web */
               return <div style={{fontFamily:"var(--body)",fontSize:"0.88rem",color:"var(--ink)"}}>
                 {llenos.length?llenos.join(" · "):"—"} · <span style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer",fontSize:"0.78rem"}} onClick={()=>abrirFicha("editar")}>{llenos.length<vals.length?t.ficha_complete:t.ficha_change}</span>
               </div>; })()}
@@ -6949,7 +7065,7 @@ function App() {
           {view==="home"&&<Home recientes={recientes} cifras={cifras} openAuto={open} setView={setView} t={t} lang={lang}/>}
           {view==="library"&&linkMsg==="missing"&&<div role="status" style={{maxWidth:"760px",margin:"1.2rem auto 0",padding:"0.7rem 0.9rem",background:"var(--bg3)",borderLeft:"3px solid var(--gold)",fontFamily:"var(--body)",fontSize:"0.9rem",color:"var(--ink)"}}>{t.link_missing}</div>}
           {view==="library"&&<Library cifras={cifras} openAuto={open} t={t} lang={lang}/>}
-          {view==="read"&&<Read auto={sel} setView={setView} t={t} volverEditor={desdeEditor?()=>{setView("write");window.scrollTo(0,0);}:null}/>}
+          {view==="read"&&<Read auto={sel} setView={setView} t={t} uiLang={lang} volverEditor={desdeEditor?()=>{setView("write");window.scrollTo(0,0);}:null}/>}
         </>}
       {view==="write"&&<Write setView={setView} onPublish={()=>{}} onUnpublish={()=>{}} t={t} lang={lang} onLegal={()=>setShowLegal("condiciones")} recoveryMode={recoveryMode} onRecoveryDone={()=>setRecoveryMode(false)} enlaceCorreo={enlaceCorreo} onVerBiblioteca={verDesdeEditor}/>}
       <Footer t={t} onContact={()=>setShowContact(true)} onLegal={setShowLegal} onCollab={()=>setShowCollab(true)} onFaq={()=>setShowFaq(true)} onGift={()=>setShowGift(true)}/>
