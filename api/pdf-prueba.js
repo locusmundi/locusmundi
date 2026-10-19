@@ -1,14 +1,17 @@
 // api/pdf-prueba.js — Locus Mundi
-// PRUEBA TEMPORAL · 19/10/2026 · Fase B2, punto 14 (conversación 12). Se BORRA tras la prueba.
+// PRUEBA TEMPORAL · v2 · 19/10/2026 (v2: Chrome y puppeteer con import(), no require()) · Fase B2, punto 14 (conversación 12). Se BORRA tras la prueba.
 // Comprueba en Vercel que Chrome sin pantalla + Paged.js + las fuentes funcionan, y cuánto tardan,
 // con un libro real de `publicaciones` (por defecto, el Nº 2, Olegario). Solo lee datos ya públicos.
 // Uso: /api/pdf-prueba (cifras)  ·  /api/pdf-prueba?pdf=1 (el PDF, si cabe en 4,5 MB)  ·  ?n=1..4 (otro libro)
 
 const fs = require('fs');
 const path = require('path');
-const chromiumMod = require('@sparticuz/chromium');
-const chromium = chromiumMod.default || chromiumMod;
-const puppeteer = require('puppeteer-core');
+// Chrome y puppeteer son módulos ES: en Vercel no se pueden cargar con require(), solo con import().
+async function piezas() {
+  const c = await import('@sparticuz/chromium');
+  const p = await import('puppeteer-core');
+  return { chromium: c.default || c, puppeteer: p.default || p };
+}
 
 const NM = path.join(process.cwd(), 'node_modules');
 const leer = (r, cod) => fs.readFileSync(path.join(NM, r), cod);
@@ -69,6 +72,7 @@ figcaption{font-size:9.5pt;font-style:italic}
 </style><script>window.PagedConfig={auto:true,after:()=>{window.__listo=true}}</script><script>${paged}</script></head>
 <body><h1 style="font-family:'Playfair Display';break-after:page">${esc(pub.titulo)}</h1>${cuerpo(pub.contenido)}</body></html>`;
 
+    const { chromium, puppeteer } = await piezas();
     browser = await puppeteer.launch({ args: chromium.args, executablePath: await chromium.executablePath(), headless: true });
     t.chrome = Date.now();
     const page = await browser.newPage();
