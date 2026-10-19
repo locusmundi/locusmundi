@@ -12,6 +12,8 @@
 //      sin espacio de más al principio de página; hueco de una foto que salta, relleno con el texto
 //      que la sigue (si pasa de un tercio de página). A4: las páginas de solo foto, numeradas.
 //   D. Colofón: logo a la mitad, bloque centrado en vertical.
+//   Letra: 11 pt en A5 (antes 10,5) y 13 pt en A4 (antes 11,5), con márgenes laterales de 28 mm.
+//   Fotos: nunca en la primera página de un capítulo. Al imprimir, nada se recorta (A4 de Irene, p. 5).
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
 // LOCUS_MUNDI_FORMATO_IMPRESION.md v2. Chrome sin pantalla (@sparticuz/chromium) + Paged.js, en
@@ -278,8 +280,8 @@ async function construirHtml(pub, formato) {
 
   // Medidas (mm y pt). A5: libro (márgenes de espejo); A4: documento. "alto": caja de texto.
   const M = A5
-    ? { tam: 'A5', arriba: 17, abajo: 20, dentro: 19, fuera: 15, cuerpo: 10.5, linea: 1.38, img: 120, imgPx: 1400, portadaImg: 95, alto: 210 - 37, logo: 13 }
-    : { tam: 'A4', arriba: 25, abajo: 25, dentro: 25, fuera: 25, cuerpo: 11.5, linea: 1.4, img: 150, imgPx: 2000, portadaImg: 150, alto: 297 - 50, logo: 16 };
+    ? { tam: 'A5', arriba: 17, abajo: 20, dentro: 19, fuera: 15, cuerpo: 11, linea: 1.38, img: 120, imgPx: 1400, portadaImg: 95, alto: 210 - 37, logo: 13 }
+    : { tam: 'A4', arriba: 25, abajo: 25, dentro: 28, fuera: 28, cuerpo: 13, linea: 1.4, img: 150, imgPx: 2000, portadaImg: 150, alto: 297 - 50, logo: 16 };
   const L1 = `${(M.cuerpo * M.linea).toFixed(2)}pt`; // una línea en blanco
   const L2 = `${(2 * M.cuerpo * M.linea).toFixed(2)}pt`;
   const css = `${fuentesCss()}
@@ -331,7 +333,9 @@ figcaption { font-size: ${M.cuerpo - 1.5}pt; font-style: italic; line-height: 1.
 p.sigue { text-indent: 0; }
 p.corta { text-align-last: justify; }
 .sin-numero .pagedjs_margin-bottom-center { visibility: hidden; }
-.pagedjs_page { background: white; }`;
+.pagedjs_page { background: white; }
+/* v1.2: nada se recorta al imprimir; si una línea rebasa la caja por un pelo, se ve (antes se perdía). */
+.pagedjs_area, .pagedjs_page_content { overflow: visible !important; }`;
 
   // En el navegador: reducir las imágenes a calidad de imprenta y, después, paginar.
   const guion = `
@@ -437,20 +441,6 @@ const MEDIR = `(() => {
     else if (ult.tagName === 'P' && ult.hasAttribute('data-split-to') && !ult.hasAttribute('data-split-from') && lineas(ult) < 2) {
       const s = saltoDe(ult); if (s) arreglos.push(s);
     }
-    // Capítulo solo en su página (v1.2): si lo que lo sigue (apartado y foto) no cabe por poco,
-    // la foto se reduce hasta un 40 % para que quepa con el título del capítulo.
-    if (ult.tagName === 'HEADER' && els.length === 1 && paginas[i + 1]) {
-      const sig = elementos(paginas[i + 1]); let j = 0; while (esTitulo(sig[j])) j++;
-      const f = sig[j], img = f && f.tagName === 'FIGURE' ? f.querySelector('img') : null;
-      if (img && f.closest('section.cap').getAttribute('data-cap') === ult.closest('section.cap').getAttribute('data-cap')) {
-        const area = pg.querySelector('.pagedjs_page_content').getBoundingClientRect();
-        const extra = j > 0 ? 2 * lh(sig[0]) : 0; // el apartado recupera su espacio de encima
-        const exceso = f.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(f).marginBottom) || 0) - sig[0].getBoundingClientRect().top + extra
-          - (area.bottom - ult.getBoundingClientRect().bottom - (parseFloat(getComputedStyle(ult).marginBottom) || 0)) + 6;
-        const ih = img.getBoundingClientRect().height;
-        if (exceso > 0 && exceso <= 0.4 * ih) arreglos.push({ reducir: [Number(f.getAttribute('data-f')), Math.floor(ih - exceso)] });
-      }
-    }
     // Hueco sin motivo (v1.2): Paged.js a veces lleva entero a la página siguiente un párrafo que
     // cabía en parte (visto tras unos versos). Si aquí caben 2 líneas o más, se parte el párrafo.
     const sig0 = paginas[i + 1] ? elementos(paginas[i + 1])[0] : null;
@@ -479,6 +469,23 @@ const MEDIR = `(() => {
       if (libre > area.height / 3) arreglos.push({ subir: f.getAttribute('data-f') });
     }
   });
+  // Foto en la primera página de un capítulo (v1.2, Javier 19/10): nunca. La foto pasa detrás de
+  // los párrafos que la siguen en esa página (siempre entre párrafos, nunca en medio de uno).
+  const primeraDe = {};
+  paginas.forEach((pg, i) => { const h = pg.querySelector('section.cap > header'); if (h) primeraDe[h.closest('section.cap').getAttribute('data-cap')] = i; });
+  for (const cap in primeraDe) {
+    const els = elementos(paginas[primeraDe[cap]]).filter((e) => e.closest('section.cap').getAttribute('data-cap') === cap);
+    const k = els.findIndex((e) => e.tagName === 'FIGURE');
+    if (k < 0) { // el título del capítulo se quedó solo porque detrás venía la foto: también se mueve
+      const sig = paginas[primeraDe[cap] + 1] ? elementos(paginas[primeraDe[cap] + 1]) : [];
+      let j = 0; while (esTitulo(sig[j])) j++;
+      if (els.every((e) => e.tagName === 'HEADER' || esTitulo(e)) && sig[j] && sig[j].tagName === 'FIGURE' && sig[j].closest('section.cap').getAttribute('data-cap') === cap)
+        arreglos.push({ subir: sig[j].getAttribute('data-f'), n: 2 });
+      continue;
+    }
+    const n = Math.max(1, els.slice(k + 1).filter((e) => e.tagName === 'P' && !e.hasAttribute('data-split-from')).length);
+    arreglos.push({ subir: els[k].getAttribute('data-f'), n });
+  }
   // 6.3: por capítulo, su última página.
   const ultimaDe = {};
   paginas.forEach((pg, i) => { for (const s of pg.querySelectorAll('section.cap')) ultimaDe[s.getAttribute('data-cap')] = i; });
@@ -502,6 +509,7 @@ async function paginar(browser, render) {
   for (; pasadas < 8; pasadas++) { // v1.2: hasta 8 (huecos de foto párrafo a párrafo; cortes medidos de nuevo)
     if (page) await page.close();
     page = await browser.newPage();
+    await page.emulateMediaType('print'); // v1.2: maquetar con las mismas medidas con que se imprime (ver PDF de Irene en A4, p. 5)
     await page.setContent(render(aj), { waitUntil: 'load', timeout: 120000 });
     await page.evaluate(() => window.__maquetar());
     arreglos = await page.evaluate(MEDIR);
@@ -513,10 +521,12 @@ async function paginar(browser, render) {
     const antes = JSON.stringify([[...aj.saltos], [...aj.subir], [...aj.reducir], [...aj.vetos]]);
     for (const a of (estructura.length ? estructura : arreglos)) {
       if (a.salto && !aj.saltos.has(a.salto)) { aj.saltos.add(a.salto); nuevos++; }
-      if (a.corte) { const [id, o] = a.corte; const l = aj.cortes[id] = aj.cortes[id] || []; if (!l.some((x) => Math.abs(x - o) <= 3)) { l.push(o); nuevos++; } }
+      if (a.corte && aj.vetos.has(String(a.corte[0]))) { // corte que no cupo: el párrafo entero a la página siguiente
+        if (!aj.saltos.has('p' + a.corte[0])) { aj.saltos.add('p' + a.corte[0]); nuevos++; }
+      } else if (a.corte) { const [id, o] = a.corte; const l = aj.cortes[id] = aj.cortes[id] || []; if (!l.some((x) => Math.abs(x - o) <= 3)) { l.push(o); nuevos++; } }
       if (a.subir != null && render.orden) { // solo si de verdad cambia el orden (quedan párrafos que subir)
         const f = Number(a.subir), o = render.orden(aj), v = aj.subir.get(f) || 0;
-        aj.subir.set(f, v + 1);
+        aj.subir.set(f, v + (a.n || 1));
         if (render.orden(aj) === o) aj.subir.set(f, v); else nuevos++;
       }
       if (a.cabe && aj.saltos.has(a.cabe)) { aj.saltos.delete(a.cabe); nuevos++; }
@@ -524,7 +534,7 @@ async function paginar(browser, render) {
       if (a.reducir) { const [f, px] = a.reducir; if (!aj.reducir.has(f) || aj.reducir.get(f) > px) { aj.reducir.set(f, px); nuevos++; } }
     }
     if (estructura.length && JSON.stringify([[...aj.saltos], [...aj.subir], [...aj.reducir], [...aj.vetos]]) !== antes) aj.cortes = {};
-    else if (estructura.length) for (const a of arreglos.filter((x) => x.corte)) { const [id, o] = a.corte; const l = aj.cortes[id] = aj.cortes[id] || []; if (!l.some((x) => Math.abs(x - o) <= 3)) { l.push(o); nuevos++; } }
+    else if (estructura.length) for (const a of arreglos.filter((x) => x.corte && !aj.vetos.has(String(x.corte[0])))) { const [id, o] = a.corte; const l = aj.cortes[id] = aj.cortes[id] || []; if (!l.some((x) => Math.abs(x - o) <= 3)) { l.push(o); nuevos++; } }
     if (!nuevos) break;
   }
   return { page, pasadas: pasadas + 1, pendientes: arreglos.length };
