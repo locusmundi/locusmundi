@@ -2,6 +2,16 @@
 // Versión 1 · 19/10/2026 · Fase B2, punto 14 (conversación 12). Sustituye a api/pdf-prueba.js.
 // Versión 1.1 · 19/10/2026 · "comprar" devuelve también publicado y disponible (sin ellos, la web
 // creía que el idioma no tenía PDF y mostraba «Disponible próximamente» tras pagar).
+// Versión 1.2 · 19/10/2026 · Ajustes tras el TEST (conversación 12-2; formato v2.1, partes A a D):
+//   A. Preliminares: dedicatoria (preliminares cortos) en página propia, centrada y sin número
+//      (A5: impar, la 5; A4: la 4). A4 con portadilla (1), blanca (2), portada (3).
+//   B. Apartados a la izquierda (2 líneas encima, 1 debajo); versos y párrafos enteros en cursiva
+//      a la izquierda, sin sangría, con una línea en blanco encima y debajo, y nunca estirados al
+//      partirse (el fallo de la p. 8 de Irene); firma (cursiva corta tras un título) bajo su título.
+//   C. El título de un apartado nunca queda separado de lo que le sigue (p. 21 de Irene); huérfanas;
+//      sin espacio de más al principio de página; hueco de una foto que salta, relleno con el texto
+//      que la sigue (si pasa de un tercio de página). A4: las páginas de solo foto, numeradas.
+//   D. Colofón: logo a la mitad, bloque centrado en vertical.
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
 // LOCUS_MUNDI_FORMATO_IMPRESION.md v2. Chrome sin pantalla (@sparticuz/chromium) + Paged.js, en
@@ -169,19 +179,39 @@ async function construirHtml(pub, formato) {
   // Cada párrafo guarda sus trozos ya con la partición silábica: render() puede partirlo por
   // donde mande la paginación (reglas 6.1 a 6.3) y volver a montarlo.
   const secciones = [];
-  let actual = null, np = 0, nh = 0;
+  let actual = null, np = 0, nh = 0, nf = 0;
   for (const b of bloques) {
     if (!b) continue;
     if (b.tipo === 'capitulo' || !actual) { actual = { cap: b.tipo === 'capitulo' ? b : null, cuerpo: [] }; secciones.push(actual); if (b.tipo === 'capitulo') continue; }
     if (b.tipo === 'foto') {
       const src = fotosUrl[b.foto.orden];
-      if (src) actual.cuerpo.push({ tipo: 'fig', html: `<figure><img data-escalar src="${src}" alt=""/>${b.foto.pie_foto ? `<figcaption>${esc(b.foto.pie_foto)}</figcaption>` : ''}</figure>` });
+      if (src) actual.cuerpo.push({ tipo: 'fig', id: nf++, html: `<img data-escalar src="${src}" alt=""/>${b.foto.pie_foto ? `<figcaption>${esc(b.foto.pie_foto)}</figcaption>` : ''}` });
     } else if (b.tipo === 'apartado') {
       actual.cuerpo.push({ tipo: 'h3', id: nh++, texto: b.texto });
     } else {
       const trozos = b.trozos.map((x) => ({ t: silabas(x.texto), em: x.cursiva }));
-      if (trozos.map((x) => x.t).join('').trim()) actual.cuerpo.push({ tipo: 'p', id: np++, trozos });
+      const texto = trozos.map((x) => x.t).join('');
+      if (!texto.trim()) continue;
+      // v1.2 (formato v2.1, B): versos (saltos de línea propios) y párrafos enteros en cursiva.
+      const verso = /\n/.test(texto.trim());
+      const cursiva = trozos.every((x) => x.em || !x.t.trim());
+      // Firma: cursiva entera, corta y de una línea, justo después de un título (capítulo o apartado).
+      const previo = actual.cuerpo[actual.cuerpo.length - 1];
+      const trasTitulo = previo ? previo.tipo === 'h3' && !previo.firma : !!actual.cap;
+      if (cursiva && !verso && trasTitulo && texto.trim().length <= 120) {
+        if (previo) previo.firma = trozos; else actual.firmaCap = trozos;
+        continue;
+      }
+      actual.cuerpo.push({ tipo: 'p', id: np++, trozos, clase: verso ? 'verso' : (cursiva ? 'cita' : '') });
     }
+  }
+  // v1.2 (A): preliminares cortos = dedicatoria. Cada párrafo, en su página, centrado y sin número.
+  // Si son largos (o llevan fotos o apartados), empiezan como un capítulo más, con número.
+  const dedicatorias = [];
+  const pre = secciones[0] && !secciones[0].cap ? secciones[0] : null;
+  if (pre && pre.cuerpo.length && pre.cuerpo.length <= 3 && pre.cuerpo.every((el) => el.tipo === 'p' && el.trozos.map((x) => x.t).join('').length <= 400)) {
+    secciones.shift();
+    dedicatorias.push(...pre.cuerpo);
   }
   // Un párrafo (o un trozo suyo, de "desde" a "hasta" en su texto) en HTML. Los saltos de línea
   // del Autor (poesía, citas) son <br/>: cuentan como un carácter, igual que al medir.
@@ -199,22 +229,40 @@ async function construirHtml(pub, formato) {
     for (const d of [0, 1, -1, 2, -2, 3, -3]) { const k = o + d; if (k > 0 && k < texto.length && /\s/.test(texto[k - 1]) && !/\s/.test(texto[k])) return k; }
     return o;
   };
+  // v1.2 (C): hueco de una foto que salta de página → los párrafos que siguen a la foto (o a un
+  // grupo de fotos seguidas) pasan delante de ella, uno por arreglo.
+  const ordenar = (sec, aj) => {
+    const orden = sec.cuerpo.slice();
+    for (let k = 0; k < orden.length; k++) {
+      if (orden[k].tipo !== 'fig') continue;
+      const n = aj.subir.get(orden[k].id) || 0;
+      let r = k; while (orden[r + 1] && orden[r + 1].tipo === 'fig') r++;
+      let m = 0;
+      while (m < n && orden[r + 1 + m] && orden[r + 1 + m].tipo === 'p') m++;
+      if (m) orden.splice(k, r - k + 1 + m, ...orden.slice(r + 1, r + 1 + m), ...orden.slice(k, r + 1));
+      k = r + m;
+    }
+    return orden;
+  };
+  const firmaHtml = (trozos) => htmlTrozos(trozos, 0, trozos.map((x) => x.t).join('').length).replace(/^\s+|\s+$/g, '');
   const cuerpoHtml = (aj) => secciones.map((sec, i) => {
-    const cabecera = sec.cap ? `<header class="cap-cab">${sec.cap.etiqueta ? `<div class="cap-etq">${esc(sec.cap.etiqueta)}</div>` : ''}${sec.cap.titulo ? `<h2>${esc(sec.cap.titulo)}</h2>` : ''}</header>` : '';
-    const partes = sec.cuerpo.map((el) => {
-      if (el.tipo === 'fig') return el.html;
-      if (el.tipo === 'h3') return `<h3 data-h="${el.id}"${aj.saltos.has('h' + el.id) ? ' class="salto"' : ''}>${esc(el.texto)}</h3>`;
+    const cabecera = sec.cap ? `<header class="cap-cab">${sec.cap.etiqueta ? `<div class="cap-etq">${esc(sec.cap.etiqueta)}</div>` : ''}${sec.cap.titulo ? `<h2>${esc(sec.cap.titulo)}</h2>` : ''}${sec.firmaCap ? `<div class="firma-cap">${firmaHtml(sec.firmaCap)}</div>` : ''}</header>` : '';
+    // v1.2 (C): hueco de una foto que salta de página → los párrafos que la siguen pasan delante.
+    const partes = ordenar(sec, aj).map((el) => {
+      if (el.tipo === 'fig') { const r = aj.reducir.get(el.id); return `<figure data-f="${el.id}">${r ? el.html.replace('<img ', `<img style="max-height:${r}px" `) : el.html}</figure>`; }
+      if (el.tipo === 'h3') return `<h3 data-h="${el.id}"${aj.saltos.has('h' + el.id) ? ' class="salto"' : ''}>${esc(el.texto)}</h3>${el.firma ? `<div class="firma" data-h="${el.id}">${firmaHtml(el.firma)}</div>` : ''}`;
       const texto = el.trozos.map((x) => x.t).join('');
       const cortes = [...new Set((aj.cortes[el.id] || []).map((o) => aPalabra(texto, o)))].filter((o) => o > 0 && o < texto.length).sort((x, y) => x - y);
       const lim = [0, ...cortes, texto.length];
       const salto = aj.saltos.has('p' + el.id);
       return lim.slice(0, -1).map((ini, k) => {
-        const cls = [k > 0 ? 'sigue salto' : (salto ? 'salto' : ''), k < lim.length - 2 ? 'corta' : ''].filter(Boolean).join(' ');
-        return `<p data-p="${el.id}" data-ini="${ini}"${cls ? ` class="${cls}"` : ''}>${htmlTrozos(el.trozos, ini, lim[k + 1])}</p>`;
+        const cls = [el.clase, k > 0 ? 'sigue salto' : (salto ? 'salto' : ''), k < lim.length - 2 ? 'corta' : ''].filter(Boolean).join(' ');
+        return `<p data-p="${el.id}" data-ini="${ini}"${aj.vetos && aj.vetos.has(String(el.id)) ? ' data-veto' : ''}${cls ? ` class="${cls}"` : ''}>${htmlTrozos(el.trozos, ini, lim[k + 1])}</p>`;
       }).join('');
     });
-    return `<section class="cap${sec.cap ? '' : ' preliminar'}" data-cap="${i}">${cabecera}${partes.join('\n')}</section>`;
+    return `<section class="cap${sec.cap ? '' : ' preliminar'}${i === 0 ? ' primera' : ''}" data-cap="${i}">${cabecera}${partes.join('\n')}</section>`;
   }).join('\n');
+  const dedicHtml = dedicatorias.map((el) => `<section class="dedic"><div class="dedic-caja"><p>${firmaHtml(el.trozos)}</p></div></section>`).join('\n');
 
   const titulo = pub.titulo || c.title || '';
   const autor = c.name || '';
@@ -223,16 +271,17 @@ async function construirHtml(pub, formato) {
   const fechaColofon = colofonFecha(pub.fecha_actualizacion, lang, (c.pubCity || '').trim());
   const A5 = formato === 'A5';
 
-  const portadas = A5
-    ? `<section class="portada solo-titulo"><h1>${esc(titulo)}</h1></section>
-       <section class="portada completa"><div class="pc-texto"><div class="pc-autor">${esc(autor)}</div><h1>${esc(titulo)}</h1>${subtitulo ? `<div class="pc-sub">${esc(subtitulo)}</div>` : ''}</div>${portada ? `<div class="pc-img"><img data-escalar src="${portada}" alt=""/></div>` : ''}</section>`
-    : `<section class="portada completa"><div class="pc-texto"><div class="pc-autor">${esc(autor)}</div><h1>${esc(titulo)}</h1>${subtitulo ? `<div class="pc-sub">${esc(subtitulo)}</div>` : ''}</div>${portada ? `<div class="pc-img"><img data-escalar src="${portada}" alt=""/></div>` : ''}</section>`;
-  const colofon = `<section class="colofon"><img src="data:image/png;base64,${logo}" alt=""/><div>${esc(fechaColofon)}</div><div>${esc(LEYENDA[lang] || LEYENDA.ES)}</div></section>${A5 ? '<section class="final"></section>' : ''}`;
+  // v1.2 (A): los dos formatos, portadilla (1), blanca (2) y portada (3); dedicatoria en la 5 (A5) o la 4 (A4).
+  const portadas = `<section class="portada solo-titulo"><h1>${esc(titulo)}</h1></section>
+       <section class="portada completa"><div class="pc-texto"><div class="pc-autor">${esc(autor)}</div><h1>${esc(titulo)}</h1>${subtitulo ? `<div class="pc-sub">${esc(subtitulo)}</div>` : ''}</div>${portada ? `<div class="pc-img"><img data-escalar src="${portada}" alt=""/></div>` : ''}</section>`;
+  const colofon = `<section class="colofon"><div class="colofon-caja"><img src="data:image/png;base64,${logo}" alt=""/><div>${esc(fechaColofon)}</div><div>${esc(LEYENDA[lang] || LEYENDA.ES)}</div></div></section>${A5 ? '<section class="final"></section>' : ''}`;
 
-  // Medidas (mm y pt). A5: libro (márgenes de espejo); A4: documento.
+  // Medidas (mm y pt). A5: libro (márgenes de espejo); A4: documento. "alto": caja de texto.
   const M = A5
-    ? { tam: 'A5', arriba: 17, abajo: 20, dentro: 19, fuera: 15, cuerpo: 10.5, linea: 1.38, img: 120, imgPx: 1400, portadaImg: 95 }
-    : { tam: 'A4', arriba: 25, abajo: 25, dentro: 25, fuera: 25, cuerpo: 11.5, linea: 1.4, img: 150, imgPx: 2000, portadaImg: 150 };
+    ? { tam: 'A5', arriba: 17, abajo: 20, dentro: 19, fuera: 15, cuerpo: 10.5, linea: 1.38, img: 120, imgPx: 1400, portadaImg: 95, alto: 210 - 37, logo: 13 }
+    : { tam: 'A4', arriba: 25, abajo: 25, dentro: 25, fuera: 25, cuerpo: 11.5, linea: 1.4, img: 150, imgPx: 2000, portadaImg: 150, alto: 297 - 50, logo: 16 };
+  const L1 = `${(M.cuerpo * M.linea).toFixed(2)}pt`; // una línea en blanco
+  const L2 = `${(2 * M.cuerpo * M.linea).toFixed(2)}pt`;
   const css = `${fuentesCss()}
 @page { size: ${M.tam}; margin: ${M.arriba}mm ${M.fuera}mm ${M.abajo}mm ${M.dentro}mm;
   @bottom-center { content: counter(page); font-family: 'EB Garamond', serif; font-size: ${M.cuerpo - 1}pt; color: #222; } }
@@ -243,17 +292,30 @@ ${A5 ? `@page :left { margin-left: ${M.fuera}mm; margin-right: ${M.dentro}mm; }
 html { font-family: 'EB Garamond', serif; font-size: ${M.cuerpo}pt; line-height: ${M.linea}; color: #111; }
 body { margin: 0; }
 p { margin: 0; text-align: justify; text-indent: 1.2em; widows: 2; orphans: 2; hyphens: manual; }
-.cap-cab + p, h3 + p, figure + p, .preliminar > p:first-child { text-indent: 0; }
+.cap-cab + p, h3 + p, .firma + p, figure + p, .preliminar > p:first-child { text-indent: 0; }
 em { font-style: italic; }
 section.cap { break-before: ${A5 ? 'right' : 'page'}; }
+section.cap.primera { break-before: right; }
 .cap-cab { margin: ${A5 ? 22 : 30}mm 0 ${A5 ? 9 : 12}mm; text-align: center; break-after: avoid; }
 .cap-etq { font-family: 'Playfair Display', serif; font-size: ${M.cuerpo - 1.5}pt; letter-spacing: 0.18em; text-transform: uppercase; color: #333; margin-bottom: 3mm; }
 h2 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: ${A5 ? 16 : 19}pt; line-height: 1.25; margin: 0; }
-h3 { font-family: 'Playfair Display', serif; font-weight: 400; font-style: italic; font-size: ${M.cuerpo + 1.5}pt; line-height: 1.3; margin: 1.4em 0 0.6em; text-align: center; break-after: avoid; }
+.firma-cap { font-size: ${M.cuerpo}pt; margin-top: ${L1}; }
+h3 { font-family: 'Playfair Display', serif; font-weight: 400; font-style: italic; font-size: ${M.cuerpo + 1.5}pt; line-height: 1.3; margin: ${L2} 0 ${L1}; text-align: left; break-after: avoid; }
+.cap-cab + h3 { margin-top: 0; }
+h3:has(+ .firma) { margin-bottom: 0; }
+.firma { margin: 0 0 ${L1}; text-align: left; break-after: avoid; }
+p.verso, p.cita { text-align: left !important; text-align-last: auto !important; text-indent: 0; margin: ${L1} 0; }
+p.verso.corta, p.cita.corta, p.verso[data-split-to], p.cita[data-split-to] { margin-bottom: 0; }
+p.verso.sigue, p.cita.sigue, p.verso[data-split-from], p.cita[data-split-from] { margin-top: 0; }
+h3 + p.verso, h3 + p.cita, .firma + p.verso, .firma + p.cita, .cap-cab + p.verso, .cap-cab + p.cita { margin-top: 0; }
+.dedic { page: sinnumero; break-before: ${A5 ? 'right' : 'page'}; }
+.dedic-caja, .colofon-caja { height: ${M.alto - 8}mm; display: flex; flex-direction: column; justify-content: center; text-align: center; }
+.dedic p { text-align: center; text-indent: 0; }
+.dedic + section.cap.primera { break-before: ${A5 ? 'right' : 'page'}; }
 figure { margin: 5mm 0; text-align: center; break-inside: avoid; }
 figure img { max-width: 100%; max-height: ${M.img}mm; }
 figcaption { font-size: ${M.cuerpo - 1.5}pt; font-style: italic; line-height: 1.3; margin-top: 2mm; text-align: center; }
-.portada { page: sinnumero; break-before: ${A5 ? 'right' : 'page'}; text-align: center; }
+.portada { page: sinnumero; break-before: right; text-align: center; }
 .portada h1 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: ${A5 ? 22 : 28}pt; line-height: 1.2; margin: 0; }
 .solo-titulo { padding-top: 55mm; }
 .portada:first-child { break-before: auto; }
@@ -261,8 +323,8 @@ figcaption { font-size: ${M.cuerpo - 1.5}pt; font-style: italic; line-height: 1.
 .pc-autor { font-size: ${M.cuerpo + 2}pt; letter-spacing: 0.06em; margin-bottom: 6mm; }
 .pc-sub { font-style: italic; font-size: ${M.cuerpo + 1.5}pt; margin-top: 4mm; }
 .pc-img img { max-width: 100%; max-height: ${M.portadaImg}mm; }
-.colofon { page: sinnumero; break-before: ${A5 ? 'right' : 'page'}; text-align: center; font-size: ${M.cuerpo - 1}pt; padding-top: ${A5 ? 45 : 80}mm; }
-.colofon img { width: ${A5 ? 26 : 32}mm; display: block; margin: 0 auto 7mm; }
+.colofon { page: sinnumero; break-before: ${A5 ? 'right' : 'page'}; text-align: center; font-size: ${M.cuerpo - 1}pt; }
+.colofon img { width: ${M.logo}mm; display: block; margin: 0 auto 5mm; }
 .colofon div { margin-top: 2mm; }
 .final { page: sinnumero; break-before: page; }
 .salto { break-before: page; }
@@ -287,18 +349,22 @@ window.__maquetar = async function(){
   await document.fonts.ready;
   await Promise.all([...document.querySelectorAll('img[data-escalar]')].map(escalar));
   await window.PagedPolyfill.preview();
-  // Página sin texto escrito (solo una foto): sin número (formato §1).
   for(const pg of document.querySelectorAll('.pagedjs_page')){
     const area=pg.querySelector('.pagedjs_page_content'); if(!area) continue;
+    // Página sin texto escrito (solo una foto): sin número en el A5; en el A4, numerada (v1.2).
     const hayFoto=area.querySelector('figure'), hayTexto=[...area.querySelectorAll('p,h2,h3,.cap-etq')].some(e=>e.textContent.trim());
-    if(hayFoto && !hayTexto) pg.classList.add('sin-numero');
+    if(${A5} && hayFoto && !hayTexto) pg.classList.add('sin-numero');
+    // v1.2 (C, regla 7): sin espacio de más al principio de página (apartado, versos, cita, foto).
+    const pri=area.querySelector('section.cap > :first-child');
+    if(pri && !pri.matches('header')) pri.style.marginTop='0';
   }
   return document.querySelectorAll('.pagedjs_page').length;
 };`;
 
   const cabeza = `<!doctype html><html lang="${ETIQUETA_IDIOMA[lang] || 'es'}"><head><meta charset="utf-8"><style>${css}</style>
 <script>${guion}</script><script>${leer('pagedjs/dist/paged.polyfill.min.js', 'utf8')}</script></head><body>`;
-  const render = (aj) => `${cabeza}${portadas}\n${cuerpoHtml(aj || { cortes: {}, saltos: new Set() })}\n${colofon}</body></html>`;
+  const render = (aj) => `${cabeza}${portadas}\n${dedicHtml}\n${cuerpoHtml(aj || { cortes: {}, saltos: new Set(), subir: new Map(), reducir: new Map() })}\n${colofon}</body></html>`;
+  render.orden = (aj) => JSON.stringify(secciones.map((sec) => ordenar(sec, aj).map((el) => el.tipo[0] + el.id)));
   return { render, titulo, autor };
 }
 
@@ -310,11 +376,15 @@ window.__maquetar = async function(){
 //  6.2 Nunca un apartado solo al final de página, ni con una sola línea de su texto.
 //  6.3 La última página de cada capítulo, al menos 3 líneas.
 const MEDIR = `(() => {
-  const arreglos = [];
+  const arreglos = []; let R = '';
   const lh = (el) => parseFloat(getComputedStyle(el).lineHeight);
   const lineas = (el) => Math.max(1, Math.round(el.getBoundingClientRect().height / lh(el)));
   const paginas = [...document.querySelectorAll('.pagedjs_page')];
-  const elementos = (pg) => { const a = pg.querySelector('.pagedjs_page_content'); return a ? [...a.querySelectorAll('section.cap > p, section.cap > h3, section.cap > figure, section.cap > header')] : []; };
+  const elementos = (pg) => { const a = pg.querySelector('.pagedjs_page_content'); return a ? [...a.querySelectorAll('section.cap > p, section.cap > h3, section.cap > .firma, section.cap > figure, section.cap > header')] : []; };
+  // v1.2: el título de apartado (con su firma) que va justo delante de un elemento, si lo hay.
+  const esTitulo = (e) => e && (e.tagName === 'H3' || e.classList.contains('firma'));
+  const cabezaDe = (el) => { let h = null, e = el.previousElementSibling; while (esTitulo(e)) { if (e.tagName === 'H3') h = e; e = e.previousElementSibling; } return h; };
+  const saltoDe = (el) => { const h = cabezaDe(el); return h ? { salto: 'h' + h.getAttribute('data-h') } : (el.tagName === 'P' ? { salto: 'p' + el.getAttribute('data-p') } : null); };
   // Posición (en el texto entero del párrafo) del principio de cada línea de este trozo.
   const iniciosDeLinea = (frag) => {
     const ref = frag.getAttribute('data-ref');
@@ -341,8 +411,8 @@ const MEDIR = `(() => {
     const ini = iniciosDeLinea(frag);
     const k = ini.length - cuantas;
     const primero = !frag.hasAttribute('data-split-from');
-    if (k >= 2 || (!primero && k >= 1)) arreglos.push({ corte: [frag.getAttribute('data-p'), ini[k]] });
-    else if (primero) arreglos.push({ salto: 'p' + frag.getAttribute('data-p') });
+    if (k >= 2 || (!primero && k >= 1)) arreglos.push({ corte: [frag.getAttribute('data-p'), ini[k]], r: R });
+    else if (primero) { const s = saltoDe(frag); if (s) arreglos.push(s); } // v1.2: con su título, si lo lleva
   };
   paginas.forEach((pg, i) => {
     const els = elementos(pg); if (!els.length) return;
@@ -350,12 +420,63 @@ const MEDIR = `(() => {
     const ultAnt = ant[ant.length - 1];
     // 6.1
     const pri = els[0];
-    if (pri.tagName === 'P' && pri.hasAttribute('data-split-from') && lineas(pri) < 2 && ultAnt && ultAnt.tagName === 'P') mover(ultAnt, 1);
-    // 6.2
+    R = '6.1'; if (pri.tagName === 'P' && pri.hasAttribute('data-split-from') && lineas(pri) < 2 && ultAnt && ultAnt.tagName === 'P') mover(ultAnt, 1);
+    // 6.2 (v1.2): el título de apartado nunca al final de página, ni con una sola línea de su texto;
+    // y si es lo único de la página (lo que le sigue saltó, p. ej. una foto), va con ello.
     const ult = els[els.length - 1];
-    if (ult.tagName === 'H3') arreglos.push({ salto: 'h' + ult.getAttribute('data-h') });
+    if (esTitulo(ult)) {
+      const h = ult.tagName === 'H3' ? (cabezaDe(ult) || ult) : cabezaDe(ult);
+      const solo = els.every(esTitulo);
+      if (h && !(solo && h === els[0])) arreglos.push({ salto: 'h' + h.getAttribute('data-h') });
+      else if (h && solo && paginas[i + 1]) { // ya está arriba: lo que le sigue debe caber con él
+        const sig = elementos(paginas[i + 1])[0];
+        if (sig && sig.tagName === 'P' && !sig.hasAttribute('data-split-from')) arreglos.push({ cabe: 'p' + sig.getAttribute('data-p') });
+      }
+    }
+    // Huérfana (v1.2): nunca la primera línea de un párrafo sola al final de página.
     else if (ult.tagName === 'P' && ult.hasAttribute('data-split-to') && !ult.hasAttribute('data-split-from') && lineas(ult) < 2) {
-      const prev = els[els.length - 2]; if (prev && prev.tagName === 'H3') arreglos.push({ salto: 'h' + prev.getAttribute('data-h') });
+      const s = saltoDe(ult); if (s) arreglos.push(s);
+    }
+    // Capítulo solo en su página (v1.2): si lo que lo sigue (apartado y foto) no cabe por poco,
+    // la foto se reduce hasta un 40 % para que quepa con el título del capítulo.
+    if (ult.tagName === 'HEADER' && els.length === 1 && paginas[i + 1]) {
+      const sig = elementos(paginas[i + 1]); let j = 0; while (esTitulo(sig[j])) j++;
+      const f = sig[j], img = f && f.tagName === 'FIGURE' ? f.querySelector('img') : null;
+      if (img && f.closest('section.cap').getAttribute('data-cap') === ult.closest('section.cap').getAttribute('data-cap')) {
+        const area = pg.querySelector('.pagedjs_page_content').getBoundingClientRect();
+        const extra = j > 0 ? 2 * lh(sig[0]) : 0; // el apartado recupera su espacio de encima
+        const exceso = f.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(f).marginBottom) || 0) - sig[0].getBoundingClientRect().top + extra
+          - (area.bottom - ult.getBoundingClientRect().bottom - (parseFloat(getComputedStyle(ult).marginBottom) || 0)) + 6;
+        const ih = img.getBoundingClientRect().height;
+        if (exceso > 0 && exceso <= 0.4 * ih) arreglos.push({ reducir: [Number(f.getAttribute('data-f')), Math.floor(ih - exceso)] });
+      }
+    }
+    // Hueco sin motivo (v1.2): Paged.js a veces lleva entero a la página siguiente un párrafo que
+    // cabía en parte (visto tras unos versos). Si aquí caben 2 líneas o más, se parte el párrafo.
+    const sig0 = paginas[i + 1] ? elementos(paginas[i + 1])[0] : null;
+    if (els.length === 1 && els[0].tagName === 'P' && els[0].classList.contains('corta') && !els[0].classList.contains('sigue') && i > 0)
+      arreglos.push({ veto: els[0].getAttribute('data-p') }); // un corte que no cupo: se quita y no se repite
+    if (sig0 && sig0.tagName === 'P' && !sig0.hasAttribute('data-split-from') && !sig0.classList.contains('salto') && !sig0.hasAttribute('data-veto')
+        && !esTitulo(ult) && ult.tagName !== 'HEADER'
+        && ult.closest('section.cap').getAttribute('data-cap') === sig0.closest('section.cap').getAttribute('data-cap')) {
+      const area = pg.querySelector('.pagedjs_page_content').getBoundingClientRect();
+      const mb = parseFloat(getComputedStyle(ult).marginBottom) || 0, mt = sig0.matches('.verso, .cita') ? lh(sig0) : 0; // arriba de página su margen se quitó: se cuenta igual
+      const n = Math.floor((area.bottom - ult.getBoundingClientRect().bottom - Math.max(mb, mt) - lh(sig0) / 2) / lh(sig0)); // con media línea de holgura
+      if (n >= 2) {
+        const ini = iniciosDeLinea(sig0);
+        const k = Math.min(n, ini.length - 2);
+        if (k >= 2) arreglos.push({ corte: [sig0.getAttribute('data-p'), ini[k]], r: 'hueco' });
+      }
+    }
+    // Hueco de una foto que salta (v1.2, opción b): si la página siguiente empieza por una foto del
+    // mismo capítulo y aquí queda libre más de un tercio, el párrafo que la sigue pasa delante.
+    const sigEls = paginas[i + 1] ? elementos(paginas[i + 1]) : [];
+    const f = sigEls[0]; let tras = 1; while (sigEls[tras] && sigEls[tras].tagName === 'FIGURE') tras++;
+    if (f && f.tagName === 'FIGURE' && sigEls[tras] && sigEls[tras].tagName === 'P' && !sigEls[tras].hasAttribute('data-split-from')
+        && ult.tagName !== 'HEADER' && ult.closest('section.cap').getAttribute('data-cap') === f.closest('section.cap').getAttribute('data-cap')) {
+      const area = pg.querySelector('.pagedjs_page_content').getBoundingClientRect();
+      const libre = area.bottom - ult.getBoundingClientRect().bottom;
+      if (libre > area.height / 3) arreglos.push({ subir: f.getAttribute('data-f') });
     }
   });
   // 6.3: por capítulo, su última página.
@@ -369,26 +490,41 @@ const MEDIR = `(() => {
     if (n >= 3 || i === 0) continue;
     const ant = elementos(paginas[i - 1]).filter((e) => e.closest('section.cap').getAttribute('data-cap') === cap);
     const ultAnt = ant[ant.length - 1];
-    if (ultAnt && ultAnt.tagName === 'P') mover(ultAnt, 3 - n);
+    R = '6.3'; if (ultAnt && ultAnt.tagName === 'P') mover(ultAnt, 3 - n);
   }
   return arreglos;
 })()`;
 
 // Pagina el libro: maqueta, mide, arregla y vuelve a maquetar (hasta 4 pasadas; casi siempre 1 o 2).
 async function paginar(browser, render) {
-  const aj = { cortes: {}, saltos: new Set() };
+  const aj = { cortes: {}, saltos: new Set(), subir: new Map(), reducir: new Map(), vetos: new Set() };
   let page = null, pasadas = 0, arreglos = [];
-  for (; pasadas < 4; pasadas++) {
+  for (; pasadas < 8; pasadas++) { // v1.2: hasta 8 (huecos de foto párrafo a párrafo; cortes medidos de nuevo)
     if (page) await page.close();
     page = await browser.newPage();
     await page.setContent(render(aj), { waitUntil: 'load', timeout: 120000 });
     await page.evaluate(() => window.__maquetar());
     arreglos = await page.evaluate(MEDIR);
+    if (process.env.PDF_DEPURAR) console.log("pasada", pasadas, JSON.stringify(arreglos));
     let nuevos = 0;
-    for (const a of arreglos) {
+    // v1.2: un arreglo de estructura (salto, foto) mueve todo lo que va detrás; los cortes medidos
+    // antes ya no valen: se borran y se vuelven a medir en la pasada siguiente.
+    const estructura = arreglos.filter((a) => !a.corte);
+    const antes = JSON.stringify([[...aj.saltos], [...aj.subir], [...aj.reducir], [...aj.vetos]]);
+    for (const a of (estructura.length ? estructura : arreglos)) {
       if (a.salto && !aj.saltos.has(a.salto)) { aj.saltos.add(a.salto); nuevos++; }
       if (a.corte) { const [id, o] = a.corte; const l = aj.cortes[id] = aj.cortes[id] || []; if (!l.some((x) => Math.abs(x - o) <= 3)) { l.push(o); nuevos++; } }
+      if (a.subir != null && render.orden) { // solo si de verdad cambia el orden (quedan párrafos que subir)
+        const f = Number(a.subir), o = render.orden(aj), v = aj.subir.get(f) || 0;
+        aj.subir.set(f, v + 1);
+        if (render.orden(aj) === o) aj.subir.set(f, v); else nuevos++;
+      }
+      if (a.cabe && aj.saltos.has(a.cabe)) { aj.saltos.delete(a.cabe); nuevos++; }
+      if (a.veto && !aj.vetos.has(a.veto)) { aj.vetos.add(a.veto); delete aj.cortes[a.veto]; nuevos++; }
+      if (a.reducir) { const [f, px] = a.reducir; if (!aj.reducir.has(f) || aj.reducir.get(f) > px) { aj.reducir.set(f, px); nuevos++; } }
     }
+    if (estructura.length && JSON.stringify([[...aj.saltos], [...aj.subir], [...aj.reducir], [...aj.vetos]]) !== antes) aj.cortes = {};
+    else if (estructura.length) for (const a of arreglos.filter((x) => x.corte)) { const [id, o] = a.corte; const l = aj.cortes[id] = aj.cortes[id] || []; if (!l.some((x) => Math.abs(x - o) <= 3)) { l.push(o); nuevos++; } }
     if (!nuevos) break;
   }
   return { page, pasadas: pasadas + 1, pendientes: arreglos.length };
