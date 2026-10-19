@@ -12,10 +12,13 @@
 // avisa también si a un modelo de texto le falta su precio.
 // Versión 1.2 · 19/10/2026 · Conversación 12 (punto 14): la purga pasa a api/_purgar-borrados.js
 // (con guion bajo deja de contar como función; el plan Hobby de Vercel admite 12). Sin más cambios.
+// Versión 1.3 · 19/10/2026 · Conversación 12 (punto 14): borra los PDF de más de 24 horas del almacén
+// privado `pdf` (api/pdf.js, limpiarPdf): sin copias permanentes que purgar ni respaldar.
 
 const purgar = require('./_purgar-borrados'); // v1.2
 const { leerTexto } = require('./_r2');
 const { avisar } = require('./_aviso');
+const { limpiarPdf } = require('./pdf'); // v1.3
 
 const { modelosEnUso, modelosSinPrecio } = require('./_modelos'); // v1.1
 const MODELOS = modelosEnUso();
@@ -57,6 +60,9 @@ module.exports = async function handler(req, res) {
     if (r.datos.fallidas && r.datos.fallidas.length) throw new Error(`fallidas: ${JSON.stringify(r.datos.fallidas)}`);
     return `${r.datos.purgadas} historias purgadas`;
   });
+
+  // 1 bis. PDF de más de 24 horas (v1.3).
+  await comprobar('PDF caducados', async () => `${await limpiarPdf()} borrados`);
 
   // 2. Modelos de Google (solo consulta si existen; no genera nada ni cuesta).
   for (const modelo of MODELOS) {
