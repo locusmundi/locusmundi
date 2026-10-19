@@ -447,6 +447,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 <script src="/vendor/react-dom-18.2.0.production.min.js"></script>
 <script src="/vendor/babel-standalone-7.23.2.min.js"></script>
 <script src="/vendor/supabase-js-2.117.3.js"></script>
+<script src="/lectura.js"></script><!-- reglas comunes de lectura (web y PDF), 19/10/2026 -->
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
@@ -473,7 +474,11 @@ function toRoman(num) {
 // botones — ¶ al principio de línea = capítulo, § = apartado. Ni la palabra ni las mayúsculas
 // cuentan para la lectura, así funciona en cualquier idioma y alfabeto. Los signos no se
 // muestran al lector.
-const CHAPTER_SIGN = "¶", SECTION_SIGN = "§";
+// Reglas comunes de lectura (19/10/2026, conversación 12): viven en /lectura.js, que usan la web
+// y el generador del PDF (api/pdf.js). Aquí solo se toman sus nombres, que no cambian.
+const { CHAPTER_SIGN, SECTION_SIGN, CHAPTER_WORDS_ANY, foldUpper, fromRoman, ROMAN_OK, chapterNumToken,
+  chapterWordNoNum, trozosCursiva, QUOTE_STYLES, toAngleQuotes, frenchQuoteSpaces, curlySingleQuotes,
+  FOTO_MARK_RE, fotosColocadas, formatDashes, bloquesLectura } = window.LM_LECTURA;
 // Las dos funciones siguientes ya no deciden la lectura; se conservan para detectar
 // "posibles títulos" en el Esquema del libro (paso 4), donde se ampliará la lista de palabras.
 const CHAPTER_MARKER_WORDS = ["CAPÍTULO","CAPITULO","CHAPTER"];
@@ -481,10 +486,7 @@ const isAllCapsLine = (s) => { const letters = s.replace(/[^A-Za-zÀ-ÿ]/g,""); 
 const isChapterMarker = (s) => CHAPTER_MARKER_WORDS.some(w=>s.toUpperCase().startsWith(w));
 
 // ---- Esquema del libro (v5, paso 4) ----
-// Palabras de capítulo en los idiomas de la plataforma, sin acentos. SOLO sirven para señalar
-// "posibles capítulos" escritos a mano; nunca deciden la lectura (eso lo hace el ¶).
-const CHAPTER_WORDS_ANY = ["CAPITULO","CAPITOL","CHAPTER","CHAPITRE","KAPITEL","CAPITOLO","ГЛАВА","الفصل","अध्याय"];
-const foldUpper = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
+// CHAPTER_WORDS_ANY y foldUpper: en /lectura.js (19/10/2026).
 // Partes del libro sin número que van con categoría de capítulo (01/10): se proponen como
 // "posible capítulo", no como apartado. Solo si son la línea entera o van seguidas de dos puntos,
 // punto o guion ("PRÓLOGO", "Epílogo: diez años después"), para no señalar frases normales.
@@ -508,19 +510,7 @@ const looksLikeChapter = (line) => {
   const u=foldUpper(tl);
   return CHAPTER_WORDS_ANY.some(w=>u.startsWith(w) && (u.length===w.length || /[\s\d:.\-–—]/.test(u[w.length])));
 };
-const fromRoman = (s) => { const v={I:1,V:5,X:10,L:50,C:100,D:500,M:1000}; let n=0;
-  for(let i=0;i<s.length;i++){ const a=v[s[i]], b=v[s[i+1]]||0; n+= a<b ? -a : a; } return n; };
-// Número del capítulo: la SEGUNDA palabra de la cabecera ("CAPÍTULO III", "Chapter 2"), y solo
-// si es un número arábigo o un romano bien formado — para no tomar por número palabras como
-// "CIVIL" en "¶ GUERRA CIVIL" (capítulo sin número, que se deja tal cual).
-const ROMAN_OK = /^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/;
-const chapterNumToken = (body) => {
-  const m = body.match(/^(\S+\s+)([IVXLCDM]+|\d+)(?=[\s.:]|$)/);
-  if(!m) return null;
-  const tok=m[2], arabic=/^\d+$/.test(tok);
-  if(!arabic && !ROMAN_OK.test(tok)) return null;
-  return { tok, idx: m[1].length, arabic, n: arabic ? parseInt(tok,10) : fromRoman(tok) };
-};
+// fromRoman, ROMAN_OK y chapterNumToken: en /lectura.js (19/10/2026).
 // Lee la estructura del libro directamente del texto, troceado igual que lo lee la Biblioteca
 // (renderStoryBody). Devuelve, en orden, capítulos (¶), apartados (§) y posibles títulos
 // escritos a mano, cada uno con la posición exacta en el texto donde empieza su línea.
@@ -542,16 +532,7 @@ function parseOutline(text){
   });
   return items;
 }
-// Capítulo con ¶ que empieza por una palabra de capítulo pero no lleva número ("¶ CAPÍTULO: LA
-// GUERRA", "¶ CAPÍTULO"): devuelve dónde acaba la palabra, para insertar ahí el número. Solo si a
-// la palabra le siguen dos puntos, un punto o nada: así "¶ CAPÍTULO PRIMERO" (número en letra),
-// "¶ PRÓLOGO", "¶ LA GUERRA" o "¶ 第三章" no se tocan. (01/10)
-const chapterWordNoNum = (body) => {
-  const m = body.match(/^([^\s:.]+)\s*([:.]|$)/);
-  if(!m) return null;
-  if(!CHAPTER_WORDS_ANY.includes(foldUpper(m[1]))) return null;
-  return { idx: m[1].length };
-};
+// chapterWordNoNum: en /lectura.js (19/10/2026).
 // "Renumerar capítulos": solo capítulos con ¶ y con número; cambia ese número por el que le toca
 // en orden. Los capítulos sin número se dejan tal cual.
 // - houseStyle=false (lo usa "+ Capítulo" al insertar en mitad del libro): conserva romano o arábigo.
@@ -600,93 +581,12 @@ function ConfirmedInput({value,onCommit,needsConfirm,confirmMsg,lang}){
 }
 // También acepta *así*: la traducción por IA a veces convierte los guiones bajos en
 // asteriscos (01/10). **así** (doble asterisco) no se toca.
-function renderInline(str){
-  const re=/(^|[^\p{L}\p{N}_*])([_*])([^_*\n]+?)\2(?=$|[^\p{L}\p{N}_*])/gu;
-  const out=[]; let last=0, m, k=0;
-  while((m=re.exec(str))){
-    const start=m.index+m[1].length;
-    // Con asteriscos, el texto debe ir pegado a ellos ("3 * 4 * 5" no es cursiva).
-    if(m[2]==="*" && /^\s|\s$/.test(m[3])){ re.lastIndex=start+1; continue; }
-    if(start>last) out.push(str.slice(last,start));
-    out.push(<em key={"em"+(k++)}>{m[3]}</em>);
-    last=start+m[3].length+2;
-    re.lastIndex=last;
-  }
-  if(last<str.length) out.push(str.slice(last));
+function renderInline(str){ // reglas en /lectura.js (trozosCursiva); aquí solo se dibuja (19/10/2026)
+  const out=trozosCursiva(str).map((x,k)=>x.cursiva?<em key={"em"+k}>{x.texto}</em>:x.texto);
   return out.length ? out : str;
 }
-// Comillas del libro de estilo (§9bis, 01/10): en libros en castellano, gallego y catalán, cada
-// pareja de comillas rectas o curvas de un párrafo se muestra como «…». Solo en la lectura; el
-// texto guardado no cambia. No se toca: un párrafo que ya tiene «» (sus comillas inglesas son
-// el segundo nivel), un párrafo con comillas desparejadas (p. ej. un diálogo que sigue en el
-// párrafo siguiente).
-// Ampliado el 03/10/2026 (decisión B de Javier, Continuidad "03/10/2026 (lectura nueva)"): la regla vale
-// para el original y para la traducción, con las comillas propias de cada idioma. Chino, japonés,
-// árabe e hindi no se tocan (se dejan como las escribió el Autor o las devolvió la IA).
-const QUOTE_STYLES = {
-  ES:["«","»"], CA:["«","»"], GL:["«","»"], "PT-PT":["«","»"], IT:["«","»"], RU:["«","»"],
-  FR:["«\u202F","\u202F»"],          // francés: espacio fino inseparable por dentro
-  EN:["“","”"], "PT-BR":["“","”"],
-  DE:["„","“"],
-};
-function toAngleQuotes(str, lang){
-  const st = lang && QUOTE_STYLES[lang];
-  if(!st) return str;
-  if(str.includes("«") || str.includes("„")) return str;
-  const n=(str.match(/["“”]/g)||[]).length;
-  if(n===0 || n%2) return str;
-  let open=true;
-  return str.replace(/["“”]/g,()=>{ const q=open?st[0]:st[1]; open=!open; return q; });
-}
-// Francés (04/10/2026): espacio fino inseparable SIEMPRE dentro de « », también cuando las
-// comillas ya venían escritas (por el Autor o por la traducción con IA), para que la línea no
-// se parta nunca tras « ni antes de ». Ver Diseño de traducir v3, apartado 13.
-function frenchQuoteSpaces(str){
-  return str.replace(/«[\s\u00A0\u202F]*/g,"«\u202F").replace(/[\s\u00A0\u202F]*»/g,"\u202F»");
-}
-// [P16-B3] Apóstrofo y comillas simples curvos al leer, en todos los idiomas (decisión de Javier,
-// 12/10/2026; Estándar de Colección v2.1). Sin tocar el texto guardado. La comilla simple que abre
-// una palabra (al principio, o tras un espacio, un paréntesis, unas comillas o un guion) pasa a ‘;
-// todas las demás, a ’ (apóstrofo: "l'avi" → "l’avi", "I'm" → "I’m"). Riesgo aceptado: "'90s"
-// sale con ‘.
-function curlySingleQuotes(str){
-  return String(str).replace(/(^|[\s(\[«“"‘„—–\-\/])'(?=[\p{L}\p{N}])/gu,"$1‘").replace(/'/g,"’");
-}
-// Marca [FOTO n] (y variantes de la traducción): misma regla que renderStoryBody.
-const FOTO_MARK_RE = /^\[\s*([^\]\d\s][^\]\d]*?)\s*(\d+)\s*\]$/;
-// Segunda subida (08/10/2026; diseño de la moderación v10, §11.13, punto 7): solo se publican las
-// fotos COLOCADAS en el texto. Copia exacta de fotosColocadas de api/_tramos.js v2 (la regla de
-// la lectura): corchetes, una palabra que empieza por "foto" o "photo" y el número (= orden).
-function fotosColocadas(text){
-  const colocadas=new Set();
-  for(const raw of String(text||"").split("\n\n")){
-    const m=raw.trim().match(FOTO_MARK_RE);
-    if(m && /^(foto|photo)/i.test(m[1])) colocadas.add(m[2]);
-  }
-  return colocadas;
-}
-// Guiones al leer (diseño §8.3; segunda subida). Sin IA y sin tocar el texto guardado: se aplica
-// al mostrar cada párrafo de prosa, en el idioma en que se lee (también en la traducción).
-// Todos los idiomas salvo el inglés: un solo guion, el medio (–).
-//  1. "--" o "---" → –.   6. raya (—) → –.
-//  2. Guion al principio del párrafo → – pegado al texto (salvo un número negativo: "-5 grados").
-//  3. Guion de inciso → –: espacio delante y no detrás ("tarde -dijo"); detrás y no delante
-//     ("suave- y"); a los dos lados ("era tarde - dijo"); pegado a una palabra por delante y
-//     seguido de . , ; : ("–dijo-. Y").
-//  4. Guion de cierre al final del párrafo ("–Ya voy –dijo–.") → se quita ("–Ya voy –dijo.").
-//  5. No se tocan el guion entre letras o cifras sin espacios ni el de un número negativo.
-// Inglés (Estándar §9ter): la raya se respeta y "--" pasa a raya; las reglas 2 a 4 no se aplican.
-function formatDashes(p, lang){
-  if(String(lang||"").toUpperCase()==="EN") return p.replace(/-{2,3}/g,"—");
-  let s=p.replace(/-{2,3}/g,"–").replace(/—/g,"–");
-  s=s.replace(/^(\s*)[-–]\s*(?=\D)/,"$1–");                                  // 2
-  s=s.replace(/(\s)-\s+(?=\S)/g,"$1– ")                                        // 3, a los dos lados
-     .replace(/(\s)-(?=[^\s\d-])/g,"$1–")                                       // 3, espacio delante
-     .replace(/([^\s-])-(?=\s)/g,"$1–")                                         // 3, espacio detrás
-     .replace(/([\p{L}\p{N}])-(?=[.,;:])/gu,"$1–");                             // 3, ante puntuación
-  s=s.replace(/(\s–[^–\n]*?[\p{L}\p{N}][^–\n]*?)–([.…!?»”"]*)\s*$/u,"$1$2");     // 4
-  return s;
-}
+// Comillas por idioma, apóstrofo, [FOTO n], fotosColocadas y guiones al leer: en /lectura.js
+// (19/10/2026, conversación 12), sin cambios de regla. Lo usan la web y el PDF.
 // Parche del pegado (diseño §8.4; Pendientes del Asistente, §3). Une las líneas cortadas de un
 // texto pegado; no une dos líneas separadas por una línea en blanco (cambio de párrafo real), ni
 // las que empiezan por ¶ o §, ni las marcas [FOTO n]: esas quedan como párrafo propio.
@@ -746,19 +646,11 @@ function storyExcerpt(text, max=88){
   return cut.replace(/[\s,;:.\-–—«“"'(]+$/,"")+"…";
 }
 function renderStoryBody(text, fotos=[], lang=null) {
-  return (text||"").split("\n\n").map((raw,i)=>{
-    // Guiones (diseño §8.3, segunda subida): la raya pasa a guion medio salvo en inglés; el
-    // resto de reglas, solo en los párrafos de prosa (más abajo, formatDashes).
-    const p = curlySingleQuotes(String(lang||"").toUpperCase()==="EN" ? raw : raw.replace(/—/g,"–")); // [P16-B3]
-    const trimmed = p.trim();
-    // Marcador [FOTO n]. Tolerante a propósito: si la traducción por IA cambiara la palabra
-    // (p. ej. [PHOTO 2], [FOTOGRAFÍA 2]), basta con corchetes + palabra + número final.
-    // Exige una palabra delante del número, para no confundir una línea como "[1990]".
-    const fm = trimmed.match(FOTO_MARK_RE);
-    const fmFoto = fm && fotos.find(x=>String(x.orden)===fm[2]);
-    if(fm && !(fmFoto && fmFoto.url) && /^(foto|photo)/i.test(fm[1])) return null; // [FOTO n] sin foto real detrás: no se muestra nada al lector
-    if(fmFoto && fmFoto.url){
-      const foto = fmFoto;
+  // Qué se muestra: /lectura.js (bloquesLectura, las mismas reglas que el PDF). Aquí, cómo se dibuja.
+  return bloquesLectura(text, fotos, lang).map((b,i)=>{
+    if(!b) return null;
+    if(b.tipo==="foto"){
+      const foto = b.foto;
       return (
         <figure key={i} style={{margin:"2.2rem 0"}}>
           <img src={foto.url} alt="" style={{display:"block",maxWidth:"100%",maxHeight:"60vh",width:"auto",height:"auto",margin:"0 auto",borderRadius:"2px",boxShadow:"0 3px 16px rgba(0,0,0,0.12)"}}/>
@@ -766,14 +658,8 @@ function renderStoryBody(text, fotos=[], lang=null) {
         </figure>
       );
     }
-    if(trimmed.startsWith(CHAPTER_SIGN)){
-      const body = trimmed.slice(CHAPTER_SIGN.length).trim();
-      const idx = body.indexOf(":");
-      // Capítulo sin número y sin dos puntos ("¶ PRÓLOGO", "¶ EPÍLOGO"): se muestra como título
-      // grande con raya, sin etiqueta pequeña encima (01/10). "¶ CAPÍTULO III" sin título, como antes.
-      const plainTitle = idx===-1 && !chapterNumToken(body) && !chapterWordNoNum(body);
-      const label = plainTitle ? "" : (idx>-1 ? body.slice(0,idx) : body);
-      const rest = plainTitle ? body : (idx>-1 ? body.slice(idx+1).trim() : "");
+    if(b.tipo==="capitulo"){
+      const label=b.etiqueta, rest=b.titulo;
       return (
         <div key={i} style={{marginTop:i===0?0:"2.6rem"}}>
           {label&&<div style={{fontFamily:"var(--serif)",fontSize:"0.8rem",textTransform:"uppercase",letterSpacing:"0.2em",color:"var(--navy)",marginBottom:"0.3rem"}}>{label}</div>}
@@ -781,12 +667,9 @@ function renderStoryBody(text, fotos=[], lang=null) {
         </div>
       );
     }
-    if(trimmed.startsWith(SECTION_SIGN)){
-      const body = trimmed.slice(SECTION_SIGN.length).trim();
-      return <h3 key={i} style={{fontFamily:"var(--serif)",fontSize:"1.15rem",color:"var(--navy)",margin:"2rem 0 0.8rem",paddingBottom:"0.4rem",borderBottom:"1px solid var(--border)"}}>{body}</h3>;
-    }
-    const q = toAngleQuotes(formatDashes(p, lang), lang);
-    return <p key={i}>{renderInline(lang==="FR" ? frenchQuoteSpaces(q) : q)}</p>;
+    if(b.tipo==="apartado") return <h3 key={i} style={{fontFamily:"var(--serif)",fontSize:"1.15rem",color:"var(--navy)",margin:"2rem 0 0.8rem",paddingBottom:"0.4rem",borderBottom:"1px solid var(--border)"}}>{b.texto}</h3>;
+    const out=b.trozos.map((x,k)=>x.cursiva?<em key={"em"+k}>{x.texto}</em>:x.texto);
+    return <p key={i}>{out.length ? out : ""}</p>;
   });
 }
 // librerías). Se usa para la respuesta de seguridad: nunca se guarda en
@@ -1378,7 +1261,16 @@ const T = {
     pay_generic:"Pagar",
     photos_activated:"Fotos añadidas",
     pdf_activated:"Archivo PDF listo",
-    pdf_note:"Se genera al finalizar tu historia.",
+    pdf_note:"Incluye 15 descargas, en DIN A5 y DIN A4." /* 19/10/2026; antes: "Se genera al finalizar tu historia." */,
+    pdf_soon:"El archivo PDF estará disponible próximamente para los libros en este idioma.",
+    pdf_left:"Te quedan {n} descargas (como máximo {m} al día).",
+    pdf_download:"Descargar DIN {f}",
+    pdf_generating:"Preparando tu PDF… Puede tardar hasta un minuto. No cierres esta página.",
+    pdf_ready:"Tu PDF está listo. Si la descarga no empieza sola,",pdf_ready_link:"pulsa aquí.",
+    pdf_err:"No hemos podido preparar tu PDF y no se ha descontado ninguna descarga. Inténtalo de nuevo dentro de unos minutos.",
+    pdf_err_day:"Hoy ya has descargado {m} archivos. Podrás descargar más mañana.",
+    pdf_err_total:"Ya has usado las 15 descargas de tu archivo PDF.",
+    pdf_err_buy:"No hemos podido completar la compra. No se te ha cobrado nada. Inténtalo de nuevo dentro de unos minutos.",
     processing:"Procesando…",
     contact_h:"Contacto",contact_sub:"¿Tienes alguna pregunta o quieres colaborar? Escríbenos a contactlocusmundi@gmail.com",
     contact_name:"Tu nombre",contact_email:"Tu correo",contact_msg:"Tu mensaje",
@@ -1803,7 +1695,16 @@ const T = {
     pay_generic:"Pay",
     photos_activated:"Photos added",
     pdf_activated:"PDF file ready",
-    pdf_note:"Generated once your story is finished.",
+    pdf_note:"Includes 15 downloads, in DIN A5 and DIN A4.",
+    pdf_soon:"The PDF file will soon be available for books in this language.",
+    pdf_left:"You have {n} downloads left (up to {m} a day).",
+    pdf_download:"Download DIN {f}",
+    pdf_generating:"Preparing your PDF… This may take up to a minute. Please keep this page open.",
+    pdf_ready:"Your PDF is ready. If the download doesn't start on its own,",pdf_ready_link:"click here.",
+    pdf_err:"We couldn't prepare your PDF, and no download has been used up. Please try again in a few minutes.",
+    pdf_err_day:"You've already downloaded {m} files today. You can download more tomorrow.",
+    pdf_err_total:"You've used all 15 downloads of your PDF file.",
+    pdf_err_buy:"We couldn't complete the purchase, and you haven't been charged. Please try again in a few minutes.",
     processing:"Processing…",
     contact_h:"Contact",contact_sub:"Do you have a question or want to collaborate? Write to us at contactlocusmundi@gmail.com",
     contact_name:"Your name",contact_email:"Your email",contact_msg:"Your message",
@@ -2729,6 +2630,23 @@ async function fotoEditorApi(body){
   return d;
 }
 
+// api/pdf.js (19/10/2026): estado, compra (simulada hasta Stripe) y generación del PDF. Nunca lanza:
+// devuelve los datos o {error}.
+async function pdfApi(body){
+  try{
+    const { data } = await supa.auth.getSession();
+    const res=await fetch("/api/pdf",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({...body, token:data.session?data.session.access_token:null})
+    });
+    const d=await res.json().catch(()=>({}));
+    return res.ok ? (d||{}) : {...(d||{}), error:(d&&d.error)||"ERROR"};
+  }catch(e){
+    console.error("pdf:", e);
+    return {error:"RED"};
+  }
+}
+
 // api/moderar.js v2 (segunda subida). Devuelve {status, d} sin lanzar: las respuestas con sentido
 // propio (pasajes, imagen rechazada, límites) no son errores del navegador. Fallo de red: status 0.
 async function moderarApi(body){
@@ -3105,26 +3023,16 @@ function PhotosModal({onClose,onPaid,t,tiene=0}) {
 }
 
 function PdfModal({onClose,onPaid,t}) {
-  const [format,setFormat]=useState("A5");
   const [paying,setPaying]=useState(false);const [done,setDone]=useState(false);
-  const pay=()=>{setPaying(true);setTimeout(()=>{setDone(true);setPaying(false);onPaid(format);},1400);};
+  const pay=()=>{setPaying(true);setTimeout(()=>{setDone(true);setPaying(false);onPaid();},1400);};
   return (
     <div className="ov" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <button className="modal-x" onClick={onClose}>✕</button>
-        {done?(<div style={{textAlign:"center",padding:"1.8rem 0"}}><div style={{fontSize:"2.2rem",color:"var(--gold)",marginBottom:"0.9rem"}}>✦</div><div className="modal-h" style={{textAlign:"center"}}>{t.pdf_activated}</div><p style={{fontFamily:"var(--body)",color:"var(--muted)",marginTop:"0.75rem"}}>DIN {format}</p></div>):(
+        {done?(<div style={{textAlign:"center",padding:"1.8rem 0"}}><div style={{fontSize:"2.2rem",color:"var(--gold)",marginBottom:"0.9rem"}}>✦</div><div className="modal-h" style={{textAlign:"center"}}>{t.pdf_activated}</div><p style={{fontFamily:"var(--body)",color:"var(--muted)",marginTop:"0.75rem"}}>DIN A5 · DIN A4</p></div>):(
           <>
             <div className="modal-h">{t.addon_pdf_h}</div>
             <p className="modal-sub">{t.addon_pdf_sub}</p>
-            <div style={{display:"flex",gap:"0.5rem",margin:"0.9rem 0"}}>
-              {["A4","A5"].map(f=>(
-                <button key={f} type="button" onClick={()=>setFormat(f)}
-                  style={{flex:1,fontFamily:"var(--body)",fontSize:"0.9rem",padding:"0.6rem",borderRadius:"2px",cursor:"pointer",
-                    border:format===f?"1px solid var(--gold)":"1px solid var(--border)",
-                    background:format===f?"var(--gold)":"transparent",
-                    color:format===f?"var(--cr)":"var(--ink)"}}>DIN {f}</button>
-              ))}
-            </div>
             <div className="stripe-sec">
               <div className="stripe-lbl">Stripe · {t.precio_5}{/* [P20-c] original: €5 */}</div>
               <div className="s-row"><input className="s-inp" placeholder="•••• •••• •••• ••••"/></div>
@@ -4565,7 +4473,32 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const globoNever=(k)=>{ try{ window.localStorage.setItem("lm_globo_off_"+k,"1"); }catch(e){} setGlobo(null); };
   // Las fotos compradas son los huecos que existen en la tabla `fotos` (lo único que
   // sobrevive a recargar la página); antes era un contador en memoria que volvía a 0.
-  const photosBought=fotosDb.length;const [pdfBought,setPdfBought]=useState(null);
+  const photosBought=fotosDb.length;
+  // Archivo imprimible (PDF), 19/10/2026 (conversación 12): el estado lo da api/pdf.js (compra,
+  // descargas que quedan y si hay PDF para el idioma del libro). Antes, pdfBought era solo local.
+  const [pdfEstado,setPdfEstado]=useState(null);const pdfBought=!!(pdfEstado&&pdfEstado.comprado);
+  const [pdfGen,setPdfGen]=useState(null);const [pdfMsg,setPdfMsg]=useState(null);
+  useEffect(()=>{
+    if(!publicado){ setPdfEstado(null); return; }
+    let vivo=true;
+    pdfApi({accion:"estado"}).then(d=>{ if(vivo && !d.error) setPdfEstado(d); });
+    return ()=>{ vivo=false; };
+  },[publicado]);
+  const descargarPdf=async(fmt)=>{
+    setPdfGen(fmt); setPdfMsg(null);
+    const d=await pdfApi({accion:"generar", formato:fmt});
+    setPdfGen(null);
+    if(d.url){
+      setPdfEstado(e=>e?{...e, quedan:d.quedan, hoy:(e.hoy||0)+1}:e);
+      setPdfMsg({ok:true, url:d.url});
+      window.location.assign(d.url);
+      return;
+    }
+    const m=pdfEstado?pdfEstado.max_dia:5;
+    setPdfMsg({ok:false, texto: d.error==="LIMITE_DIA" ? t.pdf_err_day.replace("{m}",m)
+      : d.error==="LIMITE_TOTAL" ? t.pdf_err_total : t.pdf_err});
+    if(d.error==="LIMITE_TOTAL") setPdfEstado(e=>e?{...e, quedan:0}:e);
+  };
   const [showAiOverlay,setShowAiOverlay]=useState(false);
   const [showAiSetup,setShowAiSetup]=useState(false); // preparar tú/usted y nombre en un libro nuevo, sin pago
   const [aiCharge,setAiCharge]=useState(5);const [aiTermsOk,setAiTermsOk]=useState(false);
@@ -6102,7 +6035,7 @@ ${capituloActual}
   return (
     <div className="wr-wrap">
       {showPhotosM&&<PhotosModal onClose={()=>setShowPhotosM(false)} onPaid={(n)=>{addFotoSlots(n);setShowPhotosM(false);}} t={t} tiene={fotosDb.length}/>}
-      {showPdfM&&<PdfModal onClose={()=>setShowPdfM(false)} onPaid={(fmt)=>{setPdfBought(fmt);setShowPdfM(false);}} t={t}/>}
+      {showPdfM&&<PdfModal onClose={()=>setShowPdfM(false)} onPaid={async()=>{ const d=await pdfApi({accion:"comprar"}); setShowPdfM(false); if(d.error) setPdfMsg({ok:false, texto:t.pdf_err_buy}); else setPdfEstado(d); }} t={t}/>}
       {showAssistantFaq&&<AssistantFaqModal onClose={()=>setShowAssistantFaq(false)} lang={lang}/>}
       {showPhotosFaq&&<PhotosFaqModal onClose={()=>setShowPhotosFaq(false)} lang={lang}/>}
       {showEditorFaq&&<EditorFaqModal onClose={()=>setShowEditorFaq(false)} lang={lang} irA={typeof showEditorFaq==="number"?showEditorFaq:null}/>}
@@ -6667,10 +6600,27 @@ ${capituloActual}
           </div>
           <div id="lm-offer-pdf" style={{marginTop:"0.6rem",padding:"0.7rem 0.8rem",background:"var(--bg2)",border:"1px solid var(--gold)",borderRadius:"2px"}}>
             <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--gold)",fontWeight:"600",marginBottom:"0.4rem",textTransform:"uppercase",letterSpacing:"0.12em"}}>{t.addon_pdf_h}</div>
-            <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_pdf_sub}</span><span className={`badge ${pdfBought?"on":"prem"}`}>{pdfBought?`DIN ${pdfBought}`:t.precio_5/* [P20-c] original: "€5" */}</span></div>
-            {!pdfBought&&(publicado
+            <div className="pm-feat" style={{marginBottom:"0.5rem"}}><span className="pm-feat-t">{t.addon_pdf_sub}</span><span className={`badge ${pdfBought?"on":"prem"}`}>{pdfBought?"✓":t.precio_5/* [P20-c] original: "€5"; 19/10/2026: antes "DIN A5/A4" */}</span></div>
+            {!publicado
+              ? <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--muted)",fontStyle:"italic"}}>{t.addon_pdf_unpub}</div>
+              : !pdfEstado ? null
+              : !pdfEstado.disponible
+              ? <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--muted)",fontStyle:"italic"}}>{t.pdf_soon}</div>
+              : !pdfBought
               ? <button className="pm-unlock" onClick={()=>setShowPdfM(true)}>{t.addon_pdf_btn}</button>
-              : <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--muted)",fontStyle:"italic"}}>{t.addon_pdf_unpub}</div>)}
+              : <div>
+                  <div style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--ink)"}}>{t.pdf_left.replace("{n}",pdfEstado.quedan).replace("{m}",pdfEstado.max_dia)}</div>
+                  <div style={{display:"flex",gap:"0.5rem"}}>
+                    {["A5","A4"].map(f=>(
+                      <button key={f} className="pm-unlock" disabled={!!pdfGen||pdfEstado.quedan<=0} onClick={()=>descargarPdf(f)}>
+                        {pdfGen===f?<span style={{display:"inline-flex",alignItems:"center",gap:"0.4rem"}}><span className="sp"/>DIN {f}</span>:t.pdf_download.replace("{f}",f)}
+                      </button>))}
+                  </div>
+                  {pdfGen&&<div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",marginTop:"0.4rem"}}>{t.pdf_generating}</div>}
+                </div>}
+            {pdfMsg&&(pdfMsg.ok
+              ? <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#3f7a4e",marginTop:"0.4rem"}}>{t.pdf_ready} <a href={pdfMsg.url} style={{color:"var(--navy)"}}>{t.pdf_ready_link}</a></div>
+              : <div style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#b23b3b",marginTop:"0.4rem"}}>{pdfMsg.texto}</div>)}
           </div>
         </div>
 
