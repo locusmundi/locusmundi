@@ -1,8 +1,16 @@
 {
   "name": "locusmundi",
   "version": "1.0.0",
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
     "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.0.0",
+    "@sparticuz/chromium": "153.0.0",
+    "puppeteer-core": "25.14.0",
+    "pagedjs": "0.4.3",
+    "@fontsource/eb-garamond": "5.3.0",
+    "@fontsource/playfair-display": "5.3.0"
   }
 }
