@@ -2,7 +2,7 @@
 // Versión 1 · 17/10/2026 · Fase B2, punto 19 (b). Continuidad, sesión "17/10/2026 (conversación 5)".
 // Tarea diaria (vercel.json, 03:00 UTC). El plan Hobby de Vercel solo admite 2 tareas programadas:
 // esta sustituye a la purga semanal y hace dos cosas:
-//  1. La purga (api/purgar-borrados.js, sin cambios; ejecutarla a diario no cambia nada: solo
+//  1. La purga (api/_purgar-borrados.js, sin cambios; ejecutarla a diario no cambia nada: solo
 //     borra lo marcado hace más de 30 días).
 //  2. El vigía: comprueba que los modelos de Google siguen existiendo (consulta gratuita, no gasta
 //     nada), que Supabase responde, que la web carga y que la última copia de R2 tiene menos de
@@ -10,8 +10,10 @@
 //     que el propio vigía sigue vivo.
 // Versión 1.1 · 17/10/2026 · Punto 19 (c): los modelos se leen de api/_modelos.js, y el vigía
 // avisa también si a un modelo de texto le falta su precio.
+// Versión 1.2 · 19/10/2026 · Conversación 12 (punto 14): la purga pasa a api/_purgar-borrados.js
+// (con guion bajo deja de contar como función; el plan Hobby de Vercel admite 12). Sin más cambios.
 
-const purgar = require('./purgar-borrados');
+const purgar = require('./_purgar-borrados'); // v1.2
 const { leerTexto } = require('./_r2');
 const { avisar } = require('./_aviso');
 
