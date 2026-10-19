@@ -16,9 +16,9 @@
     }
   ],
   "functions": {
-    "api/pdf-prueba.js": {
+    "api/pdf.js": {
       "maxDuration": 300,
-      "includeFiles": "node_modules/{@sparticuz/chromium/bin/**,pagedjs/dist/paged.polyfill.min.js,@fontsource/eb-garamond/files/*-{latin,latin-ext,cyrillic}-400-*.woff2,@fontsource/playfair-display/files/*-{latin,latin-ext,cyrillic}-400-normal.woff2}"
+      "includeFiles": "{lectura.js,logo_locus_mundi_fondo_blanco.png,node_modules/@sparticuz/chromium/bin/**,node_modules/pagedjs/dist/paged.polyfill.min.js,node_modules/@fontsource/eb-garamond/files/*-{latin,latin-ext,cyrillic}-400-*.woff2,node_modules/@fontsource/playfair-display/files/*-{latin,latin-ext,cyrillic}-400-*.woff2}"
     }
   }
 }
