@@ -1,5 +1,7 @@
 // api/pdf.js — Locus Mundi
 // Versión 1 · 19/10/2026 · Fase B2, punto 14 (conversación 12). Sustituye a api/pdf-prueba.js.
+// Versión 1.1 · 19/10/2026 · "comprar" devuelve también publicado y disponible (sin ellos, la web
+// creía que el idioma no tenía PDF y mostraba «Disponible próximamente» tras pagar).
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
 // LOCUS_MUNDI_FORMATO_IMPRESION.md v2. Chrome sin pantalla (@sparticuz/chromium) + Paged.js, en
@@ -454,7 +456,7 @@ module.exports = async function handler(req, res) {
     if (b.accion === 'comprar') {
       if (!PAGO_SIMULADO) return res.status(403).json({ error: 'PAGO_REAL' });
       await rest('pdf_compras', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates' }, body: JSON.stringify({ historia_id: historia, autor_id: autor, origen: 'simulado', descargas: DESCARGAS_POR_COMPRA }) });
-      return res.status(200).json(Object.assign({ ok: true, max_dia: MAX_DIA }, await estadoCompra(historia, autor)));
+      return res.status(200).json(Object.assign({ ok: true, publicado: true, disponible: true, max_dia: MAX_DIA }, await estadoCompra(historia, autor))); // v1.1: con publicado y disponible, como "estado"
     }
 
     if (b.accion === 'generar') {
