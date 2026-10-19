@@ -18,7 +18,7 @@
   "functions": {
     "api/pdf.js": {
       "maxDuration": 300,
-      "includeFiles": "{lectura.js,logo_locus_mundi_fondo_blanco.png,node_modules/@sparticuz/chromium/bin/**,node_modules/pagedjs/dist/paged.polyfill.min.js,node_modules/@fontsource/eb-garamond/files/*-{latin,latin-ext,cyrillic}-400-*.woff2,node_modules/@fontsource/playfair-display/files/*-{latin,latin-ext,cyrillic}-400-*.woff2}"
+      "includeFiles": "{lectura.js,logo_locus_mundi_fondo_blanco.png,node_modules/{@sparticuz/chromium/bin,pagedjs/dist,@fontsource/eb-garamond/files,@fontsource/playfair-display/files}/**}"
     }
   }
 }
