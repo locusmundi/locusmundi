@@ -14,6 +14,10 @@
 //   D. Colofón: logo a la mitad, bloque centrado en vertical.
 //   Letra: 11 pt en A5 (antes 10,5) y 13 pt en A4 (antes 11,5), con márgenes laterales de 28 mm.
 //   Fotos: nunca en la primera página de un capítulo. Al imprimir, nada se recorta (A4 de Irene, p. 5).
+//   20/10: Paged.js, al partir un párrafo a final de página, a veces perdía una línea (A4 de Irene,
+//   p. 9) o metía un signo raro en medio de una palabra ("banq□uete", p. 49): cada corte suyo se
+//   rehace como corte nuestro, a principio de palabra. Saltos que ya no hacen falta, retirados
+//   (hueco de la p. 39). Comprobado palabra a palabra con el texto real: no falta ninguna.
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
 // LOCUS_MUNDI_FORMATO_IMPRESION.md v2. Chrome sin pantalla (@sparticuz/chromium) + Paged.js, en
@@ -228,7 +232,10 @@ async function construirHtml(pub, formato) {
   };
   // Lleva un punto de corte al principio de palabra más cercano (la medida puede desviarse un carácter).
   const aPalabra = (texto, o) => {
-    for (const d of [0, 1, -1, 2, -2, 3, -3]) { const k = o + d; if (k > 0 && k < texto.length && /\s/.test(texto[k - 1]) && !/\s/.test(texto[k])) return k; }
+    for (const d of [0, 1, -1]) { const k = o + d; if (k > 0 && k < texto.length && /\s/.test(texto[k - 1]) && !/\s/.test(texto[k])) return k; }
+    // v1.2: si cae dentro de una palabra (línea partida con guion), la palabra entera pasa al trozo
+    // siguiente: nunca se corta una palabra en un cambio de página (el "banq□uete" del A4 de Irene).
+    for (let k = o - 1; k > 0 && k > o - 40; k--) if (/\s/.test(texto[k - 1]) && !/\s/.test(texto[k])) return k;
     return o;
   };
   // v1.2 (C): hueco de una foto que salta de página → los párrafos que siguen a la foto (o a un
@@ -259,7 +266,7 @@ async function construirHtml(pub, formato) {
       const salto = aj.saltos.has('p' + el.id);
       return lim.slice(0, -1).map((ini, k) => {
         const cls = [el.clase, k > 0 ? 'sigue salto' : (salto ? 'salto' : ''), k < lim.length - 2 ? 'corta' : ''].filter(Boolean).join(' ');
-        return `<p data-p="${el.id}" data-ini="${ini}"${aj.vetos && aj.vetos.has(String(el.id)) ? ' data-veto' : ''}${cls ? ` class="${cls}"` : ''}>${htmlTrozos(el.trozos, ini, lim[k + 1])}</p>`;
+        return `<p data-p="${el.id}" data-ini="${ini}" data-fin="${lim[k + 1]}"${aj.vetos && aj.vetos.has(String(el.id)) ? ' data-veto' : ''}${cls ? ` class="${cls}"` : ''}>${htmlTrozos(el.trozos, ini, lim[k + 1])}</p>`;
       }).join('');
     });
     return `<section class="cap${sec.cap ? '' : ' preliminar'}${i === 0 ? ' primera' : ''}" data-cap="${i}">${cabecera}${partes.join('\n')}</section>`;
@@ -362,6 +369,9 @@ window.__maquetar = async function(){
     const pri=area.querySelector('section.cap > :first-child');
     if(pri && !pri.matches('header')) pri.style.marginTop='0';
   }
+  // Si aun así Paged.js parte un párrafo (uno más largo que una página), su guion de corte es un
+  // signo que la letra no trae (U+2011): se cambia por el guion normal.
+  for(const e of document.querySelectorAll('.pagedjs_hyphen')){ const w=document.createTreeWalker(e,NodeFilter.SHOW_TEXT); let n,ult=null; while((n=w.nextNode())) ult=n; if(ult && ult.textContent.endsWith('\u2011')) ult.textContent=ult.textContent.slice(0,-1)+'-'; }
   return document.querySelectorAll('.pagedjs_page').length;
 };`;
 
@@ -380,7 +390,8 @@ window.__maquetar = async function(){
 //  6.2 Nunca un apartado solo al final de página, ni con una sola línea de su texto.
 //  6.3 La última página de cada capítulo, al menos 3 líneas.
 const MEDIR = `(() => {
-  const arreglos = []; let R = '';
+  const arreglos = []; let R = '', PG = 0;
+  const add = (o) => { o.pg = PG; arreglos.push(o); }; // pg: página donde está el arreglo
   const lh = (el) => parseFloat(getComputedStyle(el).lineHeight);
   const lineas = (el) => Math.max(1, Math.round(el.getBoundingClientRect().height / lh(el)));
   const paginas = [...document.querySelectorAll('.pagedjs_page')];
@@ -410,15 +421,19 @@ const MEDIR = `(() => {
     return out;
   };
   const cuenta = (el) => { let n = 0; const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT); while (w.nextNode()) { const x = w.currentNode; n += x.nodeType === 3 ? x.length : (x.tagName === 'BR' ? 1 : 0); } return n; };
+  // Un corte en un párrafo; si el trozo ya era el principio de un corte nuestro que no cupo entero,
+  // el corte nuevo sustituye al viejo (si no, quedaría en medio un trozo suelto en su página).
+  const cortar = (frag, o, r) => add({ corte: [frag.getAttribute('data-p'), o], r, reemplaza: frag.classList.contains('corta') ? Number(frag.getAttribute('data-fin')) : null });
   // Mover "cuantas" líneas del final de este trozo (última cosa de su página) a la siguiente.
   const mover = (frag, cuantas) => {
     const ini = iniciosDeLinea(frag);
     const k = ini.length - cuantas;
     const primero = !frag.hasAttribute('data-split-from');
-    if (k >= 2 || (!primero && k >= 1)) arreglos.push({ corte: [frag.getAttribute('data-p'), ini[k]], r: R });
-    else if (primero) { const s = saltoDe(frag); if (s) arreglos.push(s); } // v1.2: con su título, si lo lleva
+    if (k >= 2 || (!primero && k >= 1)) cortar(frag, ini[k], R);
+    else if (primero) { const s = saltoDe(frag); if (s) add(s); } // v1.2: con su título, si lo lleva
   };
   paginas.forEach((pg, i) => {
+    PG = i;
     const els = elementos(pg); if (!els.length) return;
     const ant = i > 0 ? elementos(paginas[i - 1]) : [];
     const ultAnt = ant[ant.length - 1];
@@ -431,21 +446,47 @@ const MEDIR = `(() => {
     if (esTitulo(ult)) {
       const h = ult.tagName === 'H3' ? (cabezaDe(ult) || ult) : cabezaDe(ult);
       const solo = els.every(esTitulo);
-      if (h && !(solo && h === els[0])) arreglos.push({ salto: 'h' + h.getAttribute('data-h') });
+      if (h && !(solo && h === els[0])) add({ salto: 'h' + h.getAttribute('data-h') });
       else if (h && solo && paginas[i + 1]) { // ya está arriba: lo que le sigue debe caber con él
         const sig = elementos(paginas[i + 1])[0];
-        if (sig && sig.tagName === 'P' && !sig.hasAttribute('data-split-from')) arreglos.push({ cabe: 'p' + sig.getAttribute('data-p') });
+        if (sig && sig.tagName === 'P' && !sig.hasAttribute('data-split-from')) add({ cabe: 'p' + sig.getAttribute('data-p') });
       }
     }
     // Huérfana (v1.2): nunca la primera línea de un párrafo sola al final de página.
     else if (ult.tagName === 'P' && ult.hasAttribute('data-split-to') && !ult.hasAttribute('data-split-from') && lineas(ult) < 2) {
-      const s = saltoDe(ult); if (s) arreglos.push(s);
+      const s = saltoDe(ult); if (s) add(s);
+    }
+    // Corte de Paged.js (v1.2): cuando Paged.js parte un párrafo a final de página, a veces pierde
+    // una línea o mete un signo raro en medio de una palabra (A4 de Irene, p. 9 y 49). Ese corte se
+    // rehace como corte nuestro, en el mismo sitio pero a principio de palabra: lo de después no se mueve.
+    if (ult.tagName === 'P' && ult.hasAttribute('data-split-to') && !arreglos.some((a) => a.pg === i && ((a.corte && a.corte[0] === ult.getAttribute('data-p')) || a.salto))) {
+      const ref = ult.getAttribute('data-ref');
+      let base = parseInt(ult.getAttribute('data-ini') || '0', 10);
+      for (const otro of document.querySelectorAll('[data-ref="' + ref + '"]')) { if (otro === ult) break; base += cuenta(otro); }
+      let o = base + cuenta(ult);
+      if (ult.classList.contains('pagedjs_hyphen')) o -= 1; // el guion que añade Paged.js no es del texto
+      R = 'nativo'; cortar(ult, o, R);
+    }
+    // Salto viejo (v1.2): un párrafo o un apartado que una regla llevó a la página siguiente y que,
+    // tras otros arreglos, ya cabe entero aquí: se le quita el salto (hueco del A4 de Irene, p. 39).
+    const s0 = paginas[i + 1] ? elementos(paginas[i + 1])[0] : null;
+    if (s0 && s0.classList.contains('salto') && !s0.classList.contains('sigue') && (s0.tagName === 'P' || s0.tagName === 'H3') && ult.tagName !== 'HEADER'
+        && ult.closest('section.cap').getAttribute('data-cap') === s0.closest('section.cap').getAttribute('data-cap')) {
+      const area = pg.querySelector('.pagedjs_page_content').getBoundingClientRect();
+      const libre = area.bottom - ult.getBoundingClientRect().bottom - (parseFloat(getComputedStyle(ult).marginBottom) || 0);
+      const sigEls2 = elementos(paginas[i + 1]);
+      let necesita;
+      if (s0.tagName === 'P') necesita = s0.getBoundingClientRect().height + (s0.matches('.verso, .cita') ? lh(s0) : 0);
+      else { const t = sigEls2.find((e, k) => k > 0 && !esTitulo(e)); necesita = t ? (t.getBoundingClientRect().top - s0.getBoundingClientRect().top) + 2 * lh(t) + 2 * lh(t) : 1e9; }
+      if (necesita + lh(s0) / 2 <= libre) add({ quitar: s0.tagName === 'P' ? 'p' + s0.getAttribute('data-p') : 'h' + s0.getAttribute('data-h') });
     }
     // Hueco sin motivo (v1.2): Paged.js a veces lleva entero a la página siguiente un párrafo que
     // cabía en parte (visto tras unos versos). Si aquí caben 2 líneas o más, se parte el párrafo.
     const sig0 = paginas[i + 1] ? elementos(paginas[i + 1])[0] : null;
     if (els.length === 1 && els[0].tagName === 'P' && els[0].classList.contains('corta') && !els[0].classList.contains('sigue') && i > 0)
-      arreglos.push({ veto: els[0].getAttribute('data-p') }); // un corte que no cupo: se quita y no se repite
+      add({ veto: els[0].getAttribute('data-p') }); // un corte que no cupo: se quita y no se repite
+    if (els.length === 1 && els[0].tagName === 'P' && els[0].classList.contains('corta') && els[0].classList.contains('sigue'))
+      add({ unir: [els[0].getAttribute('data-p'), Number(els[0].getAttribute('data-fin'))] }); // trozo suelto entre dos cortes: se une al siguiente
     if (sig0 && sig0.tagName === 'P' && !sig0.hasAttribute('data-split-from') && !sig0.classList.contains('salto') && !sig0.hasAttribute('data-veto')
         && !esTitulo(ult) && ult.tagName !== 'HEADER'
         && ult.closest('section.cap').getAttribute('data-cap') === sig0.closest('section.cap').getAttribute('data-cap')) {
@@ -455,7 +496,7 @@ const MEDIR = `(() => {
       if (n >= 2) {
         const ini = iniciosDeLinea(sig0);
         const k = Math.min(n, ini.length - 2);
-        if (k >= 2) arreglos.push({ corte: [sig0.getAttribute('data-p'), ini[k]], r: 'hueco' });
+        if (k >= 2) add({ corte: [sig0.getAttribute('data-p'), ini[k]], r: 'hueco' });
       }
     }
     // Hueco de una foto que salta (v1.2, opción b): si la página siguiente empieza por una foto del
@@ -466,7 +507,11 @@ const MEDIR = `(() => {
         && ult.tagName !== 'HEADER' && ult.closest('section.cap').getAttribute('data-cap') === f.closest('section.cap').getAttribute('data-cap')) {
       const area = pg.querySelector('.pagedjs_page_content').getBoundingClientRect();
       const libre = area.bottom - ult.getBoundingClientRect().bottom;
-      if (libre > area.height / 3) arreglos.push({ subir: f.getAttribute('data-f') });
+      if (libre > area.height / 3) { // cuántos párrafos caben en el hueco (al menos uno), de una vez
+        let n = 0, alto = 0;
+        for (let k = tras; sigEls[k] && sigEls[k].tagName === 'P' && !sigEls[k].hasAttribute('data-split-from'); k++) { alto += sigEls[k].getBoundingClientRect().height; n++; if (alto > libre) break; }
+        add({ subir: f.getAttribute('data-f'), n: Math.max(1, n) });
+      }
     }
   });
   // Foto en la primera página de un capítulo (v1.2, Javier 19/10): nunca. La foto pasa detrás de
@@ -474,23 +519,24 @@ const MEDIR = `(() => {
   const primeraDe = {};
   paginas.forEach((pg, i) => { const h = pg.querySelector('section.cap > header'); if (h) primeraDe[h.closest('section.cap').getAttribute('data-cap')] = i; });
   for (const cap in primeraDe) {
+    PG = primeraDe[cap];
     const els = elementos(paginas[primeraDe[cap]]).filter((e) => e.closest('section.cap').getAttribute('data-cap') === cap);
     const k = els.findIndex((e) => e.tagName === 'FIGURE');
     if (k < 0) { // el título del capítulo se quedó solo porque detrás venía la foto: también se mueve
       const sig = paginas[primeraDe[cap] + 1] ? elementos(paginas[primeraDe[cap] + 1]) : [];
       let j = 0; while (esTitulo(sig[j])) j++;
       if (els.every((e) => e.tagName === 'HEADER' || esTitulo(e)) && sig[j] && sig[j].tagName === 'FIGURE' && sig[j].closest('section.cap').getAttribute('data-cap') === cap)
-        arreglos.push({ subir: sig[j].getAttribute('data-f'), n: 2 });
+        add({ subir: sig[j].getAttribute('data-f'), n: 2 });
       continue;
     }
     const n = Math.max(1, els.slice(k + 1).filter((e) => e.tagName === 'P' && !e.hasAttribute('data-split-from')).length);
-    arreglos.push({ subir: els[k].getAttribute('data-f'), n });
+    add({ subir: els[k].getAttribute('data-f'), n });
   }
   // 6.3: por capítulo, su última página.
   const ultimaDe = {};
   paginas.forEach((pg, i) => { for (const s of pg.querySelectorAll('section.cap')) ultimaDe[s.getAttribute('data-cap')] = i; });
   for (const cap in ultimaDe) {
-    const i = ultimaDe[cap];
+    const i = ultimaDe[cap]; PG = i - 1;
     const els = elementos(paginas[i]).filter((e) => e.closest('section.cap').getAttribute('data-cap') === cap);
     if (!els.length || els.some((e) => e.tagName !== 'P')) continue;
     const n = els.reduce((t, e) => t + lineas(e), 0);
@@ -504,9 +550,16 @@ const MEDIR = `(() => {
 
 // Pagina el libro: maqueta, mide, arregla y vuelve a maquetar (hasta 4 pasadas; casi siempre 1 o 2).
 async function paginar(browser, render) {
-  const aj = { cortes: {}, saltos: new Set(), subir: new Map(), reducir: new Map(), vetos: new Set() };
+  const aj = { cortes: {}, cortePg: {}, saltos: new Set(), quitados: new Set(), subir: new Map(), reducir: new Map(), vetos: new Set() };
   let page = null, pasadas = 0, arreglos = [];
-  for (; pasadas < 8; pasadas++) { // v1.2: hasta 8 (huecos de foto párrafo a párrafo; cortes medidos de nuevo)
+  // Añade un corte (y quita el que sustituye, si lo hay). Devuelve si cambió algo.
+  const ponerCorte = (a) => {
+    const [id, o] = a.corte; const l = aj.cortes[id] = aj.cortes[id] || []; let cambio = false;
+    if (a.reemplaza != null) { const k = l.findIndex((x) => Math.abs(x - a.reemplaza) <= 40); if (k >= 0 && Math.abs(l[k] - o) > 3) { l.splice(k, 1); cambio = true; } }
+    if (!l.some((x) => Math.abs(x - o) <= 3)) { l.push(o); aj.cortePg[id] = Math.min(aj.cortePg[id] == null ? 1e9 : aj.cortePg[id], a.pg == null ? 0 : a.pg); cambio = true; }
+    return cambio;
+  };
+  for (; pasadas < 10; pasadas++) { // v1.2: hasta 10 (primero la estructura; después los cortes, de una vez)
     if (page) await page.close();
     page = await browser.newPage();
     await page.emulateMediaType('print'); // v1.2: maquetar con las mismas medidas con que se imprime (ver PDF de Irene en A4, p. 5)
@@ -517,13 +570,15 @@ async function paginar(browser, render) {
     let nuevos = 0;
     // v1.2: un arreglo de estructura (salto, foto) mueve todo lo que va detrás; los cortes medidos
     // antes ya no valen: se borran y se vuelven a medir en la pasada siguiente.
-    const estructura = arreglos.filter((a) => !a.corte);
-    const antes = JSON.stringify([[...aj.saltos], [...aj.subir], [...aj.reducir], [...aj.vetos]]);
-    for (const a of (estructura.length ? estructura : arreglos)) {
-      if (a.salto && !aj.saltos.has(a.salto)) { aj.saltos.add(a.salto); nuevos++; }
+    const estructura = arreglos.filter((a) => !a.corte && !a.veto && !a.unir); // un veto no mueve nada más: no borra los otros cortes
+    const antes = JSON.stringify([[...aj.saltos], [...aj.subir], [...aj.reducir]]);
+    for (const a of (estructura.length ? estructura.concat(arreglos.filter((x) => x.veto || x.unir)) : arreglos)) {
+      if (a.salto && !aj.saltos.has(a.salto) && !aj.quitados.has(a.salto)) { aj.saltos.add(a.salto); nuevos++; }
+      if (a.quitar && aj.saltos.has(a.quitar)) { aj.saltos.delete(a.quitar); aj.quitados.add(a.quitar); nuevos++; }
       if (a.corte && aj.vetos.has(String(a.corte[0]))) { // corte que no cupo: el párrafo entero a la página siguiente
         if (!aj.saltos.has('p' + a.corte[0])) { aj.saltos.add('p' + a.corte[0]); nuevos++; }
-      } else if (a.corte) { const [id, o] = a.corte; const l = aj.cortes[id] = aj.cortes[id] || []; if (!l.some((x) => Math.abs(x - o) <= 3)) { l.push(o); nuevos++; } }
+      } else if (a.corte) { if (ponerCorte(a)) nuevos++; }
+      if (a.unir) { const l = aj.cortes[a.unir[0]] || []; const k = l.findIndex((x) => Math.abs(x - a.unir[1]) <= 40); if (k >= 0) { l.splice(k, 1); nuevos++; } }
       if (a.subir != null && render.orden) { // solo si de verdad cambia el orden (quedan párrafos que subir)
         const f = Number(a.subir), o = render.orden(aj), v = aj.subir.get(f) || 0;
         aj.subir.set(f, v + (a.n || 1));
@@ -533,8 +588,13 @@ async function paginar(browser, render) {
       if (a.veto && !aj.vetos.has(a.veto)) { aj.vetos.add(a.veto); delete aj.cortes[a.veto]; nuevos++; }
       if (a.reducir) { const [f, px] = a.reducir; if (!aj.reducir.has(f) || aj.reducir.get(f) > px) { aj.reducir.set(f, px); nuevos++; } }
     }
-    if (estructura.length && JSON.stringify([[...aj.saltos], [...aj.subir], [...aj.reducir], [...aj.vetos]]) !== antes) aj.cortes = {};
-    else if (estructura.length) for (const a of arreglos.filter((x) => x.corte && !aj.vetos.has(String(x.corte[0])))) { const [id, o] = a.corte; const l = aj.cortes[id] = aj.cortes[id] || []; if (!l.some((x) => Math.abs(x - o) <= 3)) { l.push(o); nuevos++; } }
+    if (estructura.length && JSON.stringify([[...aj.saltos], [...aj.subir], [...aj.reducir]]) !== antes) {
+      // Solo se borran los cortes de las páginas desde el primer cambio: lo de antes no se mueve.
+      const desde = Math.min(...estructura.map((a) => a.pg == null ? 0 : a.pg));
+      for (const id in aj.cortes) if (!(aj.cortePg[id] < desde)) { delete aj.cortes[id]; delete aj.cortePg[id]; }
+      for (const a of arreglos.filter((x) => x.corte && x.pg < desde && !aj.vetos.has(String(x.corte[0])))) ponerCorte(a);
+    }
+    else if (estructura.length) for (const a of arreglos.filter((x) => x.corte && !aj.vetos.has(String(x.corte[0])))) { if (ponerCorte(a)) nuevos++; }
     if (!nuevos) break;
   }
   return { page, pasadas: pasadas + 1, pendientes: arreglos.length };
