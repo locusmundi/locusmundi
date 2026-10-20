@@ -46,6 +46,10 @@
 //   web en el título de la portada y en los títulos de capítulo. 6 a 9 s para 230-290 páginas (antes, 35-70).
 //   20/10 (2): A4, foto con una línea en blanco arriba y abajo; nunca justo bajo el título de un apartado
 //   (va delante del título).
+// Versión 2.1 · 20/10/2026 · Poemas (conversación 12-4, La vida escrita; sí de Javier): (1) estrofa de un
+//   solo verso (párrafo de 120 caracteres o menos, sin cursiva entera) junto a otra estrofa: también es
+//   verso (a la izquierda, sin sangría); (2) titulillo (párrafo entero en cursiva, de una línea) nunca
+//   cierra página: pasa a la siguiente con lo que le sigue, como un apartado.
 //   Pendiente: quitar pagedjs de package.json y de vercel.json (ya no se usa; no estorba).
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
@@ -238,8 +242,19 @@ async function construirHtml(pub, formato, opciones) {
         if (previo) previo.firma = trozos; else actual.firmaCap = trozos;
         continue;
       }
-      actual.cuerpo.push({ tipo: 'p', id: np++, trozos, clase: verso ? 'verso' : (cursiva ? 'cita' : '') });
+      actual.cuerpo.push({ tipo: 'p', id: np++, trozos, clase: verso ? 'verso' : (cursiva ? 'cita' : ''), corto: texto.trim().length <= 120 });
     }
+  }
+  // v2.1: estrofa de un solo verso (párrafo corto, sin saltos de línea ni cursiva entera) junto a una
+  // estrofa (antes o después): también es verso. Se decide con la clase original de los vecinos: no se
+  // propaga a la prosa que siga.
+  for (const sec of secciones) {
+    const orig = sec.cuerpo.map((el) => el.clase);
+    sec.cuerpo.forEach((el, i) => {
+      if (el.tipo !== 'p' || el.clase || !el.corto) return;
+      const vecino = (j) => sec.cuerpo[j] && sec.cuerpo[j].tipo === 'p' && orig[j] === 'verso';
+      if (vecino(i - 1) || vecino(i + 1)) el.clase = 'verso';
+    });
   }
   // v1.2 (A): preliminares cortos = dedicatoria. Cada párrafo, en su página, centrado y sin número.
   // Si son largos (o llevan fotos o apartados), empiezan como un capítulo más, con número.
@@ -551,6 +566,13 @@ function paginarSeccion(sec, m, H, limites) {
     }
     // Párrafo, entero o por trozos.
     const ini = m[k].ini, n = ini.length, l = lh(k);
+    // v2.1: titulillo (párrafo entero en cursiva, de una línea): como un apartado, nunca cierra página;
+    // solo se queda si cabe con lo que le sigue.
+    if (it.el.clase === 'cita' && n === 1 && ultReal != null) {
+      const j = siguiente(k);
+      const tras = j == null ? 0 : (items[j].t === 'p' || items[j].t === 'fig' ? Math.max(m[k].mb, m[j].mt) + minimo(j) : 0);
+      if (j != null && y + hueco(k) + l + tras > H) nuevaConPendientes();
+    }
     let desde = 0; // línea por la que va
     for (;;) {
       const resto = n - desde;
@@ -652,6 +674,7 @@ const VERIFICAR = `(() => {
     const ult = els[els.length - 1], pri = elems(sig)[0]; if (!pri) return;
     if (pri.matches('p') && ult.matches('p') && pri.getAttribute('data-p') === ult.getAttribute('data-p') && Math.round(pri.getBoundingClientRect().height / lh) < 2) leves.push('viuda arriba de la página ' + num(sig));
     if (ult.closest('section').getAttribute('data-cap') !== pri.closest('section').getAttribute('data-cap') || pri.matches('h3, .firma, figure, header')) return;
+    if (pri.matches('p.cita') && Math.round(pri.getBoundingClientRect().height / lh) < 2) return; // v2.1: titulillo que pasó con su texto
     const libre = pg.querySelector('section.caja').getBoundingClientRect().bottom - ult.getBoundingClientRect().bottom;
     if (libre > 4.5 * lh) leves.push('página ' + num(pg) + ' corta (' + Math.round(libre / lh) + ' líneas)');
   });
