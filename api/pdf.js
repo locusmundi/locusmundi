@@ -18,6 +18,19 @@
 //   p. 9) o metía un signo raro en medio de una palabra ("banq□uete", p. 49): cada corte suyo se
 //   rehace como corte nuestro, a principio de palabra. Saltos que ya no hacen falta, retirados
 //   (hueco de la p. 39). Comprobado palabra a palabra con el texto real: no falta ninguna.
+//   20/10 (2): corte viejo que dejaba media página en blanco (A4 de Irene, p. 14): se corre o se
+//   quita; corte en punto de partición silábica, con su guion (no cambia la maqueta); foto de media
+//   página o más con una línea en blanco de más arriba y abajo (figure.grande).
+// Versión 1.3 · 20/10/2026 · Paginación más simple y robusta (propuesta de Javier, conversación 12-2):
+//   A5: cada foto, sola en su página (lámina), sin número y con su pie, justo después de la página
+//   del texto donde la puso el Autor; el texto no se corta (la lámina puede ir en medio de un párrafo).
+//   A4: la foto, en su sitio o, si no cabe, arriba de la página siguiente (sin rellenar su hueco).
+//   Viuda: la página anterior acaba una línea antes (o el párrafo entero, si allí solo quedaban dos).
+//   Apartado: en página nueva si no cabe con su primer párrafo (o dos líneas de él).
+//   COMPROBACIÓN FINAL (maquetarLibro, VERIFICAR): todo el texto de cada párrafo, ninguna línea fuera
+//   de su caja (también la columna oculta de Paged.js, donde se perdían líneas), ningún signo raro,
+//   todas las fotos y apartados. Si falla, otra vez sin partición silábica; si vuelve a fallar, error
+//   (no se entrega ni cuenta la descarga).
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
 // LOCUS_MUNDI_FORMATO_IMPRESION.md v2. Chrome sin pantalla (@sparticuz/chromium) + Paged.js, en
@@ -172,10 +185,11 @@ function colofonFecha(fecha, lang, ciudad) {
   return [ciudad, mes].filter(Boolean).join(', ');
 }
 
-async function construirHtml(pub, formato) {
+async function construirHtml(pub, formato, opciones) {
+  opciones = opciones || {};
   const c = pub.contenido || {};
   const lang = String(pub.idioma_original || 'ES').toUpperCase();
-  const silabas = partidor(lang);
+  const silabas = opciones.sinSilabas ? (t) => t : partidor(lang); // v1.3: modo seguro, sin partición
   const fotosUrl = {};
   const bloques = L.bloquesLectura(c.text, c.fotos || [], lang);
   await Promise.all(bloques.filter((b) => b && b.tipo === 'foto').map(async (b) => { fotosUrl[b.foto.orden] = await imagen(b.foto.url); }));
@@ -233,6 +247,8 @@ async function construirHtml(pub, formato) {
   // Lleva un punto de corte al principio de palabra más cercano (la medida puede desviarse un carácter).
   const aPalabra = (texto, o) => {
     for (const d of [0, 1, -1]) { const k = o + d; if (k > 0 && k < texto.length && /\s/.test(texto[k - 1]) && !/\s/.test(texto[k])) return k; }
+    // Punto de partición silábica (la línea acababa con guion): se corta ahí y el trozo lleva su guion.
+    for (const d of [0, 1, -1]) { const k = o + d; if (k > 0 && k < texto.length && texto[k - 1] === SHY) return k; }
     // v1.2: si cae dentro de una palabra (línea partida con guion), la palabra entera pasa al trozo
     // siguiente: nunca se corta una palabra en un cambio de página (el "banq□uete" del A4 de Irene).
     for (let k = o - 1; k > 0 && k > o - 40; k--) if (/\s/.test(texto[k - 1]) && !/\s/.test(texto[k])) return k;
@@ -253,23 +269,35 @@ async function construirHtml(pub, formato) {
     }
     return orden;
   };
+  // v1.3 (A5): cada foto, sola en su página (lámina), sin número, con su pie; va justo después de
+  // la página del texto donde la puso el Autor, y el texto sigue sin cortarse (paginar, LAMINAS).
+  const figuras = {};
+  for (const sec of secciones) for (const el of sec.cuerpo) if (el.tipo === 'fig') figuras[el.id] = el;
+  const laminasTras = (aj, cond) => (aj.laminas || []).filter(cond).map((l) => `<figure class="lamina" data-f="${l.f}">${figuras[l.f].html}</figure>`).join('');
   const firmaHtml = (trozos) => htmlTrozos(trozos, 0, trozos.map((x) => x.t).join('').length).replace(/^\s+|\s+$/g, '');
   const cuerpoHtml = (aj) => secciones.map((sec, i) => {
     const cabecera = sec.cap ? `<header class="cap-cab">${sec.cap.etiqueta ? `<div class="cap-etq">${esc(sec.cap.etiqueta)}</div>` : ''}${sec.cap.titulo ? `<h2>${esc(sec.cap.titulo)}</h2>` : ''}${sec.firmaCap ? `<div class="firma-cap">${firmaHtml(sec.firmaCap)}</div>` : ''}</header>` : '';
     // v1.2 (C): hueco de una foto que salta de página → los párrafos que la siguen pasan delante.
     const partes = ordenar(sec, aj).map((el) => {
+      if (el.tipo === 'fig' && A5) {
+        if (!aj.laminas) return `<div class="marca" data-f="${el.id}"></div>`;
+        // La marca se queda (alto cero): así el texto se maqueta igual que cuando se midió.
+        return aj.laminas.some((l) => l.f === el.id) ? `<div class="marca" data-f="${el.id}"></div>` : `<figure class="lamina" data-f="${el.id}">${el.html}</figure>`; // sin sitio calculado: en el suyo
+      }
       if (el.tipo === 'fig') { const r = aj.reducir.get(el.id); return `<figure data-f="${el.id}">${r ? el.html.replace('<img ', `<img style="max-height:${r}px" `) : el.html}</figure>`; }
-      if (el.tipo === 'h3') return `<h3 data-h="${el.id}"${aj.saltos.has('h' + el.id) ? ' class="salto"' : ''}>${esc(el.texto)}</h3>${el.firma ? `<div class="firma" data-h="${el.id}">${firmaHtml(el.firma)}</div>` : ''}`;
+      if (el.tipo === 'h3') return `<h3 data-h="${el.id}"${aj.saltos.has('h' + el.id) ? ' class="salto"' : ''}>${esc(el.texto)}</h3>${el.firma ? `<div class="firma" data-h="${el.id}">${firmaHtml(el.firma)}</div>` : ''}${laminasTras(aj, (l) => l.h === el.id)}`;
       const texto = el.trozos.map((x) => x.t).join('');
       const cortes = [...new Set((aj.cortes[el.id] || []).map((o) => aPalabra(texto, o)))].filter((o) => o > 0 && o < texto.length).sort((x, y) => x - y);
       const lim = [0, ...cortes, texto.length];
       const salto = aj.saltos.has('p' + el.id);
       return lim.slice(0, -1).map((ini, k) => {
         const cls = [el.clase, k > 0 ? 'sigue salto' : (salto ? 'salto' : ''), k < lim.length - 2 ? 'corta' : ''].filter(Boolean).join(' ');
-        return `<p data-p="${el.id}" data-ini="${ini}" data-fin="${lim[k + 1]}"${aj.vetos && aj.vetos.has(String(el.id)) ? ' data-veto' : ''}${cls ? ` class="${cls}"` : ''}>${htmlTrozos(el.trozos, ini, lim[k + 1])}</p>`;
+        const fin = lim[k + 1], ultimo = k === lim.length - 2;
+        const lams = laminasTras(aj, (l) => l.p === el.id && ((l.o == null || !lim.includes(aPalabra(texto, l.o))) ? ultimo : aPalabra(texto, l.o) === fin));
+        return `<p data-p="${el.id}" data-ini="${ini}" data-fin="${lim[k + 1]}"${aj.vetos && aj.vetos.has(String(el.id)) ? ' data-veto' : ''}${cls ? ` class="${cls}"` : ''}>${htmlTrozos(el.trozos, ini, lim[k + 1])}${k < lim.length - 2 && texto[lim[k + 1] - 1] === SHY ? '-' : ''}</p>${lams}`;
       }).join('');
     });
-    return `<section class="cap${sec.cap ? '' : ' preliminar'}${i === 0 ? ' primera' : ''}" data-cap="${i}">${cabecera}${partes.join('\n')}</section>`;
+    return `<section class="cap${sec.cap ? '' : ' preliminar'}${i === 0 ? ' primera' : ''}" data-cap="${i}">${cabecera}${laminasTras(aj, (l) => l.cab === i)}${partes.join('\n')}</section>`;
   }).join('\n');
   const dedicHtml = dedicatorias.map((el) => `<section class="dedic"><div class="dedic-caja"><p>${firmaHtml(el.trozos)}</p></div></section>`).join('\n');
 
@@ -322,6 +350,11 @@ h3 + p.verso, h3 + p.cita, .firma + p.verso, .firma + p.cita, .cap-cab + p.verso
 .dedic p { text-align: center; text-indent: 0; }
 .dedic + section.cap.primera { break-before: ${A5 ? 'right' : 'page'}; }
 figure { margin: 5mm 0; text-align: center; break-inside: avoid; }
+figure.grande { margin: calc(5mm + ${L1}) 0; }
+.marca { height: 0; margin: 0; padding: 0; }
+.cap-cab + .marca + p, h3 + .marca + p, .firma + .marca + p { text-indent: 0; }
+figure.lamina { page: sinnumero; break-before: page; break-after: page; margin: 0; height: ${M.alto - 8}mm; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+figure.lamina img { max-width: 100%; max-height: ${M.alto - 30}mm; } /* v1.2: foto de media página o más: una línea en blanco de más arriba y abajo */
 figure img { max-width: 100%; max-height: ${M.img}mm; }
 figcaption { font-size: ${M.cuerpo - 1.5}pt; font-style: italic; line-height: 1.3; margin-top: 2mm; text-align: center; }
 .portada { page: sinnumero; break-before: right; text-align: center; }
@@ -359,6 +392,11 @@ async function escalar(img){
 window.__maquetar = async function(){
   await document.fonts.ready;
   await Promise.all([...document.querySelectorAll('img[data-escalar]')].map(escalar));
+  // Foto de media página o más (alto con que saldrá: ancho de la caja y alto máximo): figure.grande.
+  const MM=96/25.4, ANCHO=${(A5 ? 148 - M.dentro - M.fuera : 210 - M.dentro - M.fuera)}*MM, ALTO=${M.alto}*MM, MAXH=${M.img}*MM;
+  for(const f of document.querySelectorAll('section.cap figure')){ const im=f.querySelector('img'); if(!im||!im.naturalWidth) continue;
+    const mh=parseFloat(im.style.maxHeight)||MAXH; const h=Math.min(mh, ANCHO*im.naturalHeight/im.naturalWidth);
+    if(h>=ALTO/2) f.classList.add('grande'); }
   await window.PagedPolyfill.preview();
   for(const pg of document.querySelectorAll('.pagedjs_page')){
     const area=pg.querySelector('.pagedjs_page_content'); if(!area) continue;
@@ -378,6 +416,13 @@ window.__maquetar = async function(){
   const cabeza = `<!doctype html><html lang="${ETIQUETA_IDIOMA[lang] || 'es'}"><head><meta charset="utf-8"><style>${css}</style>
 <script>${guion}</script><script>${leer('pagedjs/dist/paged.polyfill.min.js', 'utf8')}</script></head><body>`;
   const render = (aj) => `${cabeza}${portadas}\n${dedicHtml}\n${cuerpoHtml(aj || { cortes: {}, saltos: new Set(), subir: new Map(), reducir: new Map() })}\n${colofon}</body></html>`;
+  // v1.3: lo que debe salir en el PDF, para la comprobación final (solo letras y cifras).
+  const limpio = (t) => String(t).replace(/[^\p{L}\p{N}]/gu, '');
+  render.esperado = {};
+  for (const sec of secciones) for (const el of sec.cuerpo) if (el.tipo === 'p') render.esperado[el.id] = limpio(el.trozos.map((x) => x.t).join(''));
+  render.nFiguras = Object.keys(figuras).length;
+  render.nApartados = secciones.reduce((n, sec) => n + sec.cuerpo.filter((el) => el.tipo === 'h3').length, 0);
+  render.A5 = A5;
   render.orden = (aj) => JSON.stringify(secciones.map((sec) => ordenar(sec, aj).map((el) => el.tipo[0] + el.id)));
   return { render, titulo, autor };
 }
@@ -456,6 +501,20 @@ const MEDIR = `(() => {
     else if (ult.tagName === 'P' && ult.hasAttribute('data-split-to') && !ult.hasAttribute('data-split-from') && lineas(ult) < 2) {
       const s = saltoDe(ult); if (s) add(s);
     }
+    // Corte viejo (v1.2): un trozo nuestro que acaba la página con 3 líneas o más libres debajo es un
+    // corte medido con otra maqueta (A4 de Irene, p. 14): se quita y el párrafo vuelve a fluir.
+    if (ult.tagName === 'P' && ult.classList.contains('corta') && paginas[i + 1]) {
+      const area = pg.querySelector('.pagedjs_page_content').getBoundingClientRect();
+      const libre = area.bottom - ult.getBoundingClientRect().bottom;
+      if (libre >= 3 * lh(ult)) {
+        // Mejor que quitarlo: correr el corte tantas líneas como quepan (dejando al menos 2 detrás).
+        const sigP = elementos(paginas[i + 1])[0];
+        const n = Math.floor((libre - lh(ult) / 2) / lh(ult));
+        const ini2 = sigP && sigP.tagName === 'P' && sigP.getAttribute('data-p') === ult.getAttribute('data-p') ? iniciosDeLinea(sigP) : [];
+        if (ini2.length >= n + 2) add({ corte: [ult.getAttribute('data-p'), ini2[n]], r: 'correr', reemplaza: Number(ult.getAttribute('data-fin')) });
+        else add({ unir: [ult.getAttribute('data-p'), Number(ult.getAttribute('data-fin'))] });
+      }
+    }
     // Corte de Paged.js (v1.2): cuando Paged.js parte un párrafo a final de página, a veces pierde
     // una línea o mete un signo raro en medio de una palabra (A4 de Irene, p. 9 y 49). Ese corte se
     // rehace como corte nuestro, en el mismo sitio pero a principio de palabra: lo de después no se mueve.
@@ -480,39 +539,11 @@ const MEDIR = `(() => {
       else { const t = sigEls2.find((e, k) => k > 0 && !esTitulo(e)); necesita = t ? (t.getBoundingClientRect().top - s0.getBoundingClientRect().top) + 2 * lh(t) + 2 * lh(t) : 1e9; }
       if (necesita + lh(s0) / 2 <= libre) add({ quitar: s0.tagName === 'P' ? 'p' + s0.getAttribute('data-p') : 'h' + s0.getAttribute('data-h') });
     }
-    // Hueco sin motivo (v1.2): Paged.js a veces lleva entero a la página siguiente un párrafo que
-    // cabía en parte (visto tras unos versos). Si aquí caben 2 líneas o más, se parte el párrafo.
-    const sig0 = paginas[i + 1] ? elementos(paginas[i + 1])[0] : null;
+    // Trozo nuestro que no cupo (v1.2).
     if (els.length === 1 && els[0].tagName === 'P' && els[0].classList.contains('corta') && !els[0].classList.contains('sigue') && i > 0)
       add({ veto: els[0].getAttribute('data-p') }); // un corte que no cupo: se quita y no se repite
     if (els.length === 1 && els[0].tagName === 'P' && els[0].classList.contains('corta') && els[0].classList.contains('sigue'))
       add({ unir: [els[0].getAttribute('data-p'), Number(els[0].getAttribute('data-fin'))] }); // trozo suelto entre dos cortes: se une al siguiente
-    if (sig0 && sig0.tagName === 'P' && !sig0.hasAttribute('data-split-from') && !sig0.classList.contains('salto') && !sig0.hasAttribute('data-veto')
-        && !esTitulo(ult) && ult.tagName !== 'HEADER'
-        && ult.closest('section.cap').getAttribute('data-cap') === sig0.closest('section.cap').getAttribute('data-cap')) {
-      const area = pg.querySelector('.pagedjs_page_content').getBoundingClientRect();
-      const mb = parseFloat(getComputedStyle(ult).marginBottom) || 0, mt = sig0.matches('.verso, .cita') ? lh(sig0) : 0; // arriba de página su margen se quitó: se cuenta igual
-      const n = Math.floor((area.bottom - ult.getBoundingClientRect().bottom - Math.max(mb, mt) - lh(sig0) / 2) / lh(sig0)); // con media línea de holgura
-      if (n >= 2) {
-        const ini = iniciosDeLinea(sig0);
-        const k = Math.min(n, ini.length - 2);
-        if (k >= 2) add({ corte: [sig0.getAttribute('data-p'), ini[k]], r: 'hueco' });
-      }
-    }
-    // Hueco de una foto que salta (v1.2, opción b): si la página siguiente empieza por una foto del
-    // mismo capítulo y aquí queda libre más de un tercio, el párrafo que la sigue pasa delante.
-    const sigEls = paginas[i + 1] ? elementos(paginas[i + 1]) : [];
-    const f = sigEls[0]; let tras = 1; while (sigEls[tras] && sigEls[tras].tagName === 'FIGURE') tras++;
-    if (f && f.tagName === 'FIGURE' && sigEls[tras] && sigEls[tras].tagName === 'P' && !sigEls[tras].hasAttribute('data-split-from')
-        && ult.tagName !== 'HEADER' && ult.closest('section.cap').getAttribute('data-cap') === f.closest('section.cap').getAttribute('data-cap')) {
-      const area = pg.querySelector('.pagedjs_page_content').getBoundingClientRect();
-      const libre = area.bottom - ult.getBoundingClientRect().bottom;
-      if (libre > area.height / 3) { // cuántos párrafos caben en el hueco (al menos uno), de una vez
-        let n = 0, alto = 0;
-        for (let k = tras; sigEls[k] && sigEls[k].tagName === 'P' && !sigEls[k].hasAttribute('data-split-from'); k++) { alto += sigEls[k].getBoundingClientRect().height; n++; if (alto > libre) break; }
-        add({ subir: f.getAttribute('data-f'), n: Math.max(1, n) });
-      }
-    }
   });
   // Foto en la primera página de un capítulo (v1.2, Javier 19/10): nunca. La foto pasa detrás de
   // los párrafos que la siguen en esa página (siempre entre párrafos, nunca en medio de uno).
@@ -548,18 +579,76 @@ const MEDIR = `(() => {
   return arreglos;
 })()`;
 
+// v1.3 (A5): dónde va cada lámina. Para cada foto (su marca, de alto cero, en el sitio que le dio el
+// Autor): justo después de lo último que hay en la página de la marca. Si esa página acaba con un
+// párrafo partido, la lámina va en medio del párrafo, en el punto del corte (el texto no se mueve).
+const LAMINAS = `(() => {
+  const cuenta = (el) => { let n = 0; const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT); while (w.nextNode()) { const x = w.currentNode; n += x.nodeType === 3 ? x.length : (x.tagName === 'BR' ? 1 : 0); } return n; };
+  const out = [];
+  for (const m of document.querySelectorAll('.marca')) {
+    const pg = m.closest('.pagedjs_page'), sec = m.closest('section.cap');
+    const cap = Number(sec.getAttribute('data-cap'));
+    const els = [...pg.querySelectorAll('section.cap[data-cap="' + cap + '"] > p, section.cap[data-cap="' + cap + '"] > h3, section.cap[data-cap="' + cap + '"] > .firma, section.cap[data-cap="' + cap + '"] > header')];
+    const ult = els[els.length - 1], f = Number(m.getAttribute('data-f'));
+    if (!ult || ult.tagName === 'HEADER') { out.push({ f, cab: cap }); continue; }
+    if (ult.tagName === 'H3' || ult.classList.contains('firma')) { out.push({ f, h: Number(ult.getAttribute('data-h')) }); continue; }
+    const id = Number(ult.getAttribute('data-p'));
+    if (ult.hasAttribute('data-split-to')) {
+      const ref = ult.getAttribute('data-ref');
+      let base = parseInt(ult.getAttribute('data-ini') || '0', 10);
+      for (const otro of document.querySelectorAll('[data-ref="' + ref + '"]')) { if (otro === ult) break; base += cuenta(otro); }
+      let o = base + cuenta(ult); if (ult.classList.contains('pagedjs_hyphen')) o -= 1;
+      out.push({ f, p: id, o });
+    } else if (ult.classList.contains('corta')) out.push({ f, p: id, o: Number(ult.getAttribute('data-fin')) });
+    else out.push({ f, p: id });
+  }
+  return out;
+})()`;
+
+// v1.3: comprobación final, antes de entregar. Todo el texto de cada párrafo (solo letras y cifras,
+// trozos juntos), ninguna línea fuera de su caja, ningún signo raro, todas las fotos y apartados.
+const VERIFICAR = `(() => {
+  const limpio = (t) => String(t).replace(/[^\\p{L}\\p{N}]/gu, '');
+  const textos = {};
+  for (const e of document.querySelectorAll('.pagedjs_page section.cap > p[data-p]')) { const id = e.getAttribute('data-p'); textos[id] = (textos[id] || '') + limpio(e.textContent); }
+  let fuera = 0; const donde = [];
+  for (const pg of document.querySelectorAll('.pagedjs_page')) {
+    const a = pg.querySelector('.pagedjs_page_content'); if (!a) continue; const r = a.getBoundingClientRect();
+    for (const e of a.querySelectorAll('section.cap > p, section.cap > h3, section.cap > figure, section.dedic, section.colofon'))
+      if (e.textContent.trim() || e.querySelector('img')) for (const q of e.getClientRects()) if (q.height && (q.bottom > r.bottom + 3 || q.top < r.top - 3 || q.left > r.right - 3 || q.right < r.left + 3)) { fuera++; donde.push((e.getAttribute('data-p') || e.tagName) + '@' + pg.getAttribute('data-page-number') + ':' + Math.round(q.bottom - r.bottom) + '/' + Math.round(q.left - r.right)); break; } // también la columna de al lado (Paged.js maqueta con columnas)
+    for (const e of a.querySelectorAll('section.cap > p')) { // cada línea de texto, dentro de la caja
+      const rg = document.createRange(); rg.selectNodeContents(e);
+      for (const q of rg.getClientRects()) if (q.width && (q.bottom > r.bottom + 3 || q.left > r.right + 3 || q.right < r.left - 3)) { fuera++; donde.push('L' + e.getAttribute('data-p') + '@' + pg.getAttribute('data-page-number') + ':' + Math.round(q.bottom - r.bottom)); break; }
+    }
+  }
+  const raros = (document.body.innerText.match(/[\\u2011\\uFFFD]/g) || []).length;
+  return { textos, fuera, donde, raros, figuras: document.querySelectorAll('.pagedjs_page section.cap figure img').length, apartados: new Set([...document.querySelectorAll('.pagedjs_page section.cap > h3')].map((h) => h.getAttribute('data-h'))).size };
+})()`;
+async function verificar(page, render) {
+  const v = await page.evaluate(VERIFICAR);
+  const fallos = [];
+  for (const id in render.esperado) if ((v.textos[id] || '') !== render.esperado[id]) fallos.push('texto ' + id);
+  if (v.fuera) fallos.push('fuera de caja: ' + v.fuera + ' (' + v.donde.slice(0, 4).join(', ') + ')');
+  if (v.raros) fallos.push('signos raros: ' + v.raros);
+  if (v.figuras !== render.nFiguras) fallos.push('fotos ' + v.figuras + '/' + render.nFiguras);
+  if (v.apartados !== render.nApartados) fallos.push('apartados ' + v.apartados + '/' + render.nApartados);
+  return { ok: !fallos.length, fallos };
+}
+
 // Pagina el libro: maqueta, mide, arregla y vuelve a maquetar (hasta 4 pasadas; casi siempre 1 o 2).
 async function paginar(browser, render) {
-  const aj = { cortes: {}, cortePg: {}, saltos: new Set(), quitados: new Set(), subir: new Map(), reducir: new Map(), vetos: new Set() };
+  const aj = { cortes: {}, cortePg: {}, unidos: {}, saltos: new Set(), quitados: new Set(), subir: new Map(), reducir: new Map(), vetos: new Set() };
   let page = null, pasadas = 0, arreglos = [];
   // Añade un corte (y quita el que sustituye, si lo hay). Devuelve si cambió algo.
   const ponerCorte = (a) => {
-    const [id, o] = a.corte; const l = aj.cortes[id] = aj.cortes[id] || []; let cambio = false;
+    const [id, o] = a.corte; let cambio = false;
+    if ((aj.unidos[id] || []).some((x) => Math.abs(x - o) <= 40)) return false; // ya se quitó una vez: no se repite
+    const l = aj.cortes[id] = aj.cortes[id] || [];
     if (a.reemplaza != null) { const k = l.findIndex((x) => Math.abs(x - a.reemplaza) <= 40); if (k >= 0 && Math.abs(l[k] - o) > 3) { l.splice(k, 1); cambio = true; } }
     if (!l.some((x) => Math.abs(x - o) <= 3)) { l.push(o); aj.cortePg[id] = Math.min(aj.cortePg[id] == null ? 1e9 : aj.cortePg[id], a.pg == null ? 0 : a.pg); cambio = true; }
     return cambio;
   };
-  for (; pasadas < 10; pasadas++) { // v1.2: hasta 10 (primero la estructura; después los cortes, de una vez)
+  for (; pasadas < (Number(process.env.PDF_PARAR) || 10); pasadas++) { // v1.2: hasta 10 (primero la estructura; después los cortes, de una vez)
     if (page) await page.close();
     page = await browser.newPage();
     await page.emulateMediaType('print'); // v1.2: maquetar con las mismas medidas con que se imprime (ver PDF de Irene en A4, p. 5)
@@ -578,7 +667,7 @@ async function paginar(browser, render) {
       if (a.corte && aj.vetos.has(String(a.corte[0]))) { // corte que no cupo: el párrafo entero a la página siguiente
         if (!aj.saltos.has('p' + a.corte[0])) { aj.saltos.add('p' + a.corte[0]); nuevos++; }
       } else if (a.corte) { if (ponerCorte(a)) nuevos++; }
-      if (a.unir) { const l = aj.cortes[a.unir[0]] || []; const k = l.findIndex((x) => Math.abs(x - a.unir[1]) <= 40); if (k >= 0) { l.splice(k, 1); nuevos++; } }
+      if (a.unir) { const l = aj.cortes[a.unir[0]] || []; const k = l.findIndex((x) => Math.abs(x - a.unir[1]) <= 40); if (k >= 0) { l.splice(k, 1); (aj.unidos[a.unir[0]] = aj.unidos[a.unir[0]] || []).push(a.unir[1]); nuevos++; } }
       if (a.subir != null && render.orden) { // solo si de verdad cambia el orden (quedan párrafos que subir)
         const f = Number(a.subir), o = render.orden(aj), v = aj.subir.get(f) || 0;
         aj.subir.set(f, v + (a.n || 1));
@@ -597,18 +686,44 @@ async function paginar(browser, render) {
     else if (estructura.length) for (const a of arreglos.filter((x) => x.corte && !aj.vetos.has(String(x.corte[0])))) { if (ponerCorte(a)) nuevos++; }
     if (!nuevos) break;
   }
+  // v1.3 (A5): con el texto ya maquetado, las láminas en su sitio (no mueven el texto).
+  if (render.A5 && render.nFiguras) {
+    aj.laminas = await page.evaluate(LAMINAS);
+    for (const l of aj.laminas) if (l.o != null) { // el corte de la lámina se pone siempre (es el mismo de la maqueta medida)
+      const id = String(l.p); if (aj.unidos[id]) aj.unidos[id] = aj.unidos[id].filter((x) => Math.abs(x - l.o) > 40);
+      ponerCorte({ corte: [id, l.o], pg: 0 });
+    }
+    await page.close();
+    page = await browser.newPage();
+    await page.emulateMediaType('print');
+    await page.setContent(render(aj), { waitUntil: 'load', timeout: 120000 });
+    await page.evaluate(() => window.__maquetar());
+  }
   return { page, pasadas: pasadas + 1, pendientes: arreglos.length };
 }
 
+// v1.3: maqueta y comprueba. Si la comprobación falla, otra vez en modo seguro (sin partición
+// silábica); si vuelve a fallar, error: no se entrega nada ni cuenta la descarga.
+async function maquetarLibro(browser, pub, formato) {
+  for (const opciones of [{}, { sinSilabas: true }]) {
+    const { render, titulo, autor } = await construirHtml(pub, formato, opciones);
+    const r = await paginar(browser, render);
+    const v = await verificar(r.page, render);
+    if (v.ok) return Object.assign(r, { titulo, autor, seguro: !!opciones.sinSilabas });
+    console.error(`pdf: comprobación fallida (${formato}${opciones.sinSilabas ? ', modo seguro' : ''}): ${v.fallos.slice(0, 8).join('; ')}`);
+    await r.page.close().catch(() => {});
+  }
+  throw new Error('VERIFICACION');
+}
+
 async function generarPdf(pub, formato) {
-  const { render, titulo, autor } = await construirHtml(pub, formato);
   const c = await import('@sparticuz/chromium');
   const p = await import('puppeteer-core');
   const chromium = c.default || c, puppeteer = p.default || p;
   const browser = await puppeteer.launch({ args: chromium.args, executablePath: await chromium.executablePath(), headless: true });
   try {
-    const { page, pasadas, pendientes } = await paginar(browser, render);
-    if (pendientes) console.log(`pdf: ${pendientes} arreglos tipográficos sin resolver tras ${pasadas} pasadas`);
+    const { page, pasadas, pendientes, titulo, autor, seguro } = await maquetarLibro(browser, pub, formato);
+    if (pendientes || seguro) console.log(`pdf: ${pasadas} pasadas, ${pendientes} arreglos sin resolver${seguro ? ', modo seguro' : ''}`);
     const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true, timeout: 0 });
     return { pdf: Buffer.from(pdf), titulo, autor };
   } finally {
@@ -708,5 +823,6 @@ module.exports.limpiarPdf = async function limpiarPdf() {
 module.exports.construirHtml = construirHtml; // para pruebas
 module.exports.generarPdf = generarPdf;       // para pruebas
 module.exports.paginar = paginar;             // para pruebas
+module.exports.maquetarLibro = maquetarLibro; // para pruebas
 module.exports.nombreArchivo = nombreArchivo; // para pruebas
 module.exports.config = { maxDuration: 300 };
