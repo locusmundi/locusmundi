@@ -44,6 +44,8 @@
 //   su texto, foto, fin de capítulo) y cada trozo se imprime exactamente como se midió. El montaje
 //   (planLibro) y la comprobación final, como en la 1.4; sin modo seguro (ya no hace falta). Azul de la
 //   web en el título de la portada y en los títulos de capítulo. 6 a 9 s para 230-290 páginas (antes, 35-70).
+//   20/10 (2): A4, foto con una línea en blanco arriba y abajo; nunca justo bajo el título de un apartado
+//   (va delante del título).
 //   Pendiente: quitar pagedjs de package.json y de vercel.json (ya no se usa; no estorba).
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
@@ -290,6 +292,14 @@ async function construirHtml(pub, formato, opciones) {
         if (el.firma) sec.items.push({ t: 'firma', el });
         previo = 'titulo';
       } else if (el.tipo === 'fig') {
+        // A4 (20/10): una foto nunca justo debajo del título de un apartado: va delante del título.
+        let pos = sec.items.length;
+        if (!A5) while (pos > 0 && ['h3', 'firma'].includes(sec.items[pos - 1].t)) pos--;
+        if (!A5 && pos < sec.items.length && sec.items[pos].t === 'h3') {
+          sec.items.splice(pos, 0, { t: 'fig', el });
+          const h = sec.items[pos + 1]; if (h.clase) h.clase = h.clase.replace('tras-cab', '').trim(); // ya no va tras el capítulo
+          continue;
+        }
         sec.items.push({ t: A5 ? 'marca' : 'fig', el });
         if (!A5) previo = 'foto';
       } else {
@@ -334,8 +344,8 @@ p.verso, p.cita { text-align: left; text-align-last: auto; text-indent: 0; margi
 p.verso.tras-titulo, p.cita.tras-titulo { margin-top: 0; }
 p.verso.corta, p.cita.corta { margin-bottom: 0; }
 p.verso.sigue, p.cita.sigue { margin-top: 0; }
-figure { margin: 5mm 0; text-align: center; }
-figure.grande { margin: calc(5mm + ${L1}) 0; }
+figure { margin: calc(${L1} + 1mm) 0; text-align: center; } /* 20/10: una línea en blanco entre foto y texto */
+figure.grande { margin: calc(${L1} + 5mm) 0; }
 figure img { max-width: 100%; max-height: ${M.img}mm; }
 figcaption { font-size: ${M.cuerpo - 1.5}pt; font-style: italic; line-height: 1.3; margin-top: 2mm; text-align: center; }
 .marca { height: 0; margin: 0; padding: 0; }
