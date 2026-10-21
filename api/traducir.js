@@ -1,4 +1,8 @@
 // api/traducir.js — Locus Mundi
+// Versión 3.2 · 21/10/2026 · Fase B2, punto 14 (conversación 12-4): la cabecera traduce también la
+// Dedicatoria (contenido.dedication), si la hay: { titulo, subtitulo, dedicatoria, pies }. Su huella
+// lleva la dedicatoria (si cambia, se traduce de nuevo); sin dedicatoria, la huella de siempre (la caché
+// ya guardada sigue valiendo). Nada más cambia.
 // Versión 3.1 · 17/10/2026 · Fase B2, punto 19 (c): modelo, precios y cambio, leídos de
 // api/_modelos.js. Nada más cambia.
 // Versión 3 · 06/10/2026 · Sustituye a la versión 2 (commit 1daaf77).
@@ -72,6 +76,7 @@ const IDIOMAS = {
   'CA':    'catalán'
 };
 
+const crypto = require('crypto'); // v3.2
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ─── Instrucciones ──────────────────────────────────────────────────────
@@ -81,7 +86,7 @@ function instruccionTramo(destino) {
 }
 
 function instruccionCabecera(destino) {
-  return `Traduce al ${destino} el título, el subtítulo y los pies de foto de una autobiografía publicada, que recibirás como un objeto JSON. Haz una traducción fiel, clara y natural, sin adornarla ni añadir nada. Mantén los nombres propios de personas y lugares como en el original. Devuelve exactamente el mismo objeto JSON, con las mismas claves (también las de "pies"), cambiando solo los textos por su traducción. Si un texto está vacío, déjalo vacío.`;
+  return `Traduce al ${destino} el título, el subtítulo, la dedicatoria (si la hay) y los pies de foto de una autobiografía publicada, que recibirás como un objeto JSON. En la dedicatoria, conserva los saltos de línea. Haz una traducción fiel, clara y natural, sin adornarla ni añadir nada. Mantén los nombres propios de personas y lugares como en el original. Devuelve exactamente el mismo objeto JSON, con las mismas claves (también las de "pies"), cambiando solo los textos por su traducción. Si un texto está vacío, déjalo vacío.`;
 }
 
 // ─── Supabase (por su API REST, sin librerías) ──────────────────────────
@@ -235,8 +240,11 @@ async function traducirCabecera(original, destino) {
         pies[id] = t.pies[id];
       }
       if (typeof t.titulo !== 'string') throw new Error('Falta el título');
+      if (original.dedicatoria && typeof t.dedicatoria !== 'string') throw new Error('Falta la dedicatoria'); // v3.2
+      const contenido = { titulo: t.titulo, subtitulo: typeof t.subtitulo === 'string' ? t.subtitulo : '', pies };
+      if (original.dedicatoria) contenido.dedicatoria = t.dedicatoria;
       return {
-        contenido: { titulo: t.titulo, subtitulo: typeof t.subtitulo === 'string' ? t.subtitulo : '', pies },
+        contenido,
         coste
       };
     } catch (e) {
@@ -292,6 +300,12 @@ module.exports = async function handler(req, res) {
     if (esCabecera) {
       original = cabeceraDe(historia); // v3: pies de la copia publicada
       laHuella = huellaCabecera(historia);
+      // v3.2: la Dedicatoria, con la cabecera (y en su huella).
+      const dedicatoria = String(c.dedication || '').trim();
+      if (dedicatoria) {
+        original = { ...original, dedicatoria };
+        laHuella = crypto.createHash('sha256').update('cabecera-dedicatoria\n' + laHuella + '\n' + dedicatoria, 'utf8').digest('hex');
+      }
     } else {
       if (numTramo >= tramos.length) {
         res.status(404).json({ error: 'NO_DISPONIBLE', tramos: tramos.length });

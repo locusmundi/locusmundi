@@ -1,4 +1,8 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.10 · 21/10/2026 · Campo «Dedicatoria» (Fase B2, punto 14; Continuidad, sesión "20-21/10/2026
+// (conversación 12-4)"). 'dedication' se copia a lo publicado (hasta 400 caracteres) y se revisa con la
+// cabecera, como el subtítulo, en una sola línea (sus saltos de línea, como espacios). No entra en la
+// tarjeta traducida. Nada más cambia.
 // Versión 3.9 · 19/10/2026 · Lista cerrada de países (Fase B2, punto 10; Continuidad, sesión
 // "19/10/2026 (conversación 10: lista cerrada de países)"). Único cambio: la copia a lo publicado
 // lleva también 'countryCode' (código fijo de dos letras, tabla paises de Supabase), en
@@ -161,13 +165,13 @@ const REVISIONES_A_LA_VEZ = 6;
 
 // Decisión 9: lo único del contenido del editor que se copia a lo publicado.
 const CAMPOS_PUBLICADOS = [
-  'name', 'born', 'country', 'lang', 'title', 'subtitle', 'text',
+  'name', 'born', 'country', 'lang', 'title', 'subtitle', 'dedication', 'text', // v3.10: dedication
   'pubCity', 'pubProfession', 'pubConcept', 'countryCode' // v3.9: código fijo del país
 ];
 
 // Campos de texto libre publicados que se revisan como "cabecera" (con los pies de foto).
 const CAMPOS_CABECERA = [
-  ['title', 'Title'], ['subtitle', 'Subtitle'], ['name', 'Author name'],
+  ['title', 'Title'], ['subtitle', 'Subtitle'], ['dedication', 'Dedication'], ['name', 'Author name'],
   ['pubCity', 'City'], ['pubProfession', 'Profession'], ['pubConcept', 'Concept']
 ];
 
@@ -346,7 +350,7 @@ function unidadesDe(contenido, fotosPub) {
   const lineas = [];
   const campos = {};
   for (const [k, etiqueta] of CAMPOS_CABECERA) {
-    const v = String(contenido[k] || '').trim();
+    const v = String(contenido[k] || '').replace(/\s*\n\s*/g, ' ').trim(); // v3.10: una línea por campo
     if (v) { lineas.push(`${etiqueta}: ${v}`); campos[k] = v; }
   }
   for (const f of fotosPub) {
@@ -365,7 +369,7 @@ const normalizar = s => String(s || '').replace(/\s+/g, ' ').trim();
 
 // ─── v3.5: memoria de frases aprobadas ──────────────────────────────────
 
-const ETIQUETA_CABECERA = /^(Title|Subtitle|Author name|City|Profession|Concept|Photo \d+ caption):\s*/;
+const ETIQUETA_CABECERA = /^(Title|Subtitle|Dedication|Author name|City|Profession|Concept|Photo \d+ caption):\s*/;
 
 // Frases de un texto: por párrafos (o líneas, en la cabecera) y, dentro, tras . ! ? … (con sus
 // comillas de cierre). Misma función para el fragmento y para la cita: así coinciden.
@@ -442,7 +446,7 @@ function pasajesValidos(json, unidad) {
       // En la cabecera, la cita debe estar dentro de UN campo; si la IA ha copiado también la
       // etiqueta de la línea ("Title: …"), se quita.
       const enUnCampo = x => Object.values(unidad.campos).some(v => v.includes(x));
-      if (!enUnCampo(cita)) cita = cita.replace(/^(Title|Subtitle|Author name|City|Profession|Concept|Photo \d+ caption):\s*/, '');
+      if (!enUnCampo(cita)) cita = cita.replace(/^(Title|Subtitle|Dedication|Author name|City|Profession|Concept|Photo \d+ caption):\s*/, '');
       if (!enUnCampo(cita)) continue;
     }
     if (cita.length < 2 || !unidad.texto.includes(cita) || vistos.has(cita)) continue;
@@ -842,6 +846,7 @@ async function subir(body, autorId, ip, res) {
   // 10. La copia: lista cerrada de campos y solo las fotos colocadas.
   const contenido = {};
   for (const k of CAMPOS_PUBLICADOS) if (c[k] !== undefined) contenido[k] = c[k];
+  if (contenido.dedication !== undefined) contenido.dedication = String(contenido.dedication || '').slice(0, 400); // v3.10
   // v3.9: el código del país, solo con forma de código (dos letras); si no, fuera.
   if (contenido.countryCode !== undefined) {
     const cc = String(contenido.countryCode || '').trim().toUpperCase();

@@ -51,8 +51,10 @@
 //   verso (a la izquierda, sin sangría); (2) titulillo (párrafo entero en cursiva, de una línea) nunca
 //   cierra página: pasa a la siguiente con lo que le sigue, como un apartado. (3) A5: fin de capítulo
 //   con 3 líneas como mínimo también cuando el capítulo acaba en foto (p. 44 de La vida escrita).
-//   (4) Color (Javier, 21/10): azul en la etiqueta del capítulo («CAPÍTULO I») y en los apartados; el
-//   título del capítulo, en negro (antes azul; el apartado, antes negro).
+//   (4) Color (Javier, 21/10): azul solo en el título de la portada y en los apartados; la etiqueta
+//   («CAPÍTULO I») y el título del capítulo, en negro (antes, azules; el apartado, antes negro).
+//   (5) Campo «Dedicatoria» (contenido.dedication): página propia, centrada, en cursiva y sin número,
+//   antes de los preliminares cortos (que siguen saliendo como hasta ahora, p. ej. una cita inicial).
 //   Pendiente: quitar pagedjs de package.json y de vercel.json (ya no se usa; no estorba).
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
@@ -331,6 +333,7 @@ async function construirHtml(pub, formato, opciones) {
   const titulo = pub.titulo || c.title || '';
   const autor = c.name || '';
   const subtitulo = c.subtitle || '';
+  const dedicatoria = String(c.dedication || '').replace(/\r\n?/g, '\n').replace(/\n{2,}/g, '\n').trim(); // v2.1: campo «Dedicatoria»
   const logo = fs.readFileSync(path.join(process.cwd(), 'logo_locus_mundi_fondo_blanco.png')).toString('base64');
   const fechaColofon = colofonFecha(pub.fecha_actualizacion, lang, (c.pubCity || '').trim());
 
@@ -341,7 +344,7 @@ async function construirHtml(pub, formato, opciones) {
   const caja = M.ancho - M.dentro - M.fuera; // ancho de la caja de texto (mm)
   const L1 = `${(M.cuerpo * M.linea).toFixed(2)}pt`; // una línea en blanco
   const L2 = `${(2 * M.cuerpo * M.linea).toFixed(2)}pt`;
-  const AZUL = '#1B3A6B'; // el de la web (Biblioteca): título de portada y títulos de capítulo
+  const AZUL = '#1B3A6B'; // el de la web (Biblioteca): título de portada y apartados (v2.1)
   const css = `${fuentesCss()}
 @page { size: ${M.tam}; margin: 0; }
 html { font-family: 'EB Garamond', serif; font-size: ${M.cuerpo}pt; line-height: ${M.linea}; color: #111; }
@@ -351,7 +354,7 @@ p.sin-sangria, p.sigue { text-indent: 0; }
 p.corta { text-align-last: justify; }
 em { font-style: italic; }
 .cap-cab { margin: ${A5 ? 22 : 30}mm 0 ${A5 ? 9 : 12}mm; text-align: center; }
-.cap-etq { font-family: 'Playfair Display', serif; font-size: ${M.cuerpo - 1.5}pt; letter-spacing: 0.18em; text-transform: uppercase; color: ${AZUL}; margin-bottom: 3mm; }
+.cap-etq { font-family: 'Playfair Display', serif; font-size: ${M.cuerpo - 1.5}pt; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 3mm; }
 h2 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: ${A5 ? 16 : 19}pt; line-height: 1.25; margin: 0; } /* v2.1: título de capítulo en negro (antes ${AZUL}) */
 .firma-cap { font-size: ${M.cuerpo}pt; margin-top: ${L1}; }
 h3 { font-family: 'Playfair Display', serif; font-weight: 400; font-style: italic; font-size: ${M.cuerpo + 1.5}pt; line-height: 1.3; margin: ${L2} 0 ${L1}; text-align: left; color: ${AZUL}; } /* v2.1: apartado en azul (antes negro) */
@@ -461,7 +464,9 @@ ${secciones.map((sec) => `<section class="cap col" data-cap="${sec.i}">${sec.ite
   const piezas = (srcs) => ({
     portadilla: `<div class="portada solo-titulo"><h1>${esc(titulo)}</h1></div>`,
     portada: `<div class="portada completa"><div class="pc-texto"><div class="pc-autor">${esc(autor)}</div><h1>${esc(titulo)}</h1>${subtitulo ? `<div class="pc-sub">${esc(subtitulo)}</div>` : ''}</div>${portada ? `<div class="pc-img"><img src="${srcs.portada || portada}" alt=""/></div>` : ''}</div>`,
-    dedicatorias: dedicatorias.map((el) => `<div class="dedic-caja"><p>${firmaHtml(el.trozos)}</p></div>`),
+    // v2.1: la Dedicatoria (campo del editor) va primero, en cursiva; después, los preliminares cortos.
+    dedicatorias: [...(dedicatoria ? [`<div class="dedic-caja"><p><em>${esc(dedicatoria).replace(/\n/g, '<br/>')}</em></p></div>`] : []),
+      ...dedicatorias.map((el) => `<div class="dedic-caja"><p>${firmaHtml(el.trozos)}</p></div>`)],
     colofon: `<div class="colofon"><div class="colofon-caja"><img src="data:image/png;base64,${logo}" alt=""/><div>${esc(fechaColofon)}</div><div>${esc(LEYENDA[lang] || LEYENDA.ES)}</div></div></div>`,
     lamina: (f) => `<figure class="lamina" data-f="${f}">${conSrc(figuras[f].html, 'f' + f, srcs)}</figure>`,
   });
