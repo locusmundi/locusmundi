@@ -259,6 +259,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
    escrito no quede pegado al borde inferior. 1.78em = una línea de texto. */
 .ta.ta-ms{padding-bottom:calc(0.95rem + 1.78em)}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:0.95rem}
+@media(max-width:600px){.frow-mob1{grid-template-columns:1fr}} /* [P14] editor: en el móvil, Dedicatoria, Ficha e Idioma, una debajo de otra */
 .toolbar-btn{font-family:var(--body);font-size:0.78rem;letter-spacing:0.06em;
   padding:0.3rem 0.8rem;background:var(--bg2);color:var(--navy);
   border:1px solid var(--navy);border-radius:2px;cursor:pointer;transition:background .2s,color .2s}
@@ -6197,10 +6198,10 @@ ${capituloActual}
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_title}</label><ConfirmedInput value={f.title} lang={bookLangTag(f.lang)} onCommit={v=>up("title",v)}/></div>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_subtitle}</label><input className="inp" lang={bookLangTag(f.lang)} spellCheck={true} value={f.subtitle} onChange={e=>up("subtitle",e.target.value)}/></div>
           </div>
-          <div className="frow" style={{marginBottom:"0.9rem"}}><div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_dedication}</label><textarea className="inp" rows={2} maxLength={400} lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.f_dedication_ph} value={f.dedication||""} onChange={e=>up("dedication",e.target.value)} style={{resize:"vertical",fontStyle:"italic"}}/></div>
+          <div className="frow frow-mob1" style={{marginBottom:"0.9rem"}}><div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_dedication}</label><textarea className="inp" rows={2} maxLength={400} lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.f_dedication_ph} value={f.dedication||""} onChange={e=>up("dedication",e.target.value)} style={{resize:"vertical",fontStyle:"italic"}}/></div>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_name}</label><ConfirmedInput value={f.name} onCommit={v=>up("name",v)} /></div>
           </div>{/* [P14] Dedicatoria y Nombre de Autor */}
-          <div className="frow" style={{marginBottom:"0.9rem",alignItems:"flex-end"}}>
+          <div className="frow frow-mob1" style={{marginBottom:"0.9rem",alignItems:"flex-end"}}>
             <div id="lm-ed-cover" className="fld" style={{marginBottom:0}}>
             <label className="lbl">{t.f_cover}</label>
             <div style={{display:"flex",alignItems:"center",gap:"0.8rem",flexWrap:"wrap"}}>
@@ -6241,11 +6242,14 @@ ${capituloActual}
               subida ("Tienes cambios sin subir · Subir ahora", el aviso de subido y el error), donde el Autor lo
               ve mientras escribe, sin empujar la caja de texto. Abajo, junto a "Guardar y salir", sigue igual.
               Original: <div style={{margin:"0 0 0.7rem"}}> y el estado solo abajo. */}
-          <div style={{margin:"0 0 0.7rem",display:"flex",flexWrap:"wrap",alignItems:"baseline",justifyContent:"space-between",gap:"0.35rem 1.2rem"}}>
-            <div style={{display:"flex",flexWrap:"wrap",alignItems:"baseline",gap:"0.35rem 2.5rem"}}>
+          {/* [P14] dos columnas, como las filas de arriba: Esquema a la izquierda; Idioma (bajo "Tu ficha") y estado a la derecha */}
+          <div className="frow frow-mob1" style={{margin:"0 0 0.7rem",alignItems:"baseline"}}>
+            <div>
             <span onClick={()=>setShowOutline(true)} style={{fontFamily:"var(--body)",fontSize:"0.72rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--navy)",cursor:"pointer",textDecoration:"underline",textUnderlineOffset:"3px"}}>
               ☰ {t.ol_link}{outlineMaybe>0 && <span style={{color:"var(--gold)"}}> · {outlineMaybe} {outlineMaybe===1?t.ol_maybe_one:t.ol_maybe_many}</span>}{!numberingOk && <span style={{color:"var(--gold)"}}> · {t.ol_check_chapters}</span>/* aviso fuera de la ventana (01/10) */}
             </span>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",alignItems:"baseline",justifyContent:"space-between",gap:"0.35rem 1.2rem"}}>{/* [P14] columna derecha: idioma (bajo "Tu ficha") y estado de la subida */}
           <div style={{display:"flex",alignItems:"baseline",gap:"0.5rem"}}>{/* [P14] idioma en la línea del Esquema */}
             <span className="lbl" style={{marginBottom:0,display:"inline"}}>{t.ed_book_lang}</span>
             {langEditing
@@ -6254,7 +6258,6 @@ ${capituloActual}
                   {(LANGS_UI.find(l=>l.code===f.lang)||{}).label||f.lang} · <span style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer",fontSize:"0.78rem"}} onClick={()=>setLangEditing(true)}>{t.ed_book_lang_change}</span>
                 </div>}
           </div>
-            </div>
             {/* [P16-F7] sin publicar: "Subir a la Biblioteca" (antes solo se podía publicar pasando por "Guardar y salir") */}
             {!publicado&&<button type="button" id="lm-subir-primera" className="toolbar-btn" disabled={!f.name||!f.text||subiendo} onClick={()=>startUpload("ahora")}>{subiendo?subiendoTexto():t.ed_save_upload}</button>}
             {/* [P16-F4] estado de la subida, mismas condiciones y textos que abajo */}
@@ -6266,6 +6269,7 @@ ${capituloActual}
             </span>}
             {subidaHecha&&!hayCambios&&<span style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#2a6a2a"}}>✓ {t.ed_saved_published}</span>}
             {subirError&&!showSaveExit&&!unpubStep&&!modRes&&<span role="alert" style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"#b23b3b"}}>{subirError}</span>}
+            </div>
           </div>
           {showOutline && ReactDOM.createPortal((
             <div className="ov" onClick={()=>setShowOutline(false)}>
