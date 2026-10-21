@@ -6197,7 +6197,9 @@ ${capituloActual}
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_title}</label><ConfirmedInput value={f.title} lang={bookLangTag(f.lang)} onCommit={v=>up("title",v)}/></div>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_subtitle}</label><input className="inp" lang={bookLangTag(f.lang)} spellCheck={true} value={f.subtitle} onChange={e=>up("subtitle",e.target.value)}/></div>
           </div>
-          <div className="frow" style={{marginBottom:"0.9rem"}}><div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_dedication}</label><textarea className="inp" rows={2} maxLength={400} lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.f_dedication_ph} value={f.dedication||""} onChange={e=>up("dedication",e.target.value)} style={{resize:"vertical",fontStyle:"italic"}}/></div><div className="fld" style={{marginBottom:0}}/></div>{/* [P14] Dedicatoria, del ancho del título */}
+          <div className="frow" style={{marginBottom:"0.9rem"}}><div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_dedication}</label><textarea className="inp" rows={2} maxLength={400} lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.f_dedication_ph} value={f.dedication||""} onChange={e=>up("dedication",e.target.value)} style={{resize:"vertical",fontStyle:"italic"}}/></div>
+            <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_name}</label><ConfirmedInput value={f.name} onCommit={v=>up("name",v)} /></div>
+          </div>{/* [P14] Dedicatoria y Nombre de Autor */}
           <div className="frow" style={{marginBottom:"0.9rem",alignItems:"flex-end"}}>
             <div id="lm-ed-cover" className="fld" style={{marginBottom:0}}>
             <label className="lbl">{t.f_cover}</label>
@@ -6211,22 +6213,8 @@ ${capituloActual}
               {f.coverImg&&!isCoverUploading()&&<span style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--navy)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setFotoEditor({type:"cover"})}>{t.fe_edit}</span>}
             </div>
           </div>
-            <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_name}</label><ConfirmedInput value={f.name} onCommit={v=>up("name",v)} /></div>
-          </div>
-          {/* Idioma del libro (04/10/2026), discreto y con confirmación (04/10/2026, tarde): "English · Cambiar".
-              Se guarda en f.lang y de ahí en historias.idioma_original. No traduce nada ni cambia el dictado. */}
-          {/* [P16-F7] "Idioma del libro" y "Tu ficha en la Biblioteca", en la misma fila (en el móvil, una debajo de otra) */}
-          <div style={{display:"flex",flexWrap:"wrap",gap:"0 2.5rem"}}>
-          <div className="fld" style={{marginBottom:"0.9rem"}}>
-            <label className="lbl">{t.ed_book_lang}</label>
-            {langEditing
-              ? <select className="inp" value={f.lang} onChange={e=>changeBookLang(e.target.value)}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
-              : <div style={{fontFamily:"var(--body)",fontSize:"0.88rem",color:"var(--ink)"}}>
-                  {(LANGS_UI.find(l=>l.code===f.lang)||{}).label||f.lang} · <span style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer",fontSize:"0.78rem"}} onClick={()=>setLangEditing(true)}>{t.ed_book_lang_change}</span>
-                </div>}
-          </div>
           {/* [P16-F7] "Tu ficha en la Biblioteca": discreta, como el idioma. */}
-          <div id="lm-ficha" className="fld" style={{marginBottom:"0.9rem"}}>
+          <div id="lm-ficha" className="fld" style={{marginBottom:0}}>
             <label className="lbl">{t.ficha_h}</label>
             {(()=>{ const vals=CAMPOS_FICHA.filter(k=>k!=="countryCode").map(k=>k==="country"?(nombrePais(f.countryCode,lang)||String(f.country||"").trim()):String(f[k]==null?"":f[k]).trim()); const llenos=vals.filter(Boolean); /* [P10] país en el idioma de la web */
               return <div style={{fontFamily:"var(--body)",fontSize:"0.88rem",color:"var(--ink)"}}>
@@ -6234,6 +6222,12 @@ ${capituloActual}
               </div>; })()}
           </div>
           </div>
+          {/* Idioma del libro (04/10/2026), discreto y con confirmación (04/10/2026, tarde): "English · Cambiar".
+              Se guarda en f.lang y de ahí en historias.idioma_original. No traduce nada ni cambia el dictado. */}
+          {/* [P16-F7] "Idioma del libro" y "Tu ficha en la Biblioteca", en la misma fila (en el móvil, una debajo de otra) */}
+          {/* [P14 21/10/2026] Reordenado (propuesta de Javier): Nombre de Autor junto a la Dedicatoria; "Tu ficha"
+              junto a la portada; "Idioma del libro" en la línea del Esquema. Original: Idioma y Ficha en una fila
+              propia aquí (flex, gap 0 2.5rem), y el Nombre de Autor junto a la portada. */}
 
           <div className="mob-offers-strip">
             {/* [P16-F5] Ficha 5 (10/10/2026): con el Asistente contratado, "✦ Asistente" lleva al Asistente (botón o
@@ -6248,9 +6242,19 @@ ${capituloActual}
               ve mientras escribe, sin empujar la caja de texto. Abajo, junto a "Guardar y salir", sigue igual.
               Original: <div style={{margin:"0 0 0.7rem"}}> y el estado solo abajo. */}
           <div style={{margin:"0 0 0.7rem",display:"flex",flexWrap:"wrap",alignItems:"baseline",justifyContent:"space-between",gap:"0.35rem 1.2rem"}}>
+            <div style={{display:"flex",flexWrap:"wrap",alignItems:"baseline",gap:"0.35rem 2.5rem"}}>
             <span onClick={()=>setShowOutline(true)} style={{fontFamily:"var(--body)",fontSize:"0.72rem",letterSpacing:"0.16em",textTransform:"uppercase",color:"var(--navy)",cursor:"pointer",textDecoration:"underline",textUnderlineOffset:"3px"}}>
               ☰ {t.ol_link}{outlineMaybe>0 && <span style={{color:"var(--gold)"}}> · {outlineMaybe} {outlineMaybe===1?t.ol_maybe_one:t.ol_maybe_many}</span>}{!numberingOk && <span style={{color:"var(--gold)"}}> · {t.ol_check_chapters}</span>/* aviso fuera de la ventana (01/10) */}
             </span>
+          <div style={{display:"flex",alignItems:"baseline",gap:"0.5rem"}}>{/* [P14] idioma en la línea del Esquema */}
+            <span className="lbl" style={{marginBottom:0,display:"inline"}}>{t.ed_book_lang}</span>
+            {langEditing
+              ? <select className="inp" style={{width:"auto"}} value={f.lang} onChange={e=>changeBookLang(e.target.value)}>{LANGS_UI.map(l=><option key={l.code} value={l.code}>{l.label}</option>)}</select>
+              : <div style={{fontFamily:"var(--body)",fontSize:"0.88rem",color:"var(--ink)"}}>
+                  {(LANGS_UI.find(l=>l.code===f.lang)||{}).label||f.lang} · <span style={{color:"var(--gold)",textDecoration:"underline",cursor:"pointer",fontSize:"0.78rem"}} onClick={()=>setLangEditing(true)}>{t.ed_book_lang_change}</span>
+                </div>}
+          </div>
+            </div>
             {/* [P16-F7] sin publicar: "Subir a la Biblioteca" (antes solo se podía publicar pasando por "Guardar y salir") */}
             {!publicado&&<button type="button" id="lm-subir-primera" className="toolbar-btn" disabled={!f.name||!f.text||subiendo} onClick={()=>startUpload("ahora")}>{subiendo?subiendoTexto():t.ed_save_upload}</button>}
             {/* [P16-F4] estado de la subida, mismas condiciones y textos que abajo */}
