@@ -6196,7 +6196,7 @@ ${capituloActual}
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_title}</label><ConfirmedInput value={f.title} lang={bookLangTag(f.lang)} onCommit={v=>up("title",v)}/></div>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_subtitle}</label><input className="inp" lang={bookLangTag(f.lang)} spellCheck={true} value={f.subtitle} onChange={e=>up("subtitle",e.target.value)}/></div>
           </div>
-          <div className="fld" style={{marginBottom:"0.9rem"}}><label className="lbl">{t.f_dedication}</label><textarea className="inp" rows={2} maxLength={400} lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.f_dedication_ph} value={f.dedication||""} onChange={e=>up("dedication",e.target.value)} style={{resize:"vertical",fontStyle:"italic"}}/></div>{/* [P14] Dedicatoria */}
+          <div className="frow" style={{marginBottom:"0.9rem"}}><div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_dedication}</label><textarea className="inp" rows={2} maxLength={400} lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.f_dedication_ph} value={f.dedication||""} onChange={e=>up("dedication",e.target.value)} style={{resize:"vertical",fontStyle:"italic"}}/></div><div className="fld" style={{marginBottom:0}}/></div>{/* [P14] Dedicatoria, del ancho del título */}
           <div className="frow" style={{marginBottom:"0.9rem",alignItems:"flex-end"}}>
             <div id="lm-ed-cover" className="fld" style={{marginBottom:0}}>
             <label className="lbl">{t.f_cover}</label>
