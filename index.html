@@ -331,6 +331,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
   letter-spacing:0.05em;padding:0.5rem;background:transparent;color:var(--gold);
   border:1.5px solid var(--gold);cursor:pointer;border-radius:2px;transition:background .2s,color .2s}
 .pm-unlock:hover{background:var(--gold);color:#fff}
+.pm-unlock:disabled:hover{background:transparent;color:var(--gold)} /* [P14] apagado: sin cambio al pasar el ratón */
 .ov{position:fixed;inset:0;background:rgba(26,14,7,0.65);
   display:flex;align-items:center;justify-content:center;z-index:300;padding:1.4rem}
 .modal{background:var(--bg3);border:1px solid var(--border);border-radius:4px;
@@ -1265,7 +1266,7 @@ const T = {
     pdf_note:"Incluye 15 descargas, en DIN A5 y DIN A4." /* 19/10/2026; antes: "Se genera al finalizar tu historia." */,
     pdf_soon:"El archivo PDF estará disponible próximamente para los libros en este idioma.",
     pdf_left:"Te quedan {n} descargas (como máximo {m} al día).",
-    pdf_download:"Descargar DIN {f}",
+    pdf_download:"Descargar DIN {f}",pdf_download_A5:"Descargar DIN A5 (libro)",pdf_download_A4:"Descargar DIN A4 (cuaderno)", /* [P14] */
     pdf_generating:"Preparando tu PDF… Puede tardar hasta un minuto. No cierres esta página.",
     pdf_ready:"Tu PDF está listo. Si la descarga no empieza sola,",pdf_ready_link:"pulsa aquí.",
     pdf_err:"No hemos podido preparar tu PDF y no se ha descontado ninguna descarga. Inténtalo de nuevo dentro de unos minutos.",
@@ -1699,7 +1700,7 @@ const T = {
     pdf_note:"Includes 15 downloads, in DIN A5 and DIN A4.",
     pdf_soon:"The PDF file will soon be available for books in this language.",
     pdf_left:"You have {n} downloads left (up to {m} a day).",
-    pdf_download:"Download DIN {f}",
+    pdf_download:"Download DIN {f}",pdf_download_A5:"Download A5 (book)",pdf_download_A4:"Download A4 (notebook)", /* [P14] */
     pdf_generating:"Preparing your PDF… This may take up to a minute. Please keep this page open.",
     pdf_ready:"Your PDF is ready. If the download doesn't start on its own,",pdf_ready_link:"click here.",
     pdf_err:"We couldn't prepare your PDF, and no download has been used up. Please try again in a few minutes.",
@@ -6613,11 +6614,12 @@ ${capituloActual}
               : !pdfBought
               ? <button className="pm-unlock" onClick={()=>setShowPdfM(true)}>{t.addon_pdf_btn}</button>
               : <div>
-                  <div style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--ink)"}}>{t.pdf_left.replace("{n}",pdfEstado.quedan).replace("{m}",pdfEstado.max_dia)}</div>
+                  <div style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--ink)"}}>{pdfEstado.quedan<=0 ? t.pdf_err_total : t.pdf_left.replace("{n}",pdfEstado.quedan).replace("{m}",pdfEstado.max_dia)}</div>{/* [P14] con 0, «Ya has usado las 15 descargas…» */}
                   <div style={{display:"flex",gap:"0.5rem"}}>
                     {["A5","A4"].map(f=>(
-                      <button key={f} className="pm-unlock" disabled={!!pdfGen||pdfEstado.quedan<=0} onClick={()=>descargarPdf(f)}>
-                        {pdfGen===f?<span style={{display:"inline-flex",alignItems:"center",gap:"0.4rem"}}><span className="sp"/>DIN {f}</span>:t.pdf_download.replace("{f}",f)}
+                      <button key={f} className="pm-unlock" disabled={!!pdfGen||pdfEstado.quedan<=0} onClick={()=>descargarPdf(f)}
+                        style={(pdfEstado.quedan<=0||(pdfGen&&pdfGen!==f))?{opacity:0.4,cursor:"not-allowed"}:undefined}>{/* [P14] apagado, se ve */}
+                        {pdfGen===f?<span style={{display:"inline-flex",alignItems:"center",gap:"0.4rem"}}><span className="sp"/>DIN {f}</span>:(t["pdf_download_"+f]||t.pdf_download.replace("{f}",f))}
                       </button>))}
                   </div>
                   {pdfGen&&<div style={{fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",marginTop:"0.4rem"}}>{t.pdf_generating}</div>}
