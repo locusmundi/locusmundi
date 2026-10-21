@@ -51,8 +51,9 @@
 //   verso (a la izquierda, sin sangría); (2) titulillo (párrafo entero en cursiva, de una línea) nunca
 //   cierra página: pasa a la siguiente con lo que le sigue, como un apartado. (3) A5: fin de capítulo
 //   con 3 líneas como mínimo también cuando el capítulo acaba en foto (p. 44 de La vida escrita).
-//   (4) Color (Javier, 21/10): azul solo en el título de la portada y en los apartados; la etiqueta
-//   («CAPÍTULO I») y el título del capítulo, en negro (antes, azules; el apartado, antes negro).
+//   (4) Color (Javier, 21/10, decisión final): azul solo en el título de la portada y en el título de
+//   cada capítulo; la etiqueta («CAPÍTULO I»), los apartados y todo lo demás, en negro (antes, la
+//   etiqueta también en azul).
 //   (5) Campo «Dedicatoria» (contenido.dedication): página propia, centrada, en cursiva y sin número,
 //   antes de los preliminares cortos (que siguen saliendo como hasta ahora, p. ej. una cita inicial).
 //   Pendiente: quitar pagedjs de package.json y de vercel.json (ya no se usa; no estorba).
@@ -344,7 +345,7 @@ async function construirHtml(pub, formato, opciones) {
   const caja = M.ancho - M.dentro - M.fuera; // ancho de la caja de texto (mm)
   const L1 = `${(M.cuerpo * M.linea).toFixed(2)}pt`; // una línea en blanco
   const L2 = `${(2 * M.cuerpo * M.linea).toFixed(2)}pt`;
-  const AZUL = '#1B3A6B'; // el de la web (Biblioteca): título de portada y apartados (v2.1)
+  const AZUL = '#1B3A6B'; // el de la web (Biblioteca): título de portada y títulos de capítulo (v2.1)
   const css = `${fuentesCss()}
 @page { size: ${M.tam}; margin: 0; }
 html { font-family: 'EB Garamond', serif; font-size: ${M.cuerpo}pt; line-height: ${M.linea}; color: #111; }
@@ -355,9 +356,9 @@ p.corta { text-align-last: justify; }
 em { font-style: italic; }
 .cap-cab { margin: ${A5 ? 22 : 30}mm 0 ${A5 ? 9 : 12}mm; text-align: center; }
 .cap-etq { font-family: 'Playfair Display', serif; font-size: ${M.cuerpo - 1.5}pt; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 3mm; }
-h2 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: ${A5 ? 16 : 19}pt; line-height: 1.25; margin: 0; } /* v2.1: título de capítulo en negro (antes ${AZUL}) */
+h2 { font-family: 'Playfair Display', serif; font-weight: 400; font-size: ${A5 ? 16 : 19}pt; line-height: 1.25; margin: 0; color: ${AZUL}; } /* título de capítulo, en azul */
 .firma-cap { font-size: ${M.cuerpo}pt; margin-top: ${L1}; }
-h3 { font-family: 'Playfair Display', serif; font-weight: 400; font-style: italic; font-size: ${M.cuerpo + 1.5}pt; line-height: 1.3; margin: ${L2} 0 ${L1}; text-align: left; color: ${AZUL}; } /* v2.1: apartado en azul (antes negro) */
+h3 { font-family: 'Playfair Display', serif; font-weight: 400; font-style: italic; font-size: ${M.cuerpo + 1.5}pt; line-height: 1.3; margin: ${L2} 0 ${L1}; text-align: left; } /* apartado, en negro */
 h3.tras-cab { margin-top: 0; }
 h3.con-firma { margin-bottom: 0; }
 .firma { margin: 0 0 ${L1}; text-align: left; }
