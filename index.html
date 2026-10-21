@@ -176,6 +176,7 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .r-body{font-family:var(--body);font-size:1.15rem;line-height:1.82;color:var(--ink)}
 .r-cover{display:block;max-width:100%;max-height:60vh;width:auto;height:auto;margin:0 auto 1.8rem;
   border-radius:3px;box-shadow:0 3px 16px rgba(0,0,0,0.15)}
+.r-ded{font-family:var(--body);font-style:italic;text-align:center;white-space:pre-line;color:var(--ink,inherit);margin:2rem auto 2.4rem;max-width:30rem;line-height:1.6} /* [P14 Dedicatoria] */
 .r-sub{font-family:var(--serif);font-style:italic;font-size:1.15rem;color:var(--muted);margin-bottom:0.6rem}
 .r-body p{margin-bottom:1.3em;white-space:pre-line}
 .fs-ctrl{display:flex;align-items:center;gap:0.5rem;margin:0 0 1.6rem 0}
@@ -974,7 +975,7 @@ const T = {
     write_h:"Escribe tu autobiografía",
     write_sub:"Cuéntanos quién eres. No hay mínimos ni máximos. La IA te ayuda si lo necesitas.",
     f_title:"Título de la obra",f_title_ph:"p. ej. Recuerdos de mi familia",
-    f_subtitle:"Subtítulo (opcional)",f_subtitle_ph:"p. ej. Historia de tres generaciones",
+    f_subtitle:"Subtítulo (opcional)",f_dedication:"Dedicatoria (opcional)",f_dedication_ph:"p. ej. A mis nietos, para que sepan de dónde vienen",f_subtitle_ph:"p. ej. Historia de tres generaciones",
     f_cover:"Imagen de portada (gratuita)",f_cover_btn:"Subir foto",f_cover_note:"JPG o PNG · Se puede cambiar después",
     policy_tit:"📋 Condiciones de publicación",
     pol1:"Publicación completamente gratuita, sin límites de extensión.",
@@ -1045,7 +1046,7 @@ const T = {
     mod_pending_pub:"Antes de subir los cambios de tu libro, {hay} que revisar.",
     mod_pending_unpub:"Antes de subir tu libro, {hay} que revisar.",
     mod_where_text:"En el texto",mod_where_before:"Antes del primer capítulo",
-    mod_where_title:"En el título",mod_where_subtitle:"En el subtítulo",mod_where_name:"En el nombre de Autor",
+    mod_where_title:"En el título",mod_where_subtitle:"En el subtítulo",mod_where_dedication:"En la dedicatoria",mod_where_name:"En el nombre de Autor",
     mod_where_pubCity:"En la ciudad",mod_where_pubProfession:"En la profesión",mod_where_pubConcept:"En el concepto",
     mod_where_pie:"En el pie de la foto {n}",mod_where_header:"En los datos del libro",
     mod_blocked_start:"Empieza así: «{x}…»",
@@ -1106,7 +1107,7 @@ const T = {
     // [P20-i] pasaje en la cabecera o en un pie de foto: «↺ Deshacer» no llega ahí (13/10/2026)
     ps_replaced_out:"Hecho: he sustituido el pasaje en {sitio}. «↺ Deshacer» no llega ahí; si quieres recuperarlo, el texto anterior era: «{cita}».",
     ps_deleted_out:"Hecho: he suprimido el pasaje {sitio}. «↺ Deshacer» no llega ahí; si quieres recuperarlo, el texto suprimido era: «{cita}».",
-    ps_sitio:{title:["el título","del título"],subtitle:["el subtítulo","del subtítulo"],name:["tu nombre","de tu nombre"],ficha:["tu ficha en la Biblioteca","de tu ficha en la Biblioteca"],pie:["el pie de la Foto {n}","del pie de la Foto {n}"]},
+    ps_sitio:{title:["el título","del título"],subtitle:["el subtítulo","del subtítulo"],dedication:["la dedicatoria","de la dedicatoria"],name:["tu nombre","de tu nombre"],ficha:["tu ficha en la Biblioteca","de tu ficha en la Biblioteca"],pie:["el pie de la Foto {n}","del pie de la Foto {n}"]},
     ps_none:"No hay pasajes señalados que revisar. Sube el libro y, si hay algo que revisar, te lo diremos.",
     ed_autosave:"Autoguardado activo.",ed_faq_link:"¿Cómo funciona el editor de textos?",
     ol_link:"Esquema del libro",ol_maybe_one:"posible título",ol_check_chapters:"revisar capítulos",ol_maybe_many:"posibles títulos",ol_h:"Esquema del libro",
@@ -1410,7 +1411,7 @@ const T = {
     write_h:"Write your autobiography",
     write_sub:"Tell us who you are. No minimum, no maximum. AI helps if you need it.",
     f_title:"Title of your work",f_title_ph:"e.g. Memories of my family",
-    f_subtitle:"Subtitle (optional)",f_subtitle_ph:"e.g. Three generations of history",
+    f_subtitle:"Subtitle (optional)",f_dedication:"Dedication (optional)",f_dedication_ph:"e.g. To my grandchildren, so they know where they come from",f_subtitle_ph:"e.g. Three generations of history",
     f_cover:"Cover image (free)",f_cover_btn:"Upload photo",f_cover_note:"JPG or PNG · Can be changed later",
     policy_tit:"📋 Publishing terms",
     pol1:"Completely free publishing, with no length limit.",
@@ -1480,7 +1481,7 @@ const T = {
     mod_pending_pub:"Before uploading the changes to your book, {hay} to review.",
     mod_pending_unpub:"Before uploading your book, {hay} to review.",
     mod_where_text:"In the text",mod_where_before:"Before the first chapter",
-    mod_where_title:"In the title",mod_where_subtitle:"In the subtitle",mod_where_name:"In the Author name",
+    mod_where_title:"In the title",mod_where_subtitle:"In the subtitle",mod_where_dedication:"In the dedication",mod_where_name:"In the Author name",
     mod_where_pubCity:"In the city",mod_where_pubProfession:"In the profession",mod_where_pubConcept:"In the concept",
     mod_where_pie:"In the caption of photo {n}",mod_where_header:"In the book details",
     mod_blocked_start:"It begins: \u201c{x}…\u201d",
@@ -1541,7 +1542,7 @@ const T = {
     // [P20-i]
     ps_replaced_out:"Done: I have replaced the passage in {sitio}. \u201c↺ Undo\u201d doesn't reach there; if you want it back, the previous text was: \u201c{cita}\u201d.",
     ps_deleted_out:"Done: I have deleted the passage from {sitio}. \u201c↺ Undo\u201d doesn't reach there; if you want it back, the deleted text was: \u201c{cita}\u201d.",
-    ps_sitio:{title:["the title","the title"],subtitle:["the subtitle","the subtitle"],name:["your name","your name"],ficha:["your details in the Library","your details in the Library"],pie:["the caption of Photo {n}","the caption of Photo {n}"]},
+    ps_sitio:{title:["the title","the title"],subtitle:["the subtitle","the subtitle"],dedication:["the dedication","the dedication"],name:["your name","your name"],ficha:["your details in the Library","your details in the Library"],pie:["the caption of Photo {n}","the caption of Photo {n}"]},
     ps_none:"There are no flagged passages to review. Upload the book and, if there is anything to review, we'll tell you.",
     ed_autosave:"Autosave on.",ed_faq_link:"How does the text editor work?",
     ol_link:"Book outline",ol_maybe_one:"possible title",ol_check_chapters:"check chapters",ol_maybe_many:"possible titles",ol_h:"Book outline",
@@ -2198,7 +2199,7 @@ function Read({auto,setView,t,volverEditor,uiLang}) { // [P16-B8] volverEditor: 
       ]);
       if(gen!==genRef.current) return;
       setReadLangCode(idioma);
-      setTrHead({titulo:head.titulo, subtitulo:head.subtitulo||"", pies:head.pies||{}});
+      setTrHead({titulo:head.titulo, subtitulo:head.subtitulo||"", dedicatoria:head.dedicatoria||"", pies:head.pies||{}}); // [P14] dedicatoria, con api/traducir.js v3.2
       setTrParts([first.texto]);setTrShown(1);setTrTotal(first.tramos);
       setEntered(true);window.scrollTo(0,0);
     }catch(e){
@@ -2286,6 +2287,7 @@ function Read({auto,setView,t,volverEditor,uiLang}) { // [P16-B8] volverEditor: 
     <div className="read-wrap fu">
       {volverEditor?<button className="back" onClick={volverEditor}>{t.back_editor}</button>:<button className="back" onClick={()=>setView("library")}>{t.back}</button>}
       {coverAndTitle(shownLang?.label||readLangCode, translated&&<> · <span onClick={backToLangChoice} style={{cursor:"pointer",textDecoration:"underline"}}>{t.change_lang}</span></>, trHead)}
+      {(()=>{ const d=String((trHead&&trHead.dedicatoria)||auto.dedication||"").trim(); return d?<div className="r-ded">{d}</div>:null; })()}{/* [P14] Dedicatoria (en la lectura traducida, la original mientras api/traducir.js no la traduzca) */}
       <div className="r-body">{renderStoryBody(bodyText, fotosLectura, readLangCode)}</div>
       {volverEditor&&!translated&&<div style={{margin:"2.4rem 0 0.6rem"}}><button className="back" onClick={volverEditor}>{t.back_editor}</button></div>}{/* [P16-B8] al final */}
       {translated&&(<>
@@ -3773,6 +3775,7 @@ function publicacionToAuto(row){
     lang: (row.idioma_original || c.lang || "ES").toUpperCase(),
     title: row.titulo || c.title || c.name || "",
     subtitle: c.subtitle || "",
+    dedication: c.dedication || "", // [P14] Dedicatoria
     cover: row.portada_url || null,
     fotos: Array.isArray(c.fotos) ? c.fotos : [],
     fecha: row.fecha_publicacion || null, // orden del Inicio (04/10/2026)
@@ -3826,7 +3829,7 @@ async function pedirTarjetas({q="", idioma="", limite=LIB_PAGE, tras=null}={}){
 }
 // Lista cerrada de lo que se copia a lo publicado: la MISMA que CAMPOS_PUBLICADOS de
 // api/moderar.js v1 (diseño §11.8, decisión 9). Si cambia allí, cambia aquí.
-const CAMPOS_PUBLICADOS=["name","born","country","lang","title","subtitle","text","pubCity","pubProfession","pubConcept","countryCode"]; // [P10] countryCode, con api/moderar.js v3.9
+const CAMPOS_PUBLICADOS=["name","born","country","lang","title","subtitle","dedication","text","pubCity","pubProfession","pubConcept","countryCode"]; // [P10] countryCode, con api/moderar.js v3.9; [P14] dedication, con api/moderar.js v3.10
 // Forma comparable de una versión (la que se escribe o la publicada), para saber si hay
 // cambios sin subir. Mismos datos que copia api/moderar.js: título, campos de la lista,
 // portada, idioma y fotos con imagen (id, orden, url, pie), ordenadas por orden.
@@ -3938,7 +3941,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const revisionBloqueadaRef=useRef(false);
   const [revisionAviso,setRevisionAviso]=useState(false);
   const [f,setF]=useState({
-    name:"",born:"",country:"",lang:"ES",title:"",subtitle:"",text:"",coverImg:null,
+    name:"",born:"",country:"",lang:"ES",title:"",subtitle:"",dedication:"",text:"",coverImg:null,
     authorNumber:null,founder:false,blocks:[{id:crypto.randomUUID(),type:"chapter",title:"",num:1}],
     assistantActive:false,assistantTuUsted:null,assistantName:"",dictationLang:"",
     wizardDone:false,published:false,publishedId:null,
@@ -5294,14 +5297,14 @@ ${capituloActual}
     } else setModRes(null);
   };
   // Dónde está hoy el texto de un pasaje: {valor, set} del campo (o del texto del libro).
-  const CAMPOS_CABECERA_ED=["title","subtitle","name","pubCity","pubProfession","pubConcept"];
+  const CAMPOS_CABECERA_ED=["title","subtitle","dedication","name","pubCity","pubProfession","pubConcept"];
   const lugarDe=(ps)=>{
     if(ps.clase==="cabecera" && ps.campo){
       if(ps.campo.startsWith("pie:")){
         const id=ps.campo.slice(4), ph=fotosDb.find(x=>String(x.id)===id);
         return ph ? {tipo:"pie", foto:ph, valor:String(ph.pie_foto||"")} : null;
       }
-      if(CAMPOS_CABECERA_ED.includes(ps.campo)) return {tipo:"campo", campo:ps.campo, valor:String(f[ps.campo]||"")};
+      if(CAMPOS_CABECERA_ED.includes(ps.campo)) return {tipo:"campo", campo:ps.campo, valor:ps.campo==="dedication"?String(f.dedication||"").replace(/\s*\n\s*/g," "):String(f[ps.campo]||"")}; // [P14] la dedicatoria se revisa en una línea
       return null;
     }
     return {tipo:"texto", valor:String(f.text||"")};
@@ -5887,7 +5890,7 @@ ${capituloActual}
     setSaveError(false);
     historiaIdRef.current = null; // se "suelta" la fila marcada; el libro nuevo se crea cuando el Autor escriba o suba algo
     skipNextSaveRef.current = true; // el vaciado de abajo no debe crear ya la fila nueva
-    setF(p=>({...p,text:"",title:"",subtitle:"",coverImg:null,blocks:[{id:crypto.randomUUID(),type:"chapter",title:"",num:1}],
+    setF(p=>({...p,text:"",title:"",subtitle:"",dedication:"",coverImg:null,blocks:[{id:crypto.randomUUID(),type:"chapter",title:"",num:1}],
       wizardDone:false,published:false,publishedId:null,assistantActive:false}));
     setFotosDb([]);
     setDeleteStep("done");
@@ -6193,6 +6196,7 @@ ${capituloActual}
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_title}</label><ConfirmedInput value={f.title} lang={bookLangTag(f.lang)} onCommit={v=>up("title",v)}/></div>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_subtitle}</label><input className="inp" lang={bookLangTag(f.lang)} spellCheck={true} value={f.subtitle} onChange={e=>up("subtitle",e.target.value)}/></div>
           </div>
+          <div className="fld" style={{marginBottom:"0.9rem"}}><label className="lbl">{t.f_dedication}</label><textarea className="inp" rows={2} maxLength={400} lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.f_dedication_ph} value={f.dedication||""} onChange={e=>up("dedication",e.target.value)} style={{resize:"vertical",fontStyle:"italic"}}/></div>{/* [P14] Dedicatoria */}
           <div className="frow" style={{marginBottom:"0.9rem",alignItems:"flex-end"}}>
             <div id="lm-ed-cover" className="fld" style={{marginBottom:0}}>
             <label className="lbl">{t.f_cover}</label>
