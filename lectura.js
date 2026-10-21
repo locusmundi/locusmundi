@@ -1,4 +1,7 @@
 // lectura.js — Locus Mundi
+// Versión 1.1 · 21/10/2026 · Fase B2, punto 22 (conversación 12 bis): en chino y japonés, los dos
+// puntos «：» separan también la etiqueta del capítulo, y la raya (—) se respeta, como en inglés.
+// Sin cambios para los idiomas latinos y el ruso (los del PDF).
 // Versión 1 · 19/10/2026 · Fase B2, punto 14 (conversación 12).
 // REGLAS COMUNES DE LECTURA: un solo archivo para la web (index.html, que lo carga con
 // <script src="/lectura.js">) y para el generador del PDF (api/pdf.js, con require). Así la
@@ -37,7 +40,7 @@
   // GUERRA", "¶ CAPÍTULO"): devuelve dónde acaba la palabra. Solo si a la palabra le siguen dos
   // puntos, un punto o nada. (01/10)
   var chapterWordNoNum = function (body) {
-    var m = body.match(/^([^\s:.]+)\s*([:.]|$)/);
+    var m = body.match(/^([^\s:.：]+)\s*([:.：]|$)/); // [P22] «：» chino y japonés
     if(!m) return null;
     if(CHAPTER_WORDS_ANY.indexOf(foldUpper(m[1]))===-1) return null;
     return { idx: m[1].length };
@@ -47,7 +50,8 @@
   // traducción por IA; **así** no se toca). Solo si va pegado a la palabra y no dentro de ella.
   // Devuelve trozos [{texto, cursiva}] en orden.
   function trozosCursiva(str){
-    var re=/(^|[^\p{L}\p{N}_*])([_*])([^_*\n]+?)\2(?=$|[^\p{L}\p{N}_*])/gu;
+    // [P22] Chino y japonés no llevan espacios: junto a sus caracteres la marca también vale.
+    var re=/(^|[^\p{L}\p{N}_*]|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}])([_*])([^_*\n]+?)\2(?=$|[^\p{L}\p{N}_*]|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}])/gu;
     var out=[], last=0, m;
     while((m=re.exec(str))){
       var start=m.index+m[1].length;
@@ -107,8 +111,12 @@
   //  3. Guion de inciso → –.   4. Guion de cierre al final del párrafo → se quita.
   //  5. No se tocan el guion entre letras o cifras sin espacios ni el de un número negativo.
   // Inglés (Estándar §9ter): la raya se respeta y "--" pasa a raya.
+  // [P22] Chino y japonés: la raya (——, ――) es su signo; no se toca nada.
+  var mantieneRaya = function (lang) { var l=String(lang||"").toUpperCase(); return l==="EN"||l==="ZH"||l==="JA"; };
   function formatDashes(p, lang){
-    if(String(lang||"").toUpperCase()==="EN") return p.replace(/-{2,3}/g,"—");
+    var L=String(lang||"").toUpperCase();
+    if(L==="ZH"||L==="JA") return p;
+    if(L==="EN") return p.replace(/-{2,3}/g,"—");
     var s=p.replace(/-{2,3}/g,"–").replace(/—/g,"–");
     s=s.replace(/^(\s*)[-–]\s*(?=\D)/,"$1–");                                  // 2
     s=s.replace(/(\s)-\s+(?=\S)/g,"$1– ")                                        // 3, a los dos lados
@@ -128,7 +136,7 @@
   function bloquesLectura(text, fotos, lang){
     fotos = fotos || [];
     return String(text||"").split("\n\n").map(function(raw){
-      var p = curlySingleQuotes(String(lang||"").toUpperCase()==="EN" ? raw : raw.replace(/—/g,"–")); // [P16-B3]
+      var p = curlySingleQuotes(mantieneRaya(lang) ? raw : raw.replace(/—/g,"–")); // [P16-B3] [P22]
       var trimmed = p.trim();
       // Marcador [FOTO n]. Tolerante a propósito (la traducción puede decir [PHOTO 2]); exige una
       // palabra delante del número, para no confundir una línea como "[1990]".
@@ -138,7 +146,7 @@
       if(fmFoto && fmFoto.url) return {tipo:"foto", foto:fmFoto};
       if(trimmed.indexOf(CHAPTER_SIGN)===0){
         var body = trimmed.slice(CHAPTER_SIGN.length).trim();
-        var idx = body.indexOf(":");
+        var idx = body.search(/[:：]/); // [P22] también «：»
         // Capítulo sin número y sin dos puntos ("¶ PRÓLOGO"): título grande, sin etiqueta (01/10).
         var plainTitle = idx===-1 && !chapterNumToken(body) && !chapterWordNoNum(body);
         return {tipo:"capitulo",
@@ -152,7 +160,7 @@
   }
 
   var LM_LECTURA = {
-    version: 1,
+    version: 1.1,
     CHAPTER_SIGN: CHAPTER_SIGN, SECTION_SIGN: SECTION_SIGN, CHAPTER_WORDS_ANY: CHAPTER_WORDS_ANY,
     foldUpper: foldUpper, fromRoman: fromRoman, ROMAN_OK: ROMAN_OK,
     chapterNumToken: chapterNumToken, chapterWordNoNum: chapterWordNoNum,
