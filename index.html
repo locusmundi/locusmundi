@@ -176,6 +176,8 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .r-body{font-family:var(--body);font-size:1.15rem;line-height:1.82;color:var(--ink)}
 .r-cover{display:block;max-width:100%;max-height:60vh;width:auto;height:auto;margin:0 auto 1.8rem;
   border-radius:3px;box-shadow:0 3px 16px rgba(0,0,0,0.15)}
+:lang(ar),:lang(zh),:lang(ja),:lang(hi){font-style:normal!important} /* [P22] sin cursiva en árabe, chino, japonés e hindi (no la tienen) */
+:lang(ar){letter-spacing:0!important} /* [P22] el espaciado separa las letras enlazadas del árabe */
 .r-ded{font-family:var(--body);font-style:italic;text-align:center;white-space:pre-line;color:var(--ink,inherit);margin:2rem auto 2.4rem;max-width:30rem;line-height:1.6} /* [P14 Dedicatoria] */
 .r-sub{font-family:var(--serif);font-style:italic;font-size:1.15rem;color:var(--muted);margin-bottom:0.6rem}
 .r-body p{margin-bottom:1.3em;white-space:pre-line}
@@ -567,7 +569,7 @@ function renumberChaptersText(text, houseStyle=false){
 // Casilla del título y del nombre de Autor. Hasta el 07/10/2026 pedía confirmar el cambio con el
 // libro publicado (needsConfirm); con las dos versiones de cada libro nada llega a la Biblioteca
 // hasta "Subir a la Biblioteca", así que ya nadie lo pide y se comporta como una casilla normal.
-function ConfirmedInput({value,onCommit,needsConfirm,confirmMsg,lang}){
+function ConfirmedInput({value,onCommit,needsConfirm,confirmMsg,lang,dir}){
   const [draft,setDraft]=useState(value||"");
   const [editing,setEditing]=useState(false);
   useEffect(()=>{ if(!editing) setDraft(value||""); },[value,editing]);
@@ -576,7 +578,7 @@ function ConfirmedInput({value,onCommit,needsConfirm,confirmMsg,lang}){
     if(!needsConfirm || draft===(value||"")) return;
     if(window.confirm(confirmMsg)) onCommit(draft); else setDraft(value||"");
   };
-  return <input className="inp" value={draft} lang={lang} spellCheck={lang?true:undefined}
+  return <input className="inp" value={draft} lang={lang} dir={dir} spellCheck={lang?true:undefined}
     onFocus={()=>setEditing(true)}
     onChange={e=>{ setDraft(e.target.value); if(!needsConfirm) onCommit(e.target.value); }}
     onBlur={commit}
@@ -637,16 +639,19 @@ function suprimirCita(text, cita){
 // punto 5, y "03/10/2026 (interfaz)", punto 5). Sin ¶, §, [FOTO n] ni guiones bajos o asteriscos
 // de la cursiva; empieza por el primer párrafo de prosa; si hay que cortar, se corta en un espacio
 // y termina en "…". Si la prosa entera cabe, se muestra entera, sin "…".
-function storyExcerpt(text, max=88){
+// [P22 21/10/2026] Chino y japonés: 44 caracteres (cada uno ocupa casi el doble); mismo criterio en
+// el disparador de Supabase. Sin espacios, se corta en el carácter.
+function storyExcerpt(text, lang){
+  const max = ["ZH","JA"].includes(String(lang||"").toUpperCase()) ? 44 : 88;
   const prose = (text||"").split("\n\n").map(p=>p.trim()).filter(p=>p &&
     !p.startsWith(CHAPTER_SIGN) && !p.startsWith(SECTION_SIGN) && !FOTO_MARK_RE.test(p));
   let s = prose.join(" ").replace(/\s+/g," ").trim();
-  s = s.replace(/(^|[^\p{L}\p{N}_*])([_*])([^_*\n]+?)\2(?=$|[^\p{L}\p{N}_*])/gu,(m,a,b,c)=>a+c);
+  s = s.replace(/(^|[^\p{L}\p{N}_*]|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}])([_*])([^_*\n]+?)\2(?=$|[^\p{L}\p{N}_*]|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}])/gu,(m,a,b,c)=>a+c); // [P22]
   if(s.length<=max) return s;
   let cut = s.slice(0,max);
   const sp = cut.lastIndexOf(" ");
   if(sp>max*0.5) cut = cut.slice(0,sp);
-  return cut.replace(/[\s,;:.\-–—«“"'(]+$/,"")+"…";
+  return cut.replace(/[\s,;:.\-–—«“"'(，、；：]+$/,"")+"…"; // [P22] también «，、；：»
 }
 function renderStoryBody(text, fotos=[], lang=null) {
   // Qué se muestra: /lectura.js (bloquesLectura, las mismas reglas que el PDF). Aquí, cómo se dibuja.
@@ -699,6 +704,8 @@ const LANGS_UI = [
 // Idioma del libro (04/10/2026, tarde): etiqueta para el navegador (corrector) y nombre en el idioma de la interfaz.
 const LANG_TAG = {ES:"es",EN:"en",FR:"fr",DE:"de",IT:"it","PT-PT":"pt-PT","PT-BR":"pt-BR",PT:"pt",ZH:"zh",AR:"ar",JA:"ja",RU:"ru",HI:"hi",GL:"gl",CA:"ca"};
 function bookLangTag(code){ return LANG_TAG[String(code||"ES").toUpperCase()]||"es"; }
+// [P22 21/10/2026] Dirección de escritura: el árabe, de derecha a izquierda (editor y lectura).
+function bookDir(code){ return String(code||"").toUpperCase()==="AR" ? "rtl" : undefined; }
 // [P10 19/10/2026] Lista cerrada de países (Fase B2, punto 10; Continuidad, sesión "19/10/2026
 // (conversación 10: lista cerrada de países)"). El país se guarda con un código fijo de dos letras
 // (contenido.countryCode), el MISMO de la tabla paises de Supabase (243: estándar ISO 3166-1 y
@@ -789,13 +796,23 @@ const DICT_TAG = {ES:"es-ES",EN:"en-US",FR:"fr-FR",DE:"de-DE",IT:"it-IT","PT-PT"
 function dictationLangFor(f, uiLang){
   return (f&&f.dictationLang) || DICT_TAG[String((f&&f.lang)||"").toUpperCase()] || (uiLang==="EN"?"en-US":"es-ES");
 }
+// [P22 21/10/2026] Palabras en chino y japonés: no llevan espacios, así que en las redes de
+// seguridad cada carácter cuenta como una palabra (sepCJK). Vocales breves del árabe (harakat):
+// no cuentan, como las tildes. Hindi: se conservan los signos de las vocales (\p{M}).
+const CJK_CHARS="\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\u30FC";
+const CJK_ONE=new RegExp("["+CJK_CHARS+"]","u");
+const sepCJK=s=>String(s||"").replace(new RegExp("(["+CJK_CHARS+"])","gu")," $1 ");
+const HARAKAT_RE=/[\u064B-\u065F\u0670]/g;
+// Une dos trozos de texto con un espacio, salvo entre caracteres chinos o japoneses.
+const unirTrozos=(a,b)=>{ a=String(a||""); b=String(b||""); if(!a||!b) return a+b;
+  return (CJK_ONE.test(a.slice(-1))||CJK_ONE.test(b.charAt(0))) ? a+b : a+" "+b; };
 // Red de seguridad del dictado (05/10/2026, §4.A), sin IA: la versión puntuada solo vale si tiene
 // exactamente las mismas palabras que lo dictado. No cuentan mayúsculas, puntuación ni tildes
 // (05/10, noche: el navegador escribe a veces "que" por "qué", y poner la tilde es ortografía,
 // como una coma); sí cuentan ñ y ç, letras propias (año ≠ ano). Además, los mismos ¶ y §.
 function dictationIsLiteral(original, corrected){
   const fold=c=>"ñç".includes(c)?c:c.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-  const words=s=>Array.from(String(s||"").normalize("NFC").toLowerCase()).map(fold).join("")
+  const words=s=>sepCJK(Array.from(String(s||"").normalize("NFC").toLowerCase()).map(fold).join("").replace(HARAKAT_RE,"").normalize("NFC")) // [P22]
     .replace(/[^\p{L}\p{M}\p{N}\s]/gu," ").split(/\s+/).filter(Boolean);
   const signs=(s,c)=>(String(s||"").split(c).length-1);
   const a=words(original), b=words(corrected);
@@ -1819,8 +1836,8 @@ function cleanCorrection(text){
 // mayúsculas. Si la versión no pasa la red de seguridad (ha reescrito), no hay erratas.
 function errataFromCorrection(original, fixed){
   if(!fixed || !correctionIsFaithful(original, fixed)) return [];
-  const core=w=>w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu,"");
-  const toks=s=>s.split(/\s+/).filter(Boolean).map(r=>{const c=core(r);const k=r.indexOf(c);return {r,c,head:r.slice(0,k),tail:r.slice(k+c.length)};}).filter(x=>x.c);
+  const core=w=>w.replace(/^[^\p{L}\p{M}\p{N}]+|[^\p{L}\p{M}\p{N}]+$/gu,""); // [P22] \p{M}: hindi
+  const toks=s=>sepCJK(s).split(/\s+/).filter(Boolean).map(r=>{const c=core(r);const k=r.indexOf(c);return {r,c,head:r.slice(0,k),tail:r.slice(k+c.length)};}).filter(x=>x.c);
   const A=toks(original), B=toks(fixed);
   const a=A.map(x=>x.c), b=B.map(x=>x.c);
   const D=Array.from({length:a.length+1},(_,i)=>Array.from({length:b.length+1},(_,j)=>i===0?j:(j===0?i:0)));
@@ -1837,18 +1854,18 @@ function errataFromCorrection(original, fixed){
       if((x.tail!==y.tail && qs.test(x.tail+y.tail)) || (x.head!==y.head && qs.test(x.head+y.head)))
         out.push({mal:x.r,bien:y.r});
       else if(x.tail.includes(",") && /[.;:]/.test(y.tail) && !y.tail.includes(",") && nx && ny && nx.c===ny.c && /^\p{Lu}/u.test(nx.c))
-        out.push({mal:x.r+" "+nx.r,bien:y.r+" "+(ny?ny.r:nx.r)});
+        out.push({mal:unirTrozos(x.r,nx.r),bien:unirTrozos(y.r,ny?ny.r:nx.r)});
       i--; j--; continue;
     }
     if(i>0&&j>0&&D[i][j]===D[i-1][j-1]+1){ out.push({mal:a[i-1],bien:b[j-1]}); i--; j--; continue; }
     if(i>0&&D[i][j]===D[i-1][j]+1){ // palabra de más en el original (p. ej. "a a")
       const w=a[i-1];
-      if(a[i]===w || (i>1&&a[i-2]===w)) out.push({mal:w+" "+w,bien:w}); // palabra repetida
-      else out.push(i>1?{mal:a[i-2]+" "+w,bien:a[i-2]}:{mal:w+(a[i]?" "+a[i]:""),bien:a[i]||""});
+      if(a[i]===w || (i>1&&a[i-2]===w)) out.push({mal:unirTrozos(w,w),bien:w}); // palabra repetida
+      else out.push(i>1?{mal:unirTrozos(a[i-2],w),bien:a[i-2]}:{mal:unirTrozos(w,a[i]),bien:a[i]||""});
       i--; continue;
     }
     // palabra que falta en el original
-    out.push(i>0?{mal:a[i-1],bien:a[i-1]+" "+b[j-1]}:{mal:a[0]||"",bien:b[j-1]+(a[0]?" "+a[0]:"")}); j--;
+    out.push(i>0?{mal:a[i-1],bien:unirTrozos(a[i-1],b[j-1])}:{mal:a[0]||"",bien:unirTrozos(b[j-1],a[0])}); j--;
   }
   const seen=new Set();
   return out.reverse().filter(e=>e.mal!==e.bien && e.bien && !seen.has(e.mal+"|"+e.bien) && seen.add(e.mal+"|"+e.bien));
@@ -1872,8 +1889,8 @@ function errataQuestion(list, lang){
 // mayúsculas y puntuación no cuentan. Límite: 6 palabras o el 30 % del párrafo, lo que sea mayor.
 // (Servirá también para la corrección del dictado: Pendientes del Asistente, punto 4.)
 function correctionIsFaithful(original, corrected){
-  const words=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu," ").split(/\s+/).filter(Boolean);
+  const words=s=>sepCJK(s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(HARAKAT_RE,"").normalize("NFC")).toLowerCase() // [P22]
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu," ").split(/\s+/).filter(Boolean);
   const a=words(original), b=words(corrected);
   if(!b.length) return false;
   let prev=Array.from({length:b.length+1},(_,j)=>j);
@@ -1919,10 +1936,10 @@ function AutoCard({a:a0,onClick,t,lang}) {
       <div className="c-num">Nº {num}</div>
       {a.cover&&<img src={a.cover} className="card-cover" alt={a.title||a.name}/>}
       <div className="c-meta"><span className="c-orig">{a.flag?a.flag+" ":""}{nombrePais(a.countryCode,lang)||a.country}</span></div>
-      <div className="c-name">{a.title||a.name}</div>
-      {a.title&&<div style={{fontFamily:"var(--body)",fontSize:"0.92rem",fontWeight:"700",color:"var(--ink)",marginTop:"-0.2rem",marginBottom:"0.3rem"}}>{a.name}</div>}
-      {a.subtitle&&<div style={{fontFamily:"var(--body)",fontSize:"0.78rem",fontStyle:"italic",color:"var(--muted)",marginBottom:"0.3rem"}}>{a.subtitle}</div>}
-      <div className="c-prev">"{a.preview}"</div>
+      <div className="c-name" lang={bookLangTag(en&&en.title?"EN":a0.lang)} dir="auto">{a.title||a.name}</div>{/* [P22] idioma y dirección de cada texto */}
+      {a.title&&<div dir="auto" style={{fontFamily:"var(--body)",fontSize:"0.92rem",fontWeight:"700",color:"var(--ink)",marginTop:"-0.2rem",marginBottom:"0.3rem"}}>{a.name}</div>}
+      {a.subtitle&&<div lang={bookLangTag(en&&en.subtitle?"EN":a0.lang)} dir="auto" style={{fontFamily:"var(--body)",fontSize:"0.78rem",fontStyle:"italic",color:"var(--muted)",marginBottom:"0.3rem"}}>{a.subtitle}</div>}
+      <div className="c-prev" lang={bookLangTag(en&&en.extracto?"EN":a0.lang)} dir="auto">"{a.preview}"</div>
       <div className="c-foot">
         <div className="tags">
           {(a.city||a.concept)?(<>
@@ -2247,8 +2264,8 @@ function Read({auto,setView,t,volverEditor,uiLang}) { // [P16-B8] volverEditor: 
         ? <img src={auto.cover} alt={title} className="r-cover"/>
         : (auto.flag?<div style={{fontSize:"1.8rem",marginBottom:"0.45rem"}}>{auto.flag}</div>:null)}{/* [P16-B1-5] */}
       <div className="r-orig">{nombrePais(auto.countryCode,uiLang)||auto.country} · {langLabel}{extra}</div>
-      <h1 className="r-name">{title}</h1>
-      {subtitle&&<div className="r-sub">{subtitle}</div>}
+      <h1 className="r-name" lang={bookLangTag(head?readLangCode:auto.lang)} dir="auto">{title}</h1>{/* [P22] */}
+      {subtitle&&<div className="r-sub" lang={bookLangTag(head?readLangCode:auto.lang)} dir="auto">{subtitle}</div>}
       <div className="r-meta">{t.by_author} {auto.name}</div>
       {actualizadoTexto&&<div className="r-meta" style={{fontSize:"0.8em",marginTop:"0.25rem",opacity:0.85}}>{actualizadoTexto}</div>}
     </>);
@@ -2289,8 +2306,8 @@ function Read({auto,setView,t,volverEditor,uiLang}) { // [P16-B8] volverEditor: 
     <div className="read-wrap fu">
       {volverEditor?<button className="back" onClick={volverEditor}>{t.back_editor}</button>:<button className="back" onClick={()=>setView("library")}>{t.back}</button>}
       {coverAndTitle(shownLang?.label||readLangCode, translated&&<> · <span onClick={backToLangChoice} style={{cursor:"pointer",textDecoration:"underline"}}>{t.change_lang}</span></>, trHead)}
-      {(()=>{ const d=String((trHead&&trHead.dedicatoria)||auto.dedication||"").trim(); return d?<div className="r-ded">{d}</div>:null; })()}{/* [P14] Dedicatoria (en la lectura traducida, la original mientras api/traducir.js no la traduzca) */}
-      <div className="r-body">{renderStoryBody(bodyText, fotosLectura, readLangCode)}</div>
+      {(()=>{ const d=String((trHead&&trHead.dedicatoria)||auto.dedication||"").trim(); const dl=(trHead&&trHead.dedicatoria)?readLangCode:auto.lang; return d?<div className="r-ded" lang={bookLangTag(dl)} dir={bookDir(dl)}>{d}</div>:null; })()}{/* [P14] Dedicatoria (en la lectura traducida, la original mientras api/traducir.js no la traduzca) */}
+      <div className="r-body" lang={bookLangTag(readLangCode)} dir={bookDir(readLangCode)}>{renderStoryBody(bodyText, fotosLectura, readLangCode)}</div>{/* [P22] idioma y dirección */}
       {volverEditor&&!translated&&<div style={{margin:"2.4rem 0 0.6rem"}}><button className="back" onClick={volverEditor}>{t.back_editor}</button></div>}{/* [P16-B8] al final */}
       {translated&&(<>
         <div ref={sentinelRef} style={{height:"1px"}}/>
@@ -3784,7 +3801,7 @@ function publicacionToAuto(row){
     actualizado: row.fecha_actualizacion || null, // "Actualizado el…" (diseño §2.3)
     numero: row.numero_autor ?? null, // copiado de `historias` al publicar (publicar_historia)
     founder: row.numero_autor!=null && row.numero_autor<=100, // [3a 15/10/2026] mismo criterio provisional que esFundador del editor
-    preview: row.extracto_elegido || row.extracto || storyExcerpt(c.text), // [P12 18/10/2026]
+    preview: row.extracto_elegido || row.extracto || storyExcerpt(c.text, row.idioma_original || c.lang), // [P12 18/10/2026] [P22]
     text: c.text || "",
     tags: ["memoria"],
     city: c.pubCity || "", profession: c.pubProfession || "", concept: c.pubConcept || ""
@@ -5116,7 +5133,7 @@ ${capituloActual}
         const ok=!!fixed && dictationIsLiteral(raw, fixed);
         const clean=ok?fixed:raw.trim();
         if(!ok) setDictNotice(n=>n||"literal");
-        setChatInput(preceding?preceding+" "+clean:clean);
+        setChatInput(preceding?unirTrozos(preceding,clean):clean); // [P22]
       }).catch(()=>{ /* si falla la corrección, se deja el texto bruto tal cual */ })
         .finally(()=>setDictProcessing(false));
     } else {
@@ -6195,12 +6212,12 @@ ${capituloActual}
         <div className={"wr-work"+(hasAiRight?" wr-work-split":"")}>
         <div>
           <div id="lm-ed-head" className="frow" style={{marginBottom:"0.9rem"}}>
-            <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_title}</label><ConfirmedInput value={f.title} lang={bookLangTag(f.lang)} onCommit={v=>up("title",v)}/></div>
-            <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_subtitle}</label><input className="inp" lang={bookLangTag(f.lang)} spellCheck={true} value={f.subtitle} onChange={e=>up("subtitle",e.target.value)}/></div>
+            <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_title}</label><ConfirmedInput value={f.title} lang={bookLangTag(f.lang)} dir={bookDir(f.lang)} onCommit={v=>up("title",v)}/></div>
+            <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_subtitle}</label><input className="inp" lang={bookLangTag(f.lang)} dir={bookDir(f.lang)} spellCheck={true} value={f.subtitle} onChange={e=>up("subtitle",e.target.value)}/></div>
           </div>
           <div className="frow frow-mob1" style={{marginBottom:"0.9rem"}}>
             <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_name}</label><ConfirmedInput value={f.name} onCommit={v=>up("name",v)} /></div>
-            <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_dedication}</label><textarea className="inp" rows={2} maxLength={400} lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.f_dedication_ph} value={f.dedication||""} onChange={e=>up("dedication",e.target.value)} style={{resize:"vertical",fontStyle:"italic"}}/></div>
+            <div className="fld" style={{marginBottom:0}}><label className="lbl">{t.f_dedication}</label><textarea className="inp" rows={2} maxLength={400} lang={bookLangTag(f.lang)} dir={bookDir(f.lang)} spellCheck={true} placeholder={t.f_dedication_ph} value={f.dedication||""} onChange={e=>up("dedication",e.target.value)} style={{resize:"vertical",fontStyle:"italic"}}/></div>
           </div>{/* [P14] Nombre de Autor (izquierda) y Dedicatoria (derecha), decisión de Javier 21/10 */}
           <div className="frow frow-mob1" style={{marginBottom:"0.9rem",alignItems:"flex-end"}}>
             <div id="lm-ed-cover" className="fld" style={{marginBottom:0}}>
@@ -6293,7 +6310,7 @@ ${capituloActual}
                       return (
                         <div key={i} style={{padding:"0.6rem 0",borderBottom:"1px solid var(--border)",marginLeft:isCh?0:"1.4rem"}}>
                           <div style={{fontFamily:"var(--body)",fontSize:"0.66rem",letterSpacing:"0.14em",textTransform:"uppercase",color:maybe?"var(--gold)":"var(--muted)",marginBottom:"0.2rem"}}>{tag}</div>
-                          <div onClick={()=>jumpToOutlineItem(it)} title={t.ol_jump} style={{fontFamily:"var(--serif)",fontSize:isCh?"1.05rem":"0.98rem",fontWeight:isCh&&!maybe?700:400,fontStyle:maybe?"italic":"normal",color:maybe?"var(--muted)":"var(--ink)",cursor:"pointer",textDecoration:"underline",textDecorationColor:"var(--border)",textUnderlineOffset:"3px"}}>{it.title}</div>
+                          <div onClick={()=>jumpToOutlineItem(it)} title={t.ol_jump} dir="auto" style={{fontFamily:"var(--serif)",fontSize:isCh?"1.05rem":"0.98rem",fontWeight:isCh&&!maybe?700:400,fontStyle:maybe?"italic":"normal",color:maybe?"var(--muted)":"var(--ink)",cursor:"pointer",textDecoration:"underline",textDecorationColor:"var(--border)",textUnderlineOffset:"3px"}}>{it.title}</div>
                           {maybe && (
                             <div style={{marginTop:"0.35rem",display:"flex",gap:"0.6rem",alignItems:"center",flexWrap:"wrap"}}>
                               <span style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--muted)"}}>{t.ol_maybe_note}</span>
@@ -6480,7 +6497,7 @@ ${capituloActual}
             <button type="button" className="toolbar-btn" onClick={()=>searchGo(1)} disabled={!searchQ.trim()} style={searchQ.trim()?{}:{opacity:0.4,cursor:"not-allowed"}}>{t.ed_search_next}</button>
             {searchStatus&&<span style={{fontFamily:"var(--body)",fontSize:"0.74rem",color:"var(--muted)"}}>{searchStatus}</span>}
           </div>
-          <textarea ref={taRef} className="ta ta-ms" lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.f_text_ph} value={f.text} onChange={onTextChange} onKeyDown={onTextKeyDown} onPaste={onTextPaste}/>
+          <textarea ref={taRef} className="ta ta-ms" lang={bookLangTag(f.lang)} dir={bookDir(f.lang)} spellCheck={true} placeholder={t.f_text_ph} value={f.text} onChange={onTextChange} onKeyDown={onTextKeyDown} onPaste={onTextPaste}/>
           {/* [P16-F8] Ficha 8 (12/10/2026): la franja, justo bajo la caja de texto, y "Fotos añadidas" después.
               Original: la franja iba tras las dos columnas, después de las fotos (y del Asistente en el móvil). */}
           <div style={{marginTop:"0.9rem",paddingTop:"1rem",borderTop:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"0.6rem"}}>
@@ -6520,7 +6537,7 @@ ${capituloActual}
                     {(()=>{const n=ph.imagenes_cargadas||0;
                       const txt=n>=2?(ph.url?t.photo_badge_final:t.photo_badge_none)/* [P20-e] hueco vacío y agotado. Original: n>=2?t.photo_badge_final */:(n===1?(ph.url?t.photo_badge_one:t.photo_badge_next_final):null);
                       return txt?<div style={{fontFamily:"var(--body)",fontSize:"0.66rem",color:"var(--muted)",fontStyle:"italic",marginBottom:"0.35rem"}}>{txt}</div>:null;})()}
-                    <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} lang={bookLangTag(f.lang)} spellCheck={true} placeholder={t.ed_photo_caption_ph} value={ph.pie_foto||""} onChange={e=>setPhotoCaption(ph.id,e.target.value)}/>
+                    <input className="inp" style={{fontSize:"0.7rem",padding:"0.3rem 0.4rem",marginBottom:"0.35rem"}} lang={bookLangTag(f.lang)} dir={bookDir(f.lang)} spellCheck={true} placeholder={t.ed_photo_caption_ph} value={ph.pie_foto||""} onChange={e=>setPhotoCaption(ph.id,e.target.value)}/>
                     <div style={{display:"flex",gap:"0.2rem 0.4rem",fontSize:"0.7rem",flexWrap:"wrap"}}>
                       {avisosImagen.some(av=>av.estado==="pendiente"&&av.objetivo==="foto"&&String(av.foto_id)===String(ph.id))
                         ? <span style={{color:"var(--muted)",fontStyle:"italic"}}>{t.img_in_review}</span>/* [P16-B4] sin subir otra imagen mientras se revisa el aviso */
