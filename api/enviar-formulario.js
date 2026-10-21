@@ -1,3 +1,7 @@
+// api/enviar-formulario.js — Locus Mundi
+// Versión 2 · 21/10/2026 · Fase C, punto 2 (C5a): remitente del dominio, contacto@locusmundi.com
+// (antes onboarding@resend.dev). Continuidad, sesión "21/10/2026 (conversación C5a)".
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
@@ -39,7 +43,7 @@ module.exports = async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Locus Mundi <onboarding@resend.dev>',
+        from: 'Locus Mundi <contacto@locusmundi.com>',
         to: 'contactlocusmundi@gmail.com',
         reply_to: email || undefined,
         subject: asunto,
