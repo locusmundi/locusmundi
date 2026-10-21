@@ -49,7 +49,8 @@
 // Versión 2.1 · 20/10/2026 · Poemas (conversación 12-4, La vida escrita; sí de Javier): (1) estrofa de un
 //   solo verso (párrafo de 120 caracteres o menos, sin cursiva entera) junto a otra estrofa: también es
 //   verso (a la izquierda, sin sangría); (2) titulillo (párrafo entero en cursiva, de una línea) nunca
-//   cierra página: pasa a la siguiente con lo que le sigue, como un apartado.
+//   cierra página: pasa a la siguiente con lo que le sigue, como un apartado. (3) A5: fin de capítulo
+//   con 3 líneas como mínimo también cuando el capítulo acaba en foto (p. 44 de La vida escrita).
 //   Pendiente: quitar pagedjs de package.json y de vercel.json (ya no se usa; no estorba).
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
@@ -507,9 +508,12 @@ function paginarLibro(libro, med) {
       // Fin de capítulo con menos de 3 líneas en su última página: la anterior cede las que falten.
       const ult = pags[pags.length - 1];
       const lin = (x) => (x.trozo ? x.trozo.n : (m[x.k].ini || []).length);
-      if (pags.length > 1 && ult.items.length && ult.items.every((x) => sec.items[x.k].t === 'p')) {
-        const t = ult.items.reduce((s, x) => s + lin(x), 0);
-        const pri = ult.items[0], ant = pags[pags.length - 2].items.slice(-1)[0];
+      // v2.1: las marcas de lámina (A5) no cuentan (una foto al final del capítulo impedía la regla).
+      const textoUlt = ult.items.filter((x) => sec.items[x.k].t !== 'marca');
+      const textoAnt = pags.length > 1 ? pags[pags.length - 2].items.filter((x) => sec.items[x.k].t !== 'marca') : [];
+      if (pags.length > 1 && textoUlt.length && textoUlt.every((x) => sec.items[x.k].t === 'p')) {
+        const t = textoUlt.reduce((s, x) => s + lin(x), 0);
+        const pri = textoUlt[0], ant = textoAnt.slice(-1)[0];
         if (t < 3 && pri.trozo && pri.trozo.a > 0 && ant && ant.k === pri.k && ant.trozo) {
           const nuevo = ant.trozo.n - (3 - t);
           if (nuevo >= 2) { limites = Object.assign({}, limites, { [`${ant.k}@${ant.trozo.a}`]: nuevo }); continue; }
