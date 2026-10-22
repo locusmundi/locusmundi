@@ -57,6 +57,8 @@
 //   (5) Campo «Dedicatoria» (contenido.dedication): página propia, centrada, en cursiva y sin número,
 //   antes de los preliminares cortos (que siguen saliendo como hasta ahora, p. ej. una cita inicial).
 //   Pendiente: quitar pagedjs de package.json y de vercel.json (ya no se usa; no estorba).
+// Versión 2.2 · 22/10/2026 · Fase C (conversación C2-b): fuera "comprar" (pago simulado). La compra la
+//   crea api/pago.js al confirmarse el pago en Stripe (origen 'stripe'); el Plan Familiar, sin cambios.
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
 // LOCUS_MUNDI_FORMATO_IMPRESION.md v2. Chrome sin pantalla (@sparticuz/chromium), en
@@ -64,7 +66,7 @@
 //
 // POST {token, accion}:
 //   "estado"   → {publicado, disponible, comprado, quedan, hoy, max_dia}
-//   "comprar"  → PAGO SIMULADO hasta Stripe (Fase C): crea la compra (origen 'simulado').
+//   (v2.2: "comprar" quitado; la compra la crea api/pago.js tras el pago en Stripe.)
 //   "generar"  {formato:"A5"|"A4"} → genera, guarda en el almacén privado `pdf`, apunta la descarga
 //              (apuntar_descarga_pdf: 15 en total y 5 al día, con cerrojo) y devuelve {url, nombre,
 //              quedan}: enlace temporal de 10 minutos. El vigía (api/diario.js) borra los PDF a las 24 h.
@@ -78,7 +80,6 @@ const crypto = require('crypto');
 const L = require('../lectura.js');
 
 // --- Ajustes ---------------------------------------------------------------------------------------
-const PAGO_SIMULADO = true;            // ⚠ Poner a false (o quitar "comprar") al conectar Stripe (Fase C).
 const DESCARGAS_POR_COMPRA = 15;       // = valor por defecto de pdf_compras.descargas
 const MAX_DIA = 5;                     // = el de apuntar_descarga_pdf (SQL)
 const SIN_PDF = ['AR', 'ZH', 'JA', 'HI']; // de entrada, solo alfabetos latino y cirílico (conv. 11, punto 5)
@@ -785,12 +786,6 @@ module.exports = async function handler(req, res) {
     }
     if (!pub) return res.status(409).json({ error: 'NO_PUBLICADO' });
     if (!disponible) return res.status(409).json({ error: 'NO_DISPONIBLE' });
-
-    if (b.accion === 'comprar') {
-      if (!PAGO_SIMULADO) return res.status(403).json({ error: 'PAGO_REAL' });
-      await rest('pdf_compras', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates' }, body: JSON.stringify({ historia_id: historia, autor_id: autor, origen: 'simulado', descargas: DESCARGAS_POR_COMPRA }) });
-      return res.status(200).json(Object.assign({ ok: true, publicado: true, disponible: true, max_dia: MAX_DIA }, await estadoCompra(historia, autor))); // v1.1: con publicado y disponible, como "estado"
-    }
 
     if (b.accion === 'generar') {
       const formato = b.formato === 'A4' ? 'A4' : 'A5';
