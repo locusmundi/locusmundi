@@ -1290,6 +1290,31 @@ const T = {
     pdf_err:"No hemos podido preparar tu PDF y no se ha descontado ninguna descarga. Inténtalo de nuevo dentro de unos minutos.",
     pdf_err_day:"Hoy ya has descargado {m} archivos. Podrás descargar más mañana.",
     pdf_err_total:"Ya has usado las 15 descargas de tu archivo PDF.",
+    // [C2b] 22/10/2026: pago real por api/pago.js y la página de Stripe.
+    pago_idioma:"ES",pago_ir:"Ir al pago seguro",
+    pago_nota:"Pagarás en la página segura de Stripe (tarjeta, Apple Pay o Google Pay). Al terminar, volverás aquí.",
+    pago_abriendo:"Abriendo la página de pago…",
+    pago_no_disponible:"El pago aún no está disponible. No se te ha cobrado nada.",
+    pago_err:"No hemos podido abrir la página de pago. No se te ha cobrado nada. Inténtalo de nuevo dentro de unos minutos.",
+    pago_err_sesion:"Tu sesión ha caducado. Sal y vuelve a entrar para seguir; no se te ha cobrado nada.",
+    pago_err_max:"Tu libro ya no admite tantas fotos: le quedan {n}.",
+    pago_err_quedan:"Aún te quedan descargas de tu PDF. Podrás comprar más cuando las hayas usado.",
+    pago_esperando:"Estamos confirmando tu pago…",
+    pago_ok_fotos:"✓ Pago recibido. Ya tienes {n} fotos más en tu libro.",
+    pago_ok_asistente:"✓ Pago recibido. Tu Asistente tiene tinta nueva.",
+    pago_ok_pdf:"✓ Pago recibido. Ya puedes descargar tu PDF.",
+    pago_tarde:"Tu pago aún se está confirmando. Si en unos minutos no ves el cambio, recarga la página; si sigue igual, escríbenos a contactlocusmundi@gmail.com.",
+    pago_cancelado:"Has cancelado el pago. No se te ha cobrado nada.",
+    pago_devuelto:"No hemos podido añadir esas fotos porque tu libro ya no las admitía. Te hemos devuelto el importe.",
+    terms_h_pdf:"Condiciones del archivo PDF",
+    pdf_terms:[
+      "Compras 15 descargas del PDF de tu libro publicado, en DIN A5 (libro) y DIN A4 (cuaderno), como máximo 5 al día.",
+      "El PDF se genera con la versión publicada en el momento de descargarlo.",
+      "Solo tú puedes descargarlo.",
+      "Cuando hayas usado las 15 descargas, podrás comprar otras 15.",
+      "Precio: 5 €."
+    ],
+    pdf_rebuy:"Comprar 15 descargas más — 5 €",
     pdf_err_buy:"No hemos podido completar la compra. No se te ha cobrado nada. Inténtalo de nuevo dentro de unos minutos.",
     processing:"Procesando…",
     contact_h:"Contacto",contact_sub:"¿Tienes alguna pregunta o quieres colaborar? Escríbenos a contactlocusmundi@gmail.com",
@@ -1723,6 +1748,31 @@ const T = {
     pdf_err:"We couldn't prepare your PDF, and no download has been used up. Please try again in a few minutes.",
     pdf_err_day:"You've already downloaded {m} files today. You can download more tomorrow.",
     pdf_err_total:"You've used all 15 downloads of your PDF file.",
+    // [C2b] 22/10/2026
+    pago_idioma:"EN",pago_ir:"Continue to secure payment",
+    pago_nota:"You'll pay on Stripe's secure page (card, Apple Pay or Google Pay). When you finish, you'll come back here.",
+    pago_abriendo:"Opening the payment page…",
+    pago_no_disponible:"Payment isn't available yet. You haven't been charged.",
+    pago_err:"We couldn't open the payment page, and you haven't been charged. Please try again in a few minutes.",
+    pago_err_sesion:"Your session has expired. Log out and back in to continue; you haven't been charged.",
+    pago_err_max:"Your book can't take that many photos: it has {n} left.",
+    pago_err_quedan:"You still have PDF downloads left. You'll be able to buy more once you've used them.",
+    pago_esperando:"We're confirming your payment…",
+    pago_ok_fotos:"✓ Payment received. You now have {n} more photos in your book.",
+    pago_ok_asistente:"✓ Payment received. Your Assistant has fresh ink.",
+    pago_ok_pdf:"✓ Payment received. You can now download your PDF.",
+    pago_tarde:"Your payment is still being confirmed. If you don't see the change in a few minutes, reload the page; if nothing changes, write to us at contactlocusmundi@gmail.com.",
+    pago_cancelado:"You cancelled the payment. You haven't been charged.",
+    pago_devuelto:"We couldn't add those photos because your book no longer had room for them. We've refunded you.",
+    terms_h_pdf:"PDF file terms",
+    pdf_terms:[
+      "You're buying 15 downloads of the PDF of your published book, in A5 (book) and A4 (notebook), up to 5 a day.",
+      "The PDF is created from the version that is published when you download it.",
+      "Only you can download it.",
+      "Once you've used the 15 downloads, you can buy another 15.",
+      "Price: €5."
+    ],
+    pdf_rebuy:"Buy 15 more downloads — €5",
     pdf_err_buy:"We couldn't complete the purchase, and you haven't been charged. Please try again in a few minutes.",
     processing:"Processing…",
     contact_h:"Contact",contact_sub:"Do you have a question or want to collaborate? Write to us at contactlocusmundi@gmail.com",
@@ -2667,6 +2717,42 @@ async function pdfApi(body){
   }
 }
 
+// [C2b] 22/10/2026: api/pago.js. Nunca lanza: devuelve los datos o {error}.
+async function pagoApi(body){
+  try{
+    const { data } = await supa.auth.getSession();
+    const res=await fetch("/api/pago",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({...body, token:data.session?data.session.access_token:null})
+    });
+    const d=await res.json().catch(()=>({}));
+    return res.ok ? (d||{}) : {...(d||{}), error:(d&&d.error)||"ERROR"};
+  }catch(e){ console.error("pago:", e); return {error:"RED"}; }
+}
+// Abre la página de pago de Stripe. Si sale bien, el navegador se va a Stripe (no vuelve nada);
+// si no, devuelve el texto del aviso para la ventana. El servidor decide precio y entrega.
+async function irAPago(t,producto,cantidad){
+  const d=await pagoApi({accion:"abrir", producto, cantidad, idioma:t.pago_idioma, desistimiento:true});
+  if(d.url){ try{ window.sessionStorage.setItem("lm_pago_lang",t.pago_idioma); }catch(e){} window.location.assign(d.url); return null; }
+  const e=d.error;
+  if(e==="SIN_STRIPE") return t.pago_no_disponible;
+  if(e==="SESION") return t.pago_err_sesion;
+  if(e==="MAX_FOTOS") return t.pago_err_max.replace("{n}",String(d.quedan??0));
+  if(e==="QUEDAN_DESCARGAS") return t.pago_err_quedan;
+  return t.pago_err;
+}
+function PagoBoton({t,texto,disabled,onPagar}){ // botón y nota comunes a las ventanas de pago
+  const [abriendo,setAbriendo]=useState(false);const [err,setErr]=useState("");
+  const pulsar=async()=>{ setErr(""); setAbriendo(true); const m=await onPagar(); if(m){ setErr(m); setAbriendo(false); } };
+  return (<div>
+    <button className="btn-pub" style={{width:"100%"}} disabled={disabled||abriendo} onClick={pulsar}>
+      {abriendo?<span style={{display:"inline-flex",alignItems:"center",gap:"0.5rem",justifyContent:"center"}}><span className="sp"/>{t.pago_abriendo}</span>:texto}
+    </button>
+    <p className="s-note" style={{marginTop:"0.5rem"}}>{t.pago_nota}</p>
+    {err&&<p role="alert" style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",margin:"0.4rem 0 0"}}>{err}</p>}
+  </div>);
+}
+
 // api/moderar.js v2 (segunda subida). Devuelve {status, d} sin lanzar: las respuestas con sentido
 // propio (pasajes, imagen rechazada, límites) no son errores del navegador. Fallo de red: status 0.
 async function moderarApi(body){
@@ -3002,71 +3088,55 @@ function AmountPicker({amounts,value,onChange,t}) { // [P20-c] t: precio según 
 // [P16-B6] Lotes de 5 hasta 20 fotos por libro (decisión de Javier, 12/10/2026; antes: 3, 6, 10 u
 // "Otra cantidad", mínimo 3). Solo se ofrecen los lotes que caben en lo que le queda al libro.
 const MAX_FOTOS_LIBRO = 20;
-function PhotosModal({onClose,onPaid,t,tiene=0}) {
+// [C2b] 22/10/2026: paga por Stripe (api/pago.js crea los huecos al confirmarse el pago).
+// Original (aa9b31a): pago simulado, casillas de tarjeta falsas y pantalla «Fotos añadidas»;
+// onPaid(n) creaba los huecos desde el navegador (addFotoSlots).
+function PhotosModal({onClose,t,tiene=0,antesDePagar}) {
   const quedan=Math.max(0,MAX_FOTOS_LIBRO-tiene);
   const tiers=[5,10,15,20].filter(v=>v<=quedan);
   const [qty,setQty]=useState(tiers[0]||0);
-  const [paying,setPaying]=useState(false);const [done,setDone]=useState(false);
-  const amount=qty;
   const [termsOk,setTermsOk]=useState(false);
-  const pay=()=>{ if(!amount) return; setPaying(true);setTimeout(()=>{setDone(true);setPaying(false);onPaid(amount);},1400);};
+  const pagar=async()=>{ if(antesDePagar && !(await antesDePagar())) return t.pago_err; return irAPago(t,"fotos",qty); };
   return (
     <div className="ov" onClick={onClose}>
       <div className="modal" style={{maxHeight:"88vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
         <button className="modal-x" onClick={onClose}>✕</button>
-        {done?(<div style={{textAlign:"center",padding:"1.8rem 0"}}><div style={{fontSize:"2.2rem",color:"var(--gold)",marginBottom:"0.9rem"}}>✦</div><div className="modal-h" style={{textAlign:"center"}}>{t.photos_activated}</div><p style={{fontFamily:"var(--body)",color:"var(--muted)",marginTop:"0.75rem"}}>{amount} {t.photo_word}{amount===1?"":"s"}</p></div>):(
-          <>
-            <div className="modal-h">{t.addon_photos_h}</div>
-            <p className="modal-sub">{t.addon_photos_sub}</p>
-            <p className="modal-sub" style={{marginTop:"0.2rem"}}>{t.photos_left.replace("{n}",String(quedan))}</p>
-            <div style={{display:"flex",gap:"0.5rem",flexWrap:"wrap",margin:"0.9rem 0"}}>
-              {tiers.map(v=>(
-                <button key={v} type="button" onClick={()=>setQty(v)}
-                  style={{fontFamily:"var(--body)",fontSize:"0.9rem",padding:"0.5rem 1rem",borderRadius:"2px",cursor:"pointer",
-                    border:qty===v?"1px solid var(--gold)":"1px solid var(--border)",
-                    background:qty===v?"var(--gold)":"transparent",
-                    color:qty===v?"var(--cr)":"var(--ink)"}}>{v} {t.photo_word}s — {t.precio_n.replace("{n}",v)}{/* [P20-c] original: €{v} */}</button>
-              ))}
-            </div>
-            <TermsBox title={t.terms_h_photos} items={t.photo_terms} consent={t.terms_consent} checked={termsOk} onToggle={setTermsOk}/>
-            <div className="stripe-sec">
-              <div className="stripe-lbl">Stripe · {t.precio_n.replace("{n}",amount)}{/* [P20-c] original: €{amount} */}</div>
-              <div className="s-row"><input className="s-inp" placeholder="•••• •••• •••• ••••"/></div>
-              <div className="s-row"><input className="s-inp" placeholder="MM/AA"/><input className="s-inp s-cvc" placeholder="CVC"/></div>
-              <button className="s-pay" onClick={pay} disabled={paying||!amount||!termsOk}>{paying?<span style={{display:"flex",alignItems:"center",gap:"0.5rem",justifyContent:"center"}}><span className="sp"/>{t.processing}</span>:`${t.pay_generic} ${t.precio_n.replace("{n}",amount)}`/* [P20-c] original: `${t.pay_generic} €${amount}` */}</button>
-            </div>
-          </>
-        )}
+        <div className="modal-h">{t.addon_photos_h}</div>
+        <p className="modal-sub">{t.addon_photos_sub}</p>
+        <p className="modal-sub" style={{marginTop:"0.2rem"}}>{t.photos_left.replace("{n}",String(quedan))}</p>
+        <div style={{display:"flex",gap:"0.5rem",flexWrap:"wrap",margin:"0.9rem 0"}}>
+          {tiers.map(v=>(
+            <button key={v} type="button" onClick={()=>setQty(v)}
+              style={{fontFamily:"var(--body)",fontSize:"0.9rem",padding:"0.5rem 1rem",borderRadius:"2px",cursor:"pointer",
+                border:qty===v?"1px solid var(--gold)":"1px solid var(--border)",
+                background:qty===v?"var(--gold)":"transparent",
+                color:qty===v?"var(--cr)":"var(--ink)"}}>{v} {t.photo_word}s — {t.precio_n.replace("{n}",v)}</button>
+          ))}
+        </div>
+        <TermsBox title={t.terms_h_photos} items={t.photo_terms} consent={t.terms_consent} checked={termsOk} onToggle={setTermsOk}/>
+        <PagoBoton t={t} texto={`${t.pago_ir} — ${t.precio_n.replace("{n}",qty)}`} disabled={!qty||!termsOk} onPagar={pagar}/>
       </div>
     </div>
   );
 }
 
-function PdfModal({onClose,onPaid,t}) {
-  const [paying,setPaying]=useState(false);const [done,setDone]=useState(false);
-  const pay=()=>{setPaying(true);setTimeout(()=>{setDone(true);setPaying(false);onPaid();},1400);};
+// [C2b] 22/10/2026: paga por Stripe, con sus condiciones y la casilla del desistimiento (antes no
+// la tenía). recompra: con las 15 descargas usadas. Original (aa9b31a): pago simulado y pantalla
+// «Archivo PDF listo»; onPaid llamaba a api/pdf.js «comprar» (quitado en api/pdf.js v2.2).
+function PdfModal({onClose,t}) {
+  const [termsOk,setTermsOk]=useState(false);
   return (
     <div className="ov" onClick={onClose}>
-      <div className="modal" onClick={e=>e.stopPropagation()}>
+      <div className="modal" style={{maxHeight:"88vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
         <button className="modal-x" onClick={onClose}>✕</button>
-        {done?(<div style={{textAlign:"center",padding:"1.8rem 0"}}><div style={{fontSize:"2.2rem",color:"var(--gold)",marginBottom:"0.9rem"}}>✦</div><div className="modal-h" style={{textAlign:"center"}}>{t.pdf_activated}</div><p style={{fontFamily:"var(--body)",color:"var(--muted)",marginTop:"0.75rem"}}>DIN A5 · DIN A4</p></div>):(
-          <>
-            <div className="modal-h">{t.addon_pdf_h}</div>
-            <p className="modal-sub">{t.addon_pdf_sub}</p>
-            <div className="stripe-sec">
-              <div className="stripe-lbl">Stripe · {t.precio_5}{/* [P20-c] original: €5 */}</div>
-              <div className="s-row"><input className="s-inp" placeholder="•••• •••• •••• ••••"/></div>
-              <div className="s-row"><input className="s-inp" placeholder="MM/AA"/><input className="s-inp s-cvc" placeholder="CVC"/></div>
-              <button className="s-pay" onClick={pay} disabled={paying}>{paying?<span style={{display:"flex",alignItems:"center",gap:"0.5rem",justifyContent:"center"}}><span className="sp"/>{t.processing}</span>:`${t.pay_generic} ${t.precio_5}`/* [P20-c] original: `${t.pay_generic} €5` */}</button>
-              <p className="s-note">{t.pdf_note}</p>
-            </div>
-          </>
-        )}
+        <div className="modal-h">{t.addon_pdf_h}</div>
+        <p className="modal-sub">{t.addon_pdf_sub}</p>
+        <TermsBox title={t.terms_h_pdf} items={t.pdf_terms} consent={t.terms_consent} checked={termsOk} onToggle={setTermsOk}/>
+        <PagoBoton t={t} texto={`${t.pago_ir} — ${t.precio_5}`} disabled={!termsOk} onPagar={()=>irAPago(t,"pdf",1)}/>
       </div>
     </div>
   );
 }
-
 // [P16-B1-1] Respuesta de una pregunta frecuente o guía: párrafos separados por una línea en
 // blanco; las líneas que empiezan por "- " son una lista (C.11 y C.12).
 function FaqText({a}) {
@@ -4219,26 +4289,8 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   const slotPreviewSrc=(fotoId)=> (pendingPhoto?.type==="slot"&&pendingPhoto.fotoId===fotoId) ? pendingPhoto.previewUrl : fotosDb.find(x=>x.id===fotoId)?.url;
   const isSlotUploading=(fotoId)=> pendingPhoto?.type==="slot"&&pendingPhoto.fotoId===fotoId;
 
-  // Crea n huecos vacíos en la tabla `fotos` tras una compra (sin capítulo asignado
-  // todavía). Uno detrás de otro, llevando la cuenta del número en local: antes se
-  // lanzaban en paralelo y todos leían el mismo `fotosDb`, así que podían salir varios
-  // huecos con el mismo número (y el mismo marcador FOTO n en el texto).
-  const addFotoSlots=async(n)=>{
-    const historiaId=await getOrCreateHistoriaId();
-    if(!historiaId){ alert(t.photos_add_error); return; }
-    n=Math.min(n, MAX_FOTOS_LIBRO-fotosDb.length); // [P16-B6] nunca más de 20 huecos por libro
-    if(n<=0) return;
-    let nextNum=fotosDb.length?Math.max(...fotosDb.map(x=>x.orden))+1:1; // no se reutiliza aunque se borren fotos de en medio
-    for(let i=0;i<n;i++){
-      const{data,error}=await supa.from("fotos").insert({
-        historia_id:historiaId, bloque_id:null, url:null, pie_foto:"",
-        orden:nextNum, origen:"comprada", lote_compra_id:null, fecha_compra:null
-      }).select().single();
-      if(error||!data){ console.error("No se pudo crear el hueco de foto:", error); alert(t.photos_add_error); break; }
-      setFotosDb(p=>[...p,data]);
-      nextNum++;
-    }
-  };
+  // [C2b] 22/10/2026: fuera addFotoSlots. Los huecos los crea api/pago.js al confirmarse el pago
+  // (y el navegador ya no tiene permiso para crear filas en `fotos`). Original en aa9b31a.
   // OJO (supabase-js v2): una consulta sin await ni .then() NO se envía nunca.
   // Las escrituras "de fondo" de esta sección llevan .then() por eso.
   const setPhotoCaption=(fotoId,cap)=>{
@@ -4507,6 +4559,49 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     pdfApi({accion:"estado"}).then(d=>{ if(vivo && !d.error) setPdfEstado(d); });
     return ()=>{ vivo=false; };
   },[publicado]);
+  // [C2b] 22/10/2026: vuelta de la página de pago de Stripe (?pago=ok|cancelado&venta=…). Se pregunta
+  // a api/pago.js hasta que el aviso de Stripe haya entregado (venta «pagada»), como mucho un minuto,
+  // y se vuelven a leer tinta, fotos y PDF. La dirección se limpia en el acto (recargar no repite).
+  const [pagoAviso,setPagoAviso]=useState(null); // {tipo:"info"|"ok"|"error", texto}
+  const recargarCompras=async()=>{
+    const { data: { user } } = await supa.auth.getUser();
+    if(!user) return;
+    const {data:a}=await supa.from("autores").select("tinta_euros, tinta_ultima_carga").eq("id",user.id).maybeSingle();
+    if(a) setTinta({tinta:Number(a.tinta_euros)||0, ultimaCarga:Number(a.tinta_ultima_carga)||0});
+    let hid=historiaIdRef.current;
+    if(!hid){ const {data:h}=await supa.from("historias").select("id").eq("autor_id",user.id).eq("marcado_borrado",false).limit(1).maybeSingle(); hid=h&&h.id; }
+    if(hid){
+      const { data: fotos } = await supa.from("fotos")
+        .select("id, bloque_id, url, pie_foto, orden, origen, lote_compra_id, fecha_compra, imagenes_cargadas")
+        .eq("historia_id", hid).order("orden");
+      if(fotos) setFotosDb(fotos);
+    }
+    const d=await pdfApi({accion:"estado"}); if(!d.error && d.publicado) setPdfEstado(d);
+  };
+  useEffect(()=>{
+    let q; try{ q=new URLSearchParams(window.location.search); }catch(e){ return; }
+    const pg=q.get("pago"), venta=q.get("venta");
+    if(!pg) return;
+    try{ window.history.replaceState(null,"",window.location.pathname); window.sessionStorage.removeItem("lm_pago_lang"); }catch(e){}
+    if(pg!=="ok"||!venta){ setPagoAviso({tipo:"info",texto:t.pago_cancelado}); return; }
+    setPagoAviso({tipo:"info",texto:t.pago_esperando});
+    let vivo=true; const t0=Date.now();
+    const mirar=async()=>{
+      if(!vivo) return;
+      const d=await pagoApi({accion:"consultar",venta});
+      if(!vivo) return;
+      if(d.estado==="pagada"){
+        await recargarCompras();
+        setPagoAviso({tipo:"ok",texto:d.producto==="fotos"?t.pago_ok_fotos.replace("{n}",String(d.cantidad)):d.producto==="asistente"?t.pago_ok_asistente:t.pago_ok_pdf});
+        return;
+      }
+      if(d.estado==="devuelta"){ setPagoAviso({tipo:"error",texto:t.pago_devuelto}); return; }
+      if(Date.now()-t0>60000){ setPagoAviso({tipo:"error",texto:t.pago_tarde}); return; }
+      setTimeout(mirar,2500);
+    };
+    mirar();
+    return ()=>{ vivo=false; };
+  },[]);
   const descargarPdf=async(fmt)=>{
     setPdfGen(fmt); setPdfMsg(null);
     const d=await pdfApi({accion:"generar", formato:fmt});
@@ -5927,6 +6022,14 @@ ${capituloActual}
       <div role="alert" style={{position:"sticky",top:0,zIndex:50,margin:"0 0 1rem",padding:"0.7rem 0.9rem",background:"#b23b3b",color:"#fff",
         fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.45,borderRadius:"2px"}}>{t.save_error_banner}</div>
     )}
+    {pagoAviso&&(/* [C2b] vuelta de Stripe */
+      <div role="status" style={{position:"sticky",top:0,zIndex:49,margin:"0 0 1rem",padding:"0.7rem 2.2rem 0.7rem 0.9rem",
+        background:pagoAviso.tipo==="ok"?"#3f7a4e":pagoAviso.tipo==="error"?"#b23b3b":"var(--navy)",color:"#fff",
+        fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.45,borderRadius:"2px"}}>
+        {pagoAviso.texto===t.pago_esperando&&<span className="sp" style={{marginRight:"0.5rem",verticalAlign:"middle"}}/>}{pagoAviso.texto}
+        {pagoAviso.texto!==t.pago_esperando&&<button aria-label="✕" onClick={()=>setPagoAviso(null)} style={{position:"absolute",right:"0.5rem",top:"0.45rem",background:"none",border:"none",color:"#fff",fontSize:"1rem",cursor:"pointer"}}>✕</button>}
+      </div>
+    )}
   </>);
   const narrowCard=(children)=>(
     <div style={{maxWidth:"460px",margin:"0 auto",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:"4px",padding:"2.2rem"}}>
@@ -6057,8 +6160,11 @@ ${capituloActual}
   // ================= Editor =================
   return (
     <div className="wr-wrap">
-      {showPhotosM&&<PhotosModal onClose={()=>setShowPhotosM(false)} onPaid={(n)=>{addFotoSlots(n);setShowPhotosM(false);}} t={t} tiene={fotosDb.length}/>}
-      {showPdfM&&<PdfModal onClose={()=>setShowPdfM(false)} onPaid={async()=>{ const d=await pdfApi({accion:"comprar"}); setShowPdfM(false); if(d.error) setPdfMsg({ok:false, texto:t.pdf_err_buy}); else setPdfEstado(d); }} t={t}/>}
+      {/* [C2b] 22/10/2026: las dos ventanas pagan por Stripe; el libro se guarda antes de salir.
+          Original (aa9b31a): onPaid creaba los huecos (addFotoSlots) o llamaba a pdfApi «comprar». */}
+      {showPhotosM&&<PhotosModal onClose={()=>setShowPhotosM(false)} t={t} tiene={fotosDb.length}
+        antesDePagar={async()=>!!(await getOrCreateHistoriaId()) && (await guardarAhora())}/>}
+      {showPdfM&&<PdfModal onClose={()=>setShowPdfM(false)} t={t}/>}
       {showAssistantFaq&&<AssistantFaqModal onClose={()=>setShowAssistantFaq(false)} lang={lang}/>}
       {showPhotosFaq&&<PhotosFaqModal onClose={()=>setShowPhotosFaq(false)} lang={lang}/>}
       {showEditorFaq&&<EditorFaqModal onClose={()=>setShowEditorFaq(false)} lang={lang} irA={typeof showEditorFaq==="number"?showEditorFaq:null}/>}
@@ -6079,11 +6185,14 @@ ${capituloActual}
             <div className="lbl" style={{marginTop:"0.4rem"}}>{t.ai_pick_amount}</div>
             <AmountPicker amounts={[5,10]} value={aiCharge} onChange={setAiCharge} t={t}/>
             <TermsBox title={t.terms_h_ai} items={t.ai_terms} consent={t.terms_consent} checked={aiTermsOk} onToggle={setAiTermsOk}/>
-            <p className="s-note" style={{marginTop:0}}>{t.ai_recharge_notice}</p>
-            <button className="btn-pub" style={{width:"100%"}} disabled={!aiTermsOk} onClick={()=>{
-              setF(p=>({...p,assistantActive:true,assistantTuUsted:asksTuUsted?aiTuUsted:null,assistantName:aiNameDraft||f.name}));
-              setShowAiOverlay(false);
-            }}>{t.ai_activate_with} {t.precio_n.replace("{n}",aiCharge)}{/* [P20-c] original: {aiCharge} € (igual en inglés) */}</button>
+            {/* [C2b] 22/10/2026: paga por Stripe. El tú/usted y el nombre se guardan antes de salir.
+                Original (aa9b31a): nota ai_recharge_notice y el botón solo marcaba el libro como preparado. */}
+            <PagoBoton t={t} texto={`${t.ai_activate_with} ${t.precio_n.replace("{n}",aiCharge)}`} disabled={!aiTermsOk} onPagar={async()=>{
+              const fv={...f,assistantActive:true,assistantTuUsted:asksTuUsted?aiTuUsted:null,assistantName:aiNameDraft||f.name};
+              setF(fv);
+              if(!(await guardarAhora(fv))) return t.pago_err;
+              return irAPago(t,"asistente",aiCharge);
+            }}/>
           </div>
         </div>
       )}
@@ -6642,6 +6751,7 @@ ${capituloActual}
               ? <button className="pm-unlock" onClick={()=>setShowPdfM(true)}>{t.addon_pdf_btn}</button>
               : <div>
                   <div style={{fontFamily:"var(--body)",fontSize:"0.82rem",color:"var(--ink)"}}>{pdfEstado.quedan<=0 ? t.pdf_err_total : t.pdf_left.replace("{n}",pdfEstado.quedan).replace("{m}",pdfEstado.max_dia)}</div>{/* [P14] con 0, «Ya has usado las 15 descargas…» */}
+                  {pdfEstado.quedan<=0&&<button className="pm-unlock" style={{marginBottom:"0.4rem"}} onClick={()=>setShowPdfM(true)}>{t.pdf_rebuy}</button>}{/* [C2b] recompra */}
                   <div style={{display:"flex",gap:"0.5rem"}}>
                     {["A5","A4"].map(f=>(
                       <button key={f} className="pm-unlock" disabled={!!pdfGen||pdfEstado.quedan<=0} onClick={()=>descargarPdf(f)}
@@ -6752,10 +6862,11 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
             <div className="lbl">{t.ai_pick_amount}</div>
             <AmountPicker amounts={[5,10]} value={rechargeAmt} onChange={setRechargeAmt} t={t}/>
             <TermsBox title={t.terms_h_ai} items={t.ai_terms} consent={t.terms_consent} checked={rechargeOk} onToggle={setRechargeOk}/>
-            <button className="btn-pub" style={{width:"100%"}} disabled={!rechargeOk} onClick={()=>{setRechargeOpen(false);setRechargeMsg(true);}}>{t.ai_recharge_with} {t.precio_n.replace("{n}",rechargeAmt)}{/* [P20-c] original: {rechargeAmt} € (igual en inglés) */}</button>
+            {/* [C2b] 22/10/2026: paga por Stripe. Original (aa9b31a): el botón solo mostraba ai_recharge_notice. */}
+            <PagoBoton t={t} texto={`${t.ai_recharge_with} ${t.precio_n.replace("{n}",rechargeAmt)}`} disabled={!rechargeOk} onPagar={()=>irAPago(t,"asistente",rechargeAmt)}/>
           </div>
         )}
-        {rechargeMsg&&<p className="ai-usage-notice">{t.ai_recharge_notice}</p>}
+        {/* [C2b] fuera la nota ai_recharge_notice (original: {rechargeMsg&&<p className="ai-usage-notice">…</p>}) */}
         {/* [P16-F3] Ficha 3 (10/10/2026): los controles del modo de pasajes estaban aquí, arriba del panel;
             ahora van bajo la caja "Tú" (ver más abajo). */}
 
@@ -6910,7 +7021,9 @@ function Footer({t,onContact,onLegal,onCollab,onFaq,onGift}) {
 
 const APP_FS_STEPS=[1.0,1.15,1.3,1.5,1.75];
 function App() {
-  const lang0=(navigator.language||"es").slice(0,2).toUpperCase()==="EN"?"EN":"ES";
+  // [C2b] Al volver de Stripe, la web sigue en el idioma en que se pagó. Original: solo navigator.language.
+  const lang0=(()=>{ try{ const l=/[?&]pago=/.test(window.location.search)&&window.sessionStorage.getItem("lm_pago_lang"); if(l==="EN"||l==="ES") return l; }catch(e){}
+    return (navigator.language||"es").slice(0,2).toUpperCase()==="EN"?"EN":"ES"; })();
   // Detecta un enlace de recuperación de contraseña mirando la propia URL
   // (Supabase añade "type=recovery" al volver del correo). Se comprueba aquí,
   // antes de que nada más se pinte, para no depender de si el aviso interno
@@ -6930,7 +7043,7 @@ function App() {
   });
   const [lang,setLang]=useState(lang0);
   const t=T[lang];
-  const [view,setView]=useState(()=>(isRecoveryLink()||enlaceCorreo)?"write":"home"); // [P16-B7]
+  const [view,setView]=useState(()=>(isRecoveryLink()||enlaceCorreo||/[?&]pago=/.test(window.location.search))?"write":"home"); // [P16-B7] [C2b] vuelta de Stripe → editor
   const [sel,setSel]=useState(null);
   // [P12 18/10/2026] Biblioteca escalable: ya no se descargan todos los libros enteros. El Inicio pide
   // sus 3 tarjetas recientes (función biblioteca, sin el texto) y las cifras (api/contador-historias.js v7);
