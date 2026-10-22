@@ -1,4 +1,7 @@
 // api/admin.js — Locus Mundi
+// Versión 4 · 22/10/2026 · Fase C (C2): GET ?clave=… devuelve el recuento de Autores, como hacía
+// api/contador-autores.js (que se retira para dejar la plaza a api/pago.js; Hobby admite 12 funciones).
+// Misma clave (CONTADOR_CLAVE). Lo demás, sin cambios.
 // Versión 3 · 08/10/2026 · Diseño de la moderación v10, §11.13, punto 12. Cambio respecto a la
 // v2: "modificar" sube en uno historias.revision (columna solo del servidor). Así el editor
 // que el Autor tenga abierto se da cuenta, deja de autoguardar el texto antiguo y recarga el
@@ -26,6 +29,31 @@ const { huellasVigentes } = require("./_tramos"); // compartido con traducir.js 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 module.exports = async function handler(req, res) {
+  // v4: recuento de Autores (antes api/contador-autores.js, con su misma clave CONTADOR_CLAVE).
+  if (req.method === "GET") {
+    if (!process.env.CONTADOR_CLAVE || req.query.clave !== process.env.CONTADOR_CLAVE) {
+      res.status(403).send("No autorizado");
+      return;
+    }
+    try {
+      const SB = process.env.SUPABASE_URL || "https://olpfybpykuascwltnqtv.supabase.co";
+      const r = await fetch(`${SB}/rest/v1/autores?select=id`, {
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          Prefer: "count=exact",
+          Range: "0-0",
+        },
+      });
+      const contentRange = r.headers.get("content-range"); // ej. "0-0/12"
+      const total = contentRange ? contentRange.split("/")[1] : "?";
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.status(200).send(`Autores registrados en Locus Mundi: ${total}`);
+    } catch (err) {
+      res.status(500).send("Error al consultar Supabase");
+    }
+    return;
+  }
   if (req.method !== "POST") {
     res.status(405).json({ error: "Método no permitido" });
     return;
