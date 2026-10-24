@@ -1,4 +1,6 @@
 // api/pago.js — Locus Mundi
+// Versión 2.1 · 24/10/2026 · C2-2, prueba real: la comisión apuntada ya no incluye el IVA retenido por Stripe
+//   (balance_transaction.fee_details, tipo 'tax'); si no, la devolución de un regalo se quedaba el IVA.
 // Versión 2 · 24/10/2026 · Fase C, conversación C2-2. Continuidad, sesiones "24/10/2026 (conversación C3, II)"
 // (Managed Payments) y "24/10/2026 (conversación C2-2)" (Plan Familiar). Cambios:
 //   (a) Managed Payments: managed_payments[enabled]=true, precios con IVA incluido (tax_behavior inclusive)
@@ -369,7 +371,13 @@ async function completarImportes(v) {
   const bt = ch.balance_transaction || {};
   const pais = ch.payment_method_details && ch.payment_method_details.card && ch.payment_method_details.card.country;
   const cambios = { pais_tarjeta: pais || null };
-  if (typeof bt.fee === 'number') { cambios.comision_cent = bt.fee; cambios.neto_cent = bt.net; }
+  if (typeof bt.fee === 'number') {
+    // v2.1: con Managed Payments, bt.fee incluye el IVA que retiene Stripe (fee_details tipo 'tax'). La comisión
+    // es solo lo demás (lo que se descuenta al devolver un regalo). Probado el 24/10: fee 332 = 260 de IVA + 72.
+    const fd = Array.isArray(bt.fee_details) ? bt.fee_details : null;
+    cambios.comision_cent = fd ? fd.filter((f) => f.type !== 'tax').reduce((s, f) => s + (Number(f.amount) || 0), 0) : bt.fee;
+    cambios.neto_cent = bt.net;
+  }
   await rest(`ventas?id=eq.${v.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(cambios) });
 }
 
