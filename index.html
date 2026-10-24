@@ -1229,14 +1229,36 @@ const T = {
     ai_corr_notfound:"No encuentro el párrafo original tal como estaba; quizá lo has cambiado. Bórralo tú y pulsa «Mandar a ventana de texto».",
     gift_link:"🎁",gift_h:"Regala el Plan Familiar",
     gift_sub:"Regala a alguien especial la oportunidad de escribir y conservar su historia, con toda la ayuda incluida.",
-    gift_item1:"Una carga del Asistente de IA para escribir (5 €)",
+    gift_item1:"Crédito para el Asistente editorial de IA" /* [C2-2] original: "Una carga del Asistente de IA para escribir (5 €)" */,
     gift_item2:"10 fotografías incluidas",
     gift_item3:"Archivo PDF imprimible, de regalo",
     gift_price:"15 €" /* [P20-c] original: "15€" */,
     gift_note:"Si más adelante quiere seguir usando el Asistente, podrá recargarlo él mismo, como cualquier otro Autor.",
-    gift_your_name:"Tu nombre",gift_message:"Mensaje personal (opcional)",gift_recipient_email:"Email de la persona a quien se lo regalas",
-    gift_reserve_btn:"Reservar este regalo",
-    gift_notice:"Esta función estará activa en cuanto abramos los pagos en la plataforma. De momento no se te ha cobrado nada.",
+    gift_your_name:"Tu nombre",gift_message:"Mensaje personal (opcional)",gift_recipient_email:"Su correo electrónico" /* [C2-2] original: "Email de la persona a quien se lo regalas" */,
+    gift_reserve_btn:"Reservar este regalo" /* [C2-2] sin uso */,
+    gift_notice:"Esta función estará activa en cuanto abramos los pagos en la plataforma. De momento no se te ha cobrado nada." /* [C2-2] sin uso */,
+    // [C2-2] 24/10/2026: Plan Familiar real (textos legales PROVISIONALES hasta la C3-III).
+    gift_recipient_name:"Nombre de quien lo recibe",
+    gift_terms_h:"Condiciones del regalo",
+    gift_terms:["Le enviaremos ahora un correo con tu mensaje y el enlace para aceptarlo.","Tiene 3 meses para aceptarlo. Si no lo acepta, o dice que no le interesa, te devolveremos el importe menos la comisión del pago (alrededor de 1 €).","Mientras no lo acepte, puedes desistir en 14 días y te devolveremos los 15 € íntegros."],
+    gift_age:"Soy mayor de edad.",gift_consent:"Acepto las condiciones del regalo.",gift_btn:"Regalar — 15 €",
+    gift_err_correo:"Revisa el correo de quien lo recibe.",
+    gift_waiting:"Estamos confirmando el pago…",
+    gift_thanks:"Gracias. Hemos enviado tu regalo a {correo}. Recibirás una confirmación.",
+    gift_thanks_sin:"Gracias. Hemos enviado tu regalo. Recibirás una confirmación.",
+    gift_late:"El pago aún se está confirmando. En cuanto se confirme, enviaremos el regalo y recibirás una confirmación por correo.",
+    gift_cancel:"Has cancelado el pago. No se te ha cobrado nada.",
+    claim_h:"Tu regalo",claim_code:"Código del regalo",claim_ver:"Ver mi regalo",
+    claim_from:"{regala} te ha regalado el Plan Familiar de Locus Mundi.",claim_writes:"{regala} te escribe:",
+    claim_inc_h:"Qué incluye",claim_inc:["Crédito para el Asistente editorial de IA","10 fotos para ilustrar tu libro","El PDF de tu libro publicado, para imprimirlo o guardarlo"],
+    claim_plazo:"Tienes hasta el {fecha} para aceptarlo.",
+    claim_login:"Para aceptarlo, crea tu cuenta gratuita o entra en la tuya.",claim_create:"Crear cuenta",claim_enter:"Entrar",
+    claim_accept:"Aceptar el regalo",claim_done:"Hecho: ya tienes tu Plan Familiar.",claim_write:"Escribe tu historia",
+    claim_no:"No me interesa",claim_no_q:"Devolveremos el importe a {regala} y borraremos tus datos.",claim_no_yes:"Sí, no me interesa",claim_back:"Volver",
+    claim_no_done:"Hecho. Gracias por decírnoslo.",
+    claim_err_code:"Ese código no es válido. Revísalo en el correo del regalo.",claim_aceptado:"Este regalo ya se ha aceptado.",
+    claim_anulado:"Este regalo ya no está disponible.",claim_caducado:"El plazo para aceptar este regalo ha terminado.",
+    claim_err:"No hemos podido completar la operación. Inténtalo de nuevo dentro de unos minutos.",
     ai_continue:"Continuar",ai_continue_d:"sigue desde donde lo dejé",
     ai_improve:"Mejorar",ai_improve_d:"más evocador, misma voz",
     ai_structure:"Sugerir estructura",ai_structure_d:"qué contar y cómo",
@@ -1687,14 +1709,36 @@ const T = {
     ai_corr_notfound:"I can't find the original paragraph as it was; you may have changed it. Delete it yourself and press “Send to text window.”",
     gift_link:"🎁",gift_h:"Gift the Family Plan",
     gift_sub:"Give someone special the chance to write and preserve their story, with all the help included.",
-    gift_item1:"One AI writing Assistant top-up (€5)",
+    gift_item1:"Credit for the AI editorial Assistant" /* [C2-2] original: "One AI writing Assistant top-up (€5)" */,
     gift_item2:"10 photos included",
     gift_item3:"Printable PDF file, on us",
     gift_price:"€15",
     gift_note:"If they'd like to keep using the Assistant later on, they can top it up themselves, like any other Author.",
-    gift_your_name:"Your name",gift_message:"Personal message (optional)",gift_recipient_email:"Email of the person you're gifting this to",
-    gift_reserve_btn:"Reserve this gift",
-    gift_notice:"This feature will be active once we turn on payments on the platform. Nothing has been charged yet.",
+    gift_your_name:"Your name",gift_message:"Personal message (optional)",gift_recipient_email:"Their email address" /* [C2-2] original: "Email of the person you're gifting this to" */,
+    gift_reserve_btn:"Reserve this gift" /* [C2-2] unused */,
+    gift_notice:"This feature will be active once we turn on payments on the platform. Nothing has been charged yet." /* [C2-2] unused */,
+    // [C2-2] 24/10/2026
+    gift_recipient_name:"Name of the person receiving it",
+    gift_terms_h:"Gift terms",
+    gift_terms:["We'll send them an email right away with your message and the link to accept it.","They have 3 months to accept it. If they don't, or say they're not interested, we'll refund you the amount minus the payment fee (about €1).","As long as they haven't accepted it, you can withdraw within 14 days and we'll refund the full €15."],
+    gift_age:"I am of legal age.",gift_consent:"I accept the gift terms.",gift_btn:"Give it — €15",
+    gift_err_correo:"Please check the recipient's email address.",
+    gift_waiting:"Confirming your payment…",
+    gift_thanks:"Thank you. We've sent your gift to {correo}. You'll receive a confirmation.",
+    gift_thanks_sin:"Thank you. We've sent your gift. You'll receive a confirmation.",
+    gift_late:"Your payment is still being confirmed. As soon as it is, we'll send the gift and email you a confirmation.",
+    gift_cancel:"You cancelled the payment. You haven't been charged.",
+    claim_h:"Your gift",claim_code:"Gift code",claim_ver:"See my gift",
+    claim_from:"{regala} has given you the Locus Mundi Family Plan.",claim_writes:"{regala} writes:",
+    claim_inc_h:"What it includes",claim_inc:["Credit for the AI editorial Assistant","10 photos to illustrate your book","The PDF of your published book, to print or keep"],
+    claim_plazo:"You have until {fecha} to accept it.",
+    claim_login:"To accept it, create your free account or log in to yours.",claim_create:"Create account",claim_enter:"Log in",
+    claim_accept:"Accept the gift",claim_done:"Done: you now have your Family Plan.",claim_write:"Write your story",
+    claim_no:"No, thanks",claim_no_q:"We'll refund {regala} and delete your details.",claim_no_yes:"Yes, I'm not interested",claim_back:"Back",
+    claim_no_done:"Done. Thank you for letting us know.",
+    claim_err_code:"That code isn't valid. Please check it in the gift email.",claim_aceptado:"This gift has already been accepted.",
+    claim_anulado:"This gift is no longer available.",claim_caducado:"The time to accept this gift has ended.",
+    claim_err:"We couldn't complete this. Please try again in a few minutes.",
     ai_continue:"Continue",ai_continue_d:"carry on from where I left off",
     ai_improve:"Improve",ai_improve_d:"more evocative, same voice",
     ai_structure:"Suggest structure",ai_structure_d:"what to tell and how",
@@ -3941,7 +3985,7 @@ function versionComparable({titulo,contenido,portada,idioma,fotos}){
   });
 }
 
-function Write({setView,onPublish,onUnpublish,t,lang,onLegal,recoveryMode,onRecoveryDone,enlaceCorreo,onVerBiblioteca}) {
+function Write({setView,onPublish,onUnpublish,t,lang,onLegal,recoveryMode,onRecoveryDone,enlaceCorreo,onVerBiblioteca,inicioAcceso}) { // [C2-2] inicioAcceso
   const [session,setSessionState]=useState(null);
   const [avisoEnlace,setAvisoEnlace]=useState(enlaceCorreo||null); // [P16-B7] se muestra una vez
   // Un enlace caducado deja el error en la dirección: se quita para que no vuelva a salir al recargar.
@@ -3967,7 +4011,7 @@ function Write({setView,onPublish,onUnpublish,t,lang,onLegal,recoveryMode,onReco
   // directo al editor sin haber cambiado realmente su contraseña.
   if(recoveryMode || !session){
     return <AuthGate t={t} lang={lang} onAuthenticated={(email)=>setSessionState(email)} recoveryMode={recoveryMode} onRecoveryDone={onRecoveryDone}
-      inicio={avisoEnlace?"login":undefined} infoInicial={avisoEnlace==="caducado"?t.link_expired:avisoEnlace==="confirmado"?t.link_confirmed:""}/>;
+      inicio={avisoEnlace?"login":(inicioAcceso||undefined)} infoInicial={avisoEnlace==="caducado"?t.link_expired:avisoEnlace==="confirmado"?t.link_confirmed:""}/>;
   }
   // [P16-B7] (d) Recién confirmado el correo y con sesión: aviso arriba, una vez.
   return (<>
@@ -4057,6 +4101,15 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     saveRetryTimerRef.current=setTimeout(()=>{ saveRetryTimerRef.current=null; setSaveRetryTick(n=>n+1); },5000);
   };
 
+  // [C2-2] 24/10/2026: fotos y PDF del Plan Familiar aceptado antes de tener libro. Se piden a api/pago.js
+  // en cuanto hay libro y se sabe que quedan pendientes (lee `autores`); después se releen fotos y PDF.
+  const regaloPendienteRef=useRef(false);
+  const aplicarRegalo=()=>{
+    if(!regaloPendienteRef.current || !historiaIdRef.current) return;
+    regaloPendienteRef.current=false;
+    pagoApi({accion:"pendientes_regalo"}).then(d=>{ if(d.error){ regaloPendienteRef.current=true; return; } if(d.fotos||d.pdf) recargarCompras(); });
+  };
+
   // ---- Carga inicial desde Supabase --------------------------------------
   useEffect(()=>{
     (async () => { try {
@@ -4065,8 +4118,10 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       autorIdRef.current = user.id;
       // Tinta del Asistente (solo lectura: el navegador no puede cambiarla).
       // Número de Autor (04/10/2026): siempre el de `autores`, nunca la copia guardada en el libro.
-      supa.from("autores").select("tinta_euros, tinta_ultima_carga, numero_autor").eq("id", user.id).maybeSingle()
-        .then(({data:a})=>{ if(a){ setTinta({tinta:Number(a.tinta_euros)||0, ultimaCarga:Number(a.tinta_ultima_carga)||0}); setNumAutor(a.numero_autor ?? null); } });
+      // [C2-2] también fotos y PDF del Plan Familiar pendientes (se aplican cuando hay libro).
+      supa.from("autores").select("tinta_euros, tinta_ultima_carga, numero_autor, fotos_incluidas_restantes, pdf_incluido").eq("id", user.id).maybeSingle()
+        .then(({data:a})=>{ if(a){ setTinta({tinta:Number(a.tinta_euros)||0, ultimaCarga:Number(a.tinta_ultima_carga)||0}); setNumAutor(a.numero_autor ?? null);
+          regaloPendienteRef.current=(Number(a.fotos_incluidas_restantes)||0)>0||a.pdf_incluido===true; aplicarRegalo(); } });
       const { data, error } = await supa.from("historias")
         .select("id, titulo, contenido, portada_url, revision")
         .eq("autor_id", user.id).eq("marcado_borrado", false).limit(1).maybeSingle();
@@ -4093,6 +4148,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
           .eq("historia_id", data.id).order("orden");
         if(fotos) setFotosDb(fotos);
         consultarModeracion(data.id); // pasajes señalados y avisos de la última subida (segunda subida)
+        aplicarRegalo(); // [C2-2]
       }
       loadedRef.current = true;
     } finally { setBookLoaded(true); } })();
@@ -4113,7 +4169,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
       const { data, error } = await supa.from("historias")
         .insert({ autor_id: user.id, titulo:"", contenido:{}, estado_publicacion:"borrador" })
         .select("id").single();
-      if(!error && data){ historiaIdRef.current = data.id; revisionRef.current = 0; }
+      if(!error && data){ historiaIdRef.current = data.id; revisionRef.current = 0; aplicarRegalo(); /* [C2-2] */ }
       else { console.error("No se pudo crear la historia:", error); programarReintento(); }
       creatingHistoriaRef.current = null;
       return historiaIdRef.current;
@@ -6969,6 +7025,9 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
   );
 }
 
+// [C2-2] 24/10/2026: Plan Familiar real. Puede regalar cualquiera, sin cuenta; paga por api/pago.js y la
+// página de Stripe. Textos legales PROVISIONALES (C3-III). Original (eb40399), solo «reservaba»:
+/*
 function GiftModal({onClose,t}) {
   const [f,setF]=useState({name:"",msg:"",email:""});
   const [reserved,setReserved]=useState(false);
@@ -6993,6 +7052,161 @@ function GiftModal({onClose,t}) {
           <button className="btn-pub" disabled={!f.name||!f.email} onClick={()=>setReserved(true)}>{t.gift_reserve_btn}</button>
         </>)}
         {reserved&&<p className="ai-usage-notice" style={{marginTop:"0.5rem"}}>{t.gift_notice}</p>}
+      </div>
+    </div>
+  );
+}
+*/
+async function irAPagoRegalo(t,f){
+  const d=await pagoApi({accion:"abrir", producto:"plan_familiar", idioma:t.pago_idioma, edad:true, desistimiento:true,
+    regala_nombre:f.name, destinatario_nombre:f.rname, destinatario_email:f.email, mensaje:f.msg});
+  if(d.url){ try{ window.sessionStorage.setItem("lm_pago_lang",t.pago_idioma); window.sessionStorage.setItem("lm_regalo_correo",f.email.trim()); }catch(e){} window.location.assign(d.url); return null; }
+  if(d.error==="SIN_STRIPE") return t.pago_no_disponible;
+  if(d.error==="CORREO") return t.gift_err_correo;
+  return t.pago_err;
+}
+function GiftModal({onClose,t}) {
+  const [f,setF]=useState({name:"",rname:"",email:"",msg:""});
+  const [edad,setEdad]=useState(false);const [termsOk,setTermsOk]=useState(false);
+  const up=(k,v)=>setF(p=>({...p,[k]:v}));
+  const correoOk=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.email.trim());
+  const listo=f.name.trim()&&f.rname.trim()&&correoOk&&edad&&termsOk;
+  return (
+    <div className="ov" onClick={onClose}>
+      <div className="modal" style={{maxWidth:"460px",maxHeight:"88vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        <button className="modal-x" onClick={onClose}>✕</button>
+        <div className="modal-h">{t.gift_h}</div>
+        <p className="modal-sub">{t.gift_sub}</p>
+        <ul style={{fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.9,paddingLeft:"1.1rem",marginBottom:"0.8rem"}}>
+          <li>✦ {t.gift_item1}</li>
+          <li>📷 {t.gift_item2}</li>
+          <li>📄 {t.gift_item3}</li>
+        </ul>
+        <div style={{fontFamily:"var(--serif)",fontSize:"1.7rem",color:"var(--navy)",textAlign:"center",margin:"0.6rem 0 0.9rem"}}>{t.gift_price}</div>
+        <p style={{fontFamily:"var(--body)",fontSize:"0.78rem",fontStyle:"italic",color:"var(--muted)",marginBottom:"1.1rem"}}>{t.gift_note}</p>
+        <div className="fld"><label className="lbl">{t.gift_your_name}</label><input className="inp" maxLength={80} value={f.name} onChange={e=>up("name",e.target.value)}/></div>
+        <div className="fld"><label className="lbl">{t.gift_recipient_name}</label><input className="inp" maxLength={80} value={f.rname} onChange={e=>up("rname",e.target.value)}/></div>
+        <div className="fld"><label className="lbl">{t.gift_recipient_email}</label><input className="inp" type="email" maxLength={200} value={f.email} onChange={e=>up("email",e.target.value)}/>
+          {f.email.trim()&&!correoOk&&<p className="s-note" style={{color:"#b23b3b",marginTop:"0.3rem"}}>{t.gift_err_correo}</p>}</div>
+        <div className="fld"><label className="lbl">{t.gift_message}</label><textarea className="ta" style={{minHeight:"70px"}} maxLength={500} value={f.msg} onChange={e=>up("msg",e.target.value)}/></div>
+        <label style={{display:"flex",gap:"0.5rem",alignItems:"flex-start",fontFamily:"var(--body)",fontSize:"0.8rem",lineHeight:1.45,color:"var(--ink)",cursor:"pointer",margin:"0.4rem 0"}}>
+          <input type="checkbox" checked={edad} onChange={e=>setEdad(e.target.checked)} style={{marginTop:"0.2rem",flex:"0 0 auto"}}/><span>{t.gift_age}</span>
+        </label>
+        <TermsBox title={t.gift_terms_h} items={t.gift_terms} consent={t.gift_consent} checked={termsOk} onToggle={setTermsOk}/>
+        <PagoBoton t={t} texto={t.gift_btn} disabled={!listo} onPagar={()=>irAPagoRegalo(t,f)}/>
+      </div>
+    </div>
+  );
+}
+// [C2-2] Vuelta de la página de pago del regalo (?regalo=pagado|cancelado&venta=…): quien regala no tiene cuenta.
+function GiftReturnModal({t,venta,cancelado,onClose}) {
+  const [texto,setTexto]=useState(cancelado?t.gift_cancel:t.gift_waiting);
+  useEffect(()=>{
+    if(cancelado||!venta) return;
+    let vivo=true; const t0=Date.now();
+    let correo=""; try{ correo=window.sessionStorage.getItem("lm_regalo_correo")||""; }catch(e){}
+    const mirar=async()=>{
+      if(!vivo) return;
+      const d=await pagoApi({accion:"consultar",venta});
+      if(!vivo) return;
+      if(d.estado==="pagada"){ setTexto(correo?t.gift_thanks.replace("{correo}",correo):t.gift_thanks_sin); try{ window.sessionStorage.removeItem("lm_regalo_correo"); }catch(e){} return; }
+      if(Date.now()-t0>60000){ setTexto(t.gift_late); return; }
+      setTimeout(mirar,2500);
+    };
+    mirar();
+    return ()=>{ vivo=false; };
+  },[]);
+  return (
+    <div className="ov" onClick={onClose}>
+      <div className="modal" style={{maxWidth:"420px"}} onClick={e=>e.stopPropagation()}>
+        <button className="modal-x" onClick={onClose}>✕</button>
+        <div className="modal-h">{t.gift_h}</div>
+        <p role="status" style={{fontFamily:"var(--body)",fontSize:"0.95rem",lineHeight:1.55,color:"var(--ink)",margin:"0.8rem 0 0"}}>{texto}</p>
+      </div>
+    </div>
+  );
+}
+// [C2-2] Ventana «Tu regalo» (locusmundi.com/regalo?c=CÓDIGO[&no=1]). Ver y rechazar, sin cuenta; aceptar, con sesión.
+// El código se guarda en el navegador (lm_regalo_codigo) mientras quien lo recibe crea su cuenta o entra.
+function GiftClaimModal({t,lang,codigoInicial,noInicial,onClose,onAcceso,onEscribir}) {
+  const [codigo,setCodigo]=useState(codigoInicial||"");
+  const [info,setInfo]=useState(null);       // datos del regalo pendiente
+  const [fase,setFase]=useState("codigo");   // codigo | ver | no | hecho | no_hecho | fin
+  const [msg,setMsg]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [sesion,setSesion]=useState(false);
+  useEffect(()=>{ supa.auth.getSession().then(({data})=>setSesion(!!data.session)).catch(()=>{}); },[]);
+  const olvidar=()=>{ try{ window.localStorage.removeItem("lm_regalo_codigo"); }catch(e){} };
+  const porEstado={aceptado:t.claim_aceptado,anulado:t.claim_anulado,caducado:t.claim_caducado,ACEPTADO:t.claim_aceptado,ANULADO:t.claim_anulado,CADUCADO:t.claim_caducado,NO_VALIDO:t.claim_err_code};
+  const ver=async(c,no)=>{
+    setBusy(true); setMsg("");
+    const d=await pagoApi({accion:"ver_regalo",codigo:c});
+    setBusy(false);
+    if(d.error){ setMsg(porEstado[d.error]||t.claim_err); if(d.error==="NO_VALIDO") olvidar(); return; }
+    if(d.estado!=="pendiente"){ olvidar(); setMsg(porEstado[d.estado]||t.claim_anulado); setFase("fin"); return; }
+    setInfo(d); setFase(no?"no":"ver");
+  };
+  useEffect(()=>{ if(codigoInicial) ver(codigoInicial,noInicial); },[]);
+  const aceptar=async()=>{
+    setBusy(true); setMsg("");
+    const d=await pagoApi({accion:"aceptar_regalo",codigo});
+    setBusy(false);
+    if(d.ok){ olvidar(); setFase("hecho"); return; }
+    if(d.error==="SESION"){ setSesion(false); return; }
+    setMsg(porEstado[d.error]||t.claim_err); if(porEstado[d.error]) { olvidar(); setFase("fin"); }
+  };
+  const rechazar=async()=>{
+    setBusy(true); setMsg("");
+    const d=await pagoApi({accion:"rechazar_regalo",codigo});
+    setBusy(false);
+    if(d.ok){ olvidar(); setFase("no_hecho"); return; }
+    setMsg(porEstado[d.error]||t.claim_err); if(porEstado[d.error]) { olvidar(); setFase("fin"); }
+  };
+  const acceso=(modo)=>{ try{ window.localStorage.setItem("lm_regalo_codigo",codigo); }catch(e){} onAcceso(modo); };
+  const fecha=info&&info.plazo?new Date(info.plazo).toLocaleDateString(lang==="EN"?"en-GB":"es-ES",{day:"numeric",month:"long",year:"numeric"}):"";
+  const R=info?info.regala:"";
+  const p={fontFamily:"var(--body)",fontSize:"0.92rem",lineHeight:1.55,color:"var(--ink)",margin:"0 0 0.7rem"};
+  const enlace={fontFamily:"var(--body)",fontSize:"0.84rem",color:"var(--muted)",textDecoration:"underline",cursor:"pointer",background:"none",border:"none",padding:0};
+  return (
+    <div className="ov" onClick={onClose}>
+      <div className="modal" style={{maxWidth:"460px",maxHeight:"88vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        <button className="modal-x" onClick={onClose}>✕</button>
+        <div className="modal-h">{t.claim_h}</div>
+        {fase==="codigo"&&(<>
+          <div className="fld"><label className="lbl">{t.claim_code}</label><input className="inp" value={codigo} autoCapitalize="characters" onChange={e=>setCodigo(e.target.value)}/></div>
+          <button className="btn-pub" style={{width:"100%"}} disabled={busy||codigo.replace(/[^0-9a-z]/gi,"").length!==12} onClick={()=>ver(codigo,false)}>{busy?<span className="sp"/>:t.claim_ver}</button>
+        </>)}
+        {(fase==="ver"||fase==="no")&&info&&(<>
+          <p style={{...p,marginTop:"0.6rem"}}>{t.claim_from.replace("{regala}",R)}</p>
+          {info.mensaje&&<><p style={{...p,marginBottom:"0.3rem"}}>{t.claim_writes.replace("{regala}",R)}</p>
+            <p style={{...p,whiteSpace:"pre-wrap",fontStyle:"italic",padding:"0.6rem 0.8rem",borderLeft:"3px solid var(--gold)",background:"var(--bg3)"}}>{lang==="EN"?`“${info.mensaje}”`:`«${info.mensaje}»`}</p></>}
+          <div style={{fontFamily:"var(--serif)",fontSize:"0.95rem",color:"var(--navy)",fontWeight:600,margin:"0.6rem 0 0.3rem"}}>{t.claim_inc_h}</div>
+          <ul style={{fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.8,paddingLeft:"1.1rem",margin:"0 0 0.7rem"}}>{t.claim_inc.map((x,i)=><li key={i}>{x}</li>)}</ul>
+          <p style={p}>{t.claim_plazo.replace("{fecha}",fecha)}</p>
+        </>)}
+        {fase==="ver"&&info&&(<>
+          {sesion
+            ? <button className="btn-pub" style={{width:"100%"}} disabled={busy} onClick={aceptar}>{busy?<span className="sp"/>:t.claim_accept}</button>
+            : <><p style={p}>{t.claim_login}</p>
+                <div style={{display:"flex",gap:"0.6rem"}}>
+                  <button className="btn-pub" style={{flex:1}} onClick={()=>acceso("signup")}>{t.claim_create}</button>
+                  <button className="btn-out" style={{flex:1}} onClick={()=>acceso("login")}>{t.claim_enter}</button>
+                </div></>}
+          <p style={{textAlign:"center",margin:"0.9rem 0 0"}}><button style={enlace} onClick={()=>setFase("no")}>{t.claim_no}</button></p>
+        </>)}
+        {fase==="no"&&info&&(<>
+          <p style={{...p,fontWeight:600}}>{t.claim_no_q.replace("{regala}",R)}</p>
+          <div style={{display:"flex",gap:"0.6rem"}}>
+            <button className="btn-out" style={{flex:1}} disabled={busy} onClick={rechazar}>{busy?<span className="sp"/>:t.claim_no_yes}</button>
+            <button className="btn-pub" style={{flex:1}} disabled={busy} onClick={()=>setFase("ver")}>{t.claim_back}</button>
+          </div>
+        </>)}
+        {fase==="hecho"&&(<>
+          <p style={{...p,marginTop:"0.6rem"}}>{t.claim_done}</p>
+          <button className="btn-pub" style={{width:"100%"}} onClick={onEscribir}>{t.claim_write}</button>
+        </>)}
+        {fase==="no_hecho"&&<p style={{...p,marginTop:"0.6rem"}}>{t.claim_no_done}</p>}
+        {msg&&<p role="alert" style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.85rem",margin:"0.6rem 0 0"}}>{msg}</p>}
       </div>
     </div>
   );
@@ -7022,7 +7236,7 @@ function Footer({t,onContact,onLegal,onCollab,onFaq,onGift}) {
 const APP_FS_STEPS=[1.0,1.15,1.3,1.5,1.75];
 function App() {
   // [C2b] Al volver de Stripe, la web sigue en el idioma en que se pagó. Original: solo navigator.language.
-  const lang0=(()=>{ try{ const l=/[?&]pago=/.test(window.location.search)&&window.sessionStorage.getItem("lm_pago_lang"); if(l==="EN"||l==="ES") return l; }catch(e){}
+  const lang0=(()=>{ try{ const l=/[?&](pago|regalo)=/.test(window.location.search)&&window.sessionStorage.getItem("lm_pago_lang"); /* [C2-2] también el regalo */ if(l==="EN"||l==="ES") return l; }catch(e){}
     return (navigator.language||"es").slice(0,2).toUpperCase()==="EN"?"EN":"ES"; })();
   // Detecta un enlace de recuperación de contraseña mirando la propia URL
   // (Supabase añade "type=recovery" al volver del correo). Se comprueba aquí,
@@ -7088,8 +7302,26 @@ function App() {
   useEffect(()=>{ document.documentElement.lang = lang==="EN" ? "en" : "es"; },[lang]);
   const [showContact,setShowContact]=useState(false);
   const [showLegal,setShowLegal]=useState(null);
+  useEffect(()=>{ if(legalParam) setShowLegal(legalParam); },[]); // [C2-2]
   const [showCollab,setShowCollab]=useState(false);
   const [showGift,setShowGift]=useState(false);
+  // [C2-2] 24/10/2026: Plan Familiar. Vuelta del pago del regalo, ventana «Tu regalo» (/regalo?c=…) y
+  // ?legal=privacidad (enlace del pie de los correos del regalo).
+  const [regaloVuelta]=useState(()=>{ try{ const q=new URLSearchParams(window.location.search); const r=q.get("regalo");
+    if(r==="pagado"||r==="cancelado"){ window.history.replaceState(null,"",window.location.pathname); window.sessionStorage.removeItem("lm_pago_lang"); return {venta:q.get("venta"),cancelado:r==="cancelado"}; } }catch(e){} return null; });
+  const [verRegaloVuelta,setVerRegaloVuelta]=useState(!!regaloVuelta);
+  const [claim,setClaim]=useState(()=>{ try{ if(window.location.pathname.replace(/\/+$/,"")==="/regalo"){ const q=new URLSearchParams(window.location.search);
+    const c={codigo:q.get("c")||"",no:q.get("no")==="1"}; window.history.replaceState(null,"","/"); return c; } }catch(e){} return null; });
+  const [accesoInicio,setAccesoInicio]=useState(null); // "signup" | "login": desde «Tu regalo»
+  const [writeKey,setWriteKey]=useState(0);           // vuelve a montar el editor (acceso o regalo aceptado)
+  const regaloGuardado=()=>{ try{ return window.localStorage.getItem("lm_regalo_codigo")||""; }catch(e){ return ""; } };
+  useEffect(()=>{ // quien entra con un regalo a medio aceptar vuelve a «Tu regalo»
+    const mirar=()=>{ const c=regaloGuardado(); if(c) supa.auth.getSession().then(({data})=>{ if(data.session) setClaim(p=>p||{codigo:c,no:false}); }).catch(()=>{}); };
+    mirar();
+    const { data: sub } = supa.auth.onAuthStateChange((event)=>{ if(event==="SIGNED_IN") setTimeout(mirar,0); });
+    return ()=>sub.subscription.unsubscribe();
+  },[]);
+  const [legalParam]=useState(()=>{ try{ const l=new URLSearchParams(window.location.search).get("legal"); if(["aviso","privacidad","cookies","condiciones"].includes(l)){ window.history.replaceState(null,"",window.location.pathname); return l; } }catch(e){} return null; });
   const [showSponsor,setShowSponsor]=useState(false);
   const [showFaq,setShowFaq]=useState(false);
   // Aviso de cookies recordado en el navegador (06/10/2026).
@@ -7163,9 +7395,13 @@ function App() {
           {view==="library"&&<Library cifras={cifras} openAuto={open} t={t} lang={lang}/>}
           {view==="read"&&<Read auto={sel} setView={setView} t={t} uiLang={lang} volverEditor={desdeEditor?()=>{setView("write");window.scrollTo(0,0);}:null}/>}
         </>}
-      {view==="write"&&<Write setView={setView} onPublish={()=>{}} onUnpublish={()=>{}} t={t} lang={lang} onLegal={()=>setShowLegal("condiciones")} recoveryMode={recoveryMode} onRecoveryDone={()=>setRecoveryMode(false)} enlaceCorreo={enlaceCorreo} onVerBiblioteca={verDesdeEditor}/>}
+      {view==="write"&&<Write key={writeKey} inicioAcceso={accesoInicio} setView={setView} onPublish={()=>{}} onUnpublish={()=>{}} t={t} lang={lang} onLegal={()=>setShowLegal("condiciones")} recoveryMode={recoveryMode} onRecoveryDone={()=>setRecoveryMode(false)} enlaceCorreo={enlaceCorreo} onVerBiblioteca={verDesdeEditor}/>}
       <Footer t={t} onContact={()=>setShowContact(true)} onLegal={setShowLegal} onCollab={()=>setShowCollab(true)} onFaq={()=>setShowFaq(true)} onGift={()=>setShowGift(true)}/>
       {showGift&&<GiftModal onClose={()=>setShowGift(false)} t={t}/>}
+      {verRegaloVuelta&&<GiftReturnModal t={t} venta={regaloVuelta.venta} cancelado={regaloVuelta.cancelado} onClose={()=>setVerRegaloVuelta(false)}/>}{/* [C2-2] */}
+      {claim&&<GiftClaimModal t={t} lang={lang} codigoInicial={claim.codigo} noInicial={claim.no} onClose={()=>setClaim(null)}
+        onAcceso={(modo)=>{ setClaim(null); setAccesoInicio(modo); setWriteKey(k=>k+1); setView("write"); window.scrollTo(0,0); }}
+        onEscribir={()=>{ setClaim(null); setAccesoInicio(null); setWriteKey(k=>k+1); setView("write"); window.scrollTo(0,0); }}/>}{/* [C2-2] */}
       {showContact&&<ContactModal onClose={()=>setShowContact(false)} t={t}/>}
       {showLegal&&<LegalModal docKey={showLegal} onClose={()=>setShowLegal(null)} t={t} lang={lang}/>}
       {showCollab&&<CollaborateModal onClose={()=>setShowCollab(false)} t={t} lang={lang} onSponsor={()=>setShowSponsor(true)}/>}
