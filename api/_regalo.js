@@ -1,4 +1,7 @@
 // api/_regalo.js — Locus Mundi
+// Versión 1.1 · 24/10/2026 · C2-3, prueba real: al devolver, Stripe solo reintegra el IVA retenido en proporción
+//   (devolver 14,28 € dejaba −0,13 € netos). La devolución se calcula para quedar en cero: (total − comisión − IVA)
+//   × total / (total − IVA), redondeado hacia abajo. Con 15 €: 14,12 € (se retienen 0,88 €). Decisión de Javier, opción (b).
 // Versión 1 · 24/10/2026 · Fase C, conversación C2-2: el Plan Familiar de regalo.
 // Contenido: Continuidad, sesiones "21/10/2026 (conversación C1)", punto 4; "21/10/2026 (conversación C5a)",
 // punto 1 (correo aprobado); "24/10/2026 (conversación C2-2)" (resto de correos, provisionales hasta la C3-III).
@@ -181,7 +184,7 @@ function correoRegala(r, tipo, extra) {
 module.exports = function regalos({ rest, stripe }) {
   const devolver = { Prefer: 'return=representation' };
   const minimo = { Prefer: 'return=minimal' };
-  const SEL = '*,ventas(id,estado,comprador_email,total_cent,comision_cent,stripe_pago,pagada_en)';
+  const SEL = '*,ventas(id,estado,comprador_email,total_cent,comision_cent,iva_cent,stripe_pago,pagada_en)';
 
   async function enviar(para, c) { await enviarCorreo({ para, asunto: c.asunto, html: c.html, texto: c.texto }); }
 
@@ -217,8 +220,13 @@ module.exports = function regalos({ rest, stripe }) {
     const v = r.ventas;
     const tomado = await rest(`regalos?id=eq.${r.id}&estado=eq.pendiente`, { method: 'PATCH', headers: devolver, body: JSON.stringify({ estado: motivo }) });
     if (!tomado.length) return 'ya resuelto';
-    const comision = Number.isInteger(v.comision_cent) ? v.comision_cent : COMISION_ESTIMADA;
-    const importe = v.total_cent - comision;
+    const fee = Number.isInteger(v.comision_cent) ? v.comision_cent : COMISION_ESTIMADA;
+    const iva = Number.isInteger(v.iva_cent) ? v.iva_cent : 0;
+    // v1.1: Stripe reintegra el IVA en proporción a lo devuelto; así el neto de Locus Mundi queda en cero.
+    const importe = iva > 0 && iva < v.total_cent
+      ? Math.floor(((v.total_cent - fee - iva) * v.total_cent) / (v.total_cent - iva))
+      : v.total_cent - fee;
+    const comision = v.total_cent - importe; // lo retenido, tal como se le dice a quien regaló
     try {
       if (importe > 0) await stripe('POST', 'refunds', { payment_intent: v.stripe_pago, amount: importe, metadata: { venta_id: v.id, motivo: `regalo_${motivo}` } });
     } catch (e) {
