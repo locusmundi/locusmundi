@@ -59,6 +59,8 @@
 //   Pendiente: quitar pagedjs de package.json y de vercel.json (ya no se usa; no estorba).
 // Versión 2.2 · 22/10/2026 · Fase C (conversación C2-b): fuera "comprar" (pago simulado). La compra la
 //   crea api/pago.js al confirmarse el pago en Stripe (origen 'stripe'); el Plan Familiar, sin cambios.
+// Versión 2.3 · 24/10/2026 · Fase C (conversación C2-2, Plan Familiar): al crear la compra del PDF incluido
+//   se pone autores.pdf_incluido = false (antes quedaba en true y el PDF del regalo podía sumarse dos veces).
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
 // LOCUS_MUNDI_FORMATO_IMPRESION.md v2. Chrome sin pantalla (@sparticuz/chromium), en
@@ -162,8 +164,9 @@ async function libroDe(autor) {
 async function estadoCompra(historia, autor) {
   let [c] = await rest(`pdf_compras?historia_id=eq.${historia}&select=descargas`);
   if (!c) { // Plan Familiar: el PDF va incluido; la compra se crea sola la primera vez.
-    const [a] = await rest(`autores?id=eq.${autor}&select=pdf_incluido`);
-    if (a && a.pdf_incluido) {
+    // v2.3: se "toma" pdf_incluido (pasa a false) antes de crear la compra, para que api/_regalo.js no la sume otra vez.
+    const tomado = await rest(`autores?id=eq.${autor}&pdf_incluido=is.true`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ pdf_incluido: false }) });
+    if (tomado && tomado.length) {
       await rest('pdf_compras', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates' }, body: JSON.stringify({ historia_id: historia, autor_id: autor, origen: 'plan_familiar' }) });
       [c] = await rest(`pdf_compras?historia_id=eq.${historia}&select=descargas`);
     }

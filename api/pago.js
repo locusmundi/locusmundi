@@ -1,4 +1,15 @@
 // api/pago.js — Locus Mundi
+// Versión 2 · 24/10/2026 · Fase C, conversación C2-2. Continuidad, sesiones "24/10/2026 (conversación C3, II)"
+// (Managed Payments) y "24/10/2026 (conversación C2-2)" (Plan Familiar). Cambios:
+//   (a) Managed Payments: managed_payments[enabled]=true, precios con IVA incluido (tax_behavior inclusive)
+//       y código fiscal por producto (PDF txcd_10302000; el resto txcd_10000000). Fuera el IVA provisional
+//       del 21 %: el impuesto lo calcula Stripe y se apunta el que devuelve (solo si el cobro es en euros).
+//       El importe se comprueba en euros también con Adaptive Pricing (currency_conversion).
+//       Interruptor STRIPE_MANAGED_PAYMENTS=no (variable de entorno) por si Stripe lo deniega.
+//       STRIPE_API_VERSION (opcional): sin ella, la versión de la cuenta (2026-09-30, ≥ 2025-03-31.basil).
+//   (b) Plan Familiar (producto "plan_familiar", sin cuenta): abrir, ver_regalo, aceptar_regalo,
+//       rechazar_regalo, pendientes_regalo; la lógica, en api/_regalo.js. Al pagarse: correos al destinatario
+//       y a quien regala. Caducada la sesión: se borra el regalo. Devuelta desde fuera: regalo anulado.
 // Versión 1 · 22/10/2026 · Fase C, punto 3 (conversación C2). Contenido: Continuidad, sesión
 // "21/10/2026 (conversación C1: Stripe, contenido)", puntos 3 a 5. Tablas: ventas, pdf_compras (C2, paso 1).
 //
@@ -17,6 +28,7 @@
 
 const crypto = require('crypto');
 const { avisar } = require('./_aviso');
+const crearRegalos = require('./_regalo'); // v2
 
 // --- Ajustes ---------------------------------------------------------------------------------------
 const MAX_FOTOS_LIBRO = 20;          // = index.html
@@ -26,8 +38,12 @@ const CARGAS_ASISTENTE = { 5: 2, 10: 4 }; // euros pagados → euros de tinta (2
 const PRECIO_PDF = 500;
 const DESCARGAS_POR_COMPRA = 15;     // = api/pdf.js
 const SIN_PDF = ['AR', 'ZH', 'JA', 'HI']; // = api/pdf.js
-const IVA_TIPO = 21;                 // ⚠ PROVISIONAL: pendiente del gestor (13 bis; PDF quizá 4 %).
+// v2: fuera IVA_TIPO (21 % provisional). Managed Payments: el IVA lo calcula Stripe por el código fiscal.
+const CODIGO_FISCAL = { fotos: 'txcd_10000000', asistente: 'txcd_10000000', pdf: 'txcd_10302000', plan_familiar: 'txcd_10000000' };
+const MANAGED = () => process.env.STRIPE_MANAGED_PAYMENTS !== 'no';
 const VERSION_DESISTIMIENTO = 'terms_consent 2026-09-29'; // texto de la casilla (index.html, terms_consent)
+const VERSION_REGALO = 'gift_terms PROVISIONAL 2026-10-24 (edad + condiciones del regalo)'; // C3-III
+const MAX_NOMBRE = 80; const MAX_MENSAJE = 500;
 const MINUTOS_PAGO = 30;             // mínimo que admite Stripe
 const ORIGENES = ['https://www.locusmundi.com', 'https://locusmundi.com', 'https://locusmundi.vercel.app'];
 
@@ -35,6 +51,7 @@ const NOMBRE = {
   fotos:     { ES: (n) => `Locus Mundi · ${n} fotos para tu libro`, EN: (n) => `Locus Mundi · ${n} photos for your book` },
   asistente: { ES: (n) => `Locus Mundi · Carga del Asistente editorial (${n} €)`, EN: (n) => `Locus Mundi · Editorial Assistant top-up (€${n})` },
   pdf:       { ES: () => 'Locus Mundi · Archivo imprimible (PDF), 15 descargas', EN: () => 'Locus Mundi · Printable file (PDF), 15 downloads' },
+  plan_familiar: { ES: () => 'Locus Mundi · Plan Familiar de regalo', EN: () => 'Locus Mundi · Family Plan gift' }, // v2
 };
 
 // --- Supabase -------------------------------------------------------------------------------------
@@ -73,7 +90,8 @@ function formulario(obj, prefijo, out) {
 async function stripe(metodo, ruta, datos) {
   const r = await fetch(`https://api.stripe.com/v1/${ruta}`, {
     method: metodo,
-    headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: Object.assign({ Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      process.env.STRIPE_API_VERSION ? { 'Stripe-Version': process.env.STRIPE_API_VERSION } : {}), // v2
     body: datos ? formulario(datos) : undefined,
   });
   const j = await r.json().catch(() => ({}));
@@ -100,10 +118,24 @@ async function cuerpoCrudo(req) {
   return Buffer.concat(trozos).toString('utf8');
 }
 
-// --- Importes -------------------------------------------------------------------------------------
-function desglose(total) {
-  const base = Math.round(total / (1 + IVA_TIPO / 100));
-  return { total_cent: total, base_cent: base, iva_tipo: IVA_TIPO, iva_cent: total - base };
+// --- Importes (v2) ---------------------------------------------------------------------------------
+// El impuesto lo calcula Stripe; se apunta al pagarse (impuestosDe). Aquí solo el total, IVA incluido.
+function desglose(total) { return { total_cent: total }; }
+// Importe pagado en euros (con Adaptive Pricing el cliente puede pagar en su moneda).
+function importeEnEuros(s) {
+  const cc = s.currency_conversion;
+  if (cc && String(cc.source_currency).toLowerCase() === 'eur' && typeof cc.amount_total === 'number') return cc.amount_total;
+  return String(s.currency).toLowerCase() === 'eur' ? s.amount_total : null;
+}
+function impuestosDe(s, total) {
+  const tax = s.total_details && s.total_details.amount_tax;
+  if (String(s.currency).toLowerCase() !== 'eur' || typeof tax !== 'number') return {}; // en otra moneda: informe de Stripe
+  return { iva_cent: tax, base_cent: total - tax, iva_tipo: tax && total - tax ? Math.round((tax / (total - tax)) * 1000) / 10 : 0 };
+}
+// Datos de la sesión de pago comunes a todos los productos (v2: Managed Payments).
+function lineaDePago(producto, idioma, total, n) {
+  return { 0: { quantity: 1, price_data: { currency: 'eur', unit_amount: total, tax_behavior: 'inclusive',
+    product_data: { name: NOMBRE[producto][idioma](n), tax_code: CODIGO_FISCAL[producto] } } } };
 }
 
 // --- El libro vivo del Autor ----------------------------------------------------------------------
@@ -115,6 +147,7 @@ async function libroDe(autor) {
 // ====================================================================================================
 // ABRIR UN PAGO
 async function abrir(b, req, res) {
+  if (b.producto === 'plan_familiar') return abrirRegalo(b, req, res); // v2: sin cuenta
   const u = await usuarioDelToken(b.token);
   if (!u) return res.status(401).json({ error: 'SESION' });
   const producto = b.producto;
@@ -174,16 +207,73 @@ async function abrir(b, req, res) {
     cancel_url: `${origen}/?pago=cancelado&venta=${venta.id}`,
     metadata: { venta_id: venta.id, producto },
     payment_intent_data: { metadata: { venta_id: venta.id, producto } },
-    line_items: { 0: { quantity: 1, price_data: { currency: 'eur', unit_amount: total, product_data: { name: NOMBRE[producto][idioma](producto === 'fotos' ? cant : cantidad) } } } },
+    line_items: lineaDePago(producto, idioma, total, producto === 'fotos' ? cant : cantidad), // v2
+    managed_payments: MANAGED() ? { enabled: true } : undefined, // v2
   });
   await rest(`ventas?id=eq.${venta.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ stripe_sesion: sesion.id }) });
   return res.status(200).json({ url: sesion.url, venta: venta.id });
 }
 
-async function consultar(b, res) {
+// v2: el regalo lo puede comprar cualquiera, sin cuenta (C1, punto 4).
+const limpio = (s, max) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+async function abrirRegalo(b, req, res) {
+  if (!process.env.REGALO_SECRETO) return res.status(503).json({ error: 'SIN_STRIPE' });
+  if (b.edad !== true || b.desistimiento !== true) return res.status(400).json({ error: 'DESISTIMIENTO' });
+  const idioma = String(b.idioma || '').toUpperCase() === 'EN' ? 'EN' : 'ES';
+  const regala = limpio(b.regala_nombre, MAX_NOMBRE);
+  const destinatario = limpio(b.destinatario_nombre, MAX_NOMBRE);
+  const email = limpio(b.destinatario_email, 200).toLowerCase();
+  const mensaje = String(b.mensaje || '').replace(/\r\n/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').trim().slice(0, MAX_MENSAJE);
+  if (!regala || !destinatario) return res.status(400).json({ error: 'NOMBRE' });
+  if (!CORREO_RE.test(email)) return res.status(400).json({ error: 'CORREO' });
+  const total = crearRegalos.ajustes.PRECIO_REGALO;
+  const [venta] = await rest('ventas', {
+    method: 'POST', headers: devolver,
+    body: JSON.stringify(Object.assign({ producto: 'plan_familiar', cantidad: 1, historia_id: null, autor_id: null, idioma,
+      desistimiento_en: new Date().toISOString(), desistimiento_version: VERSION_REGALO }, desglose(total))),
+  });
+  const id = crypto.randomUUID();
+  await rest('regalos', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({
+    id, venta_id: venta.id, regala_nombre: regala, destinatario_nombre: destinatario, destinatario_email: email,
+    mensaje: mensaje || null, idioma, codigo_hash: crearRegalos.utiles.huella(crearRegalos.utiles.codigoDe(id)),
+    plazo: crearRegalos.utiles.sumarMeses(new Date(), crearRegalos.ajustes.PLAZO_MESES).toISOString(), // se fija al pagarse
+  }) });
+  const origen = ORIGENES.includes(req.headers.origin) ? req.headers.origin : ORIGENES[0];
+  const sesion = await stripe('POST', 'checkout/sessions', {
+    mode: 'payment',
+    locale: idioma === 'EN' ? 'en' : 'es',
+    client_reference_id: venta.id,
+    expires_at: Math.floor(Date.now() / 1000) + MINUTOS_PAGO * 60,
+    success_url: `${origen}/?regalo=pagado&venta=${venta.id}`,
+    cancel_url: `${origen}/?regalo=cancelado&venta=${venta.id}`,
+    metadata: { venta_id: venta.id, producto: 'plan_familiar' },
+    payment_intent_data: { metadata: { venta_id: venta.id, producto: 'plan_familiar' } },
+    line_items: lineaDePago('plan_familiar', idioma, total, 1),
+    managed_payments: MANAGED() ? { enabled: true } : undefined,
+  });
+  await rest(`ventas?id=eq.${venta.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ stripe_sesion: sesion.id }) });
+  return res.status(200).json({ url: sesion.url, venta: venta.id });
+}
+const REG = () => crearRegalos({ rest, stripe });
+async function accionRegalo(b, res) {
+  const R = REG();
+  if (b.accion === 'ver_regalo') { const d = await R.ver(b.codigo); return res.status(d.error ? 404 : 200).json(d); }
+  if (b.accion === 'rechazar_regalo') { const d = await R.rechazar(b.codigo); return res.status(d.error ? 409 : 200).json(d); }
   const u = await usuarioDelToken(b.token);
   if (!u) return res.status(401).json({ error: 'SESION' });
+  if (b.accion === 'aceptar_regalo') { const d = await R.aceptar(b.codigo, u); return res.status(d.error ? 409 : 200).json(d); }
+  if (b.accion === 'pendientes_regalo') return res.status(200).json(await R.pendientes(u.id));
+  return res.status(400).json({ error: 'ACCION' });
+}
+
+async function consultar(b, res) {
   if (!/^[0-9a-f-]{36}$/i.test(String(b.venta || ''))) return res.status(400).json({ error: 'VENTA' });
+  // v2: el regalo, con o sin cuenta (solo el estado)
+  const [g] = await rest(`ventas?id=eq.${b.venta}&producto=eq.plan_familiar&select=estado,producto`);
+  if (g) return res.status(200).json(g);
+  const u = await usuarioDelToken(b.token);
+  if (!u) return res.status(401).json({ error: 'SESION' });
   const [v] = await rest(`ventas?id=eq.${b.venta}&autor_id=eq.${u.id}&select=estado,producto,cantidad`);
   if (!v) return res.status(404).json({ error: 'VENTA' });
   return res.status(200).json(v);
@@ -199,15 +289,16 @@ async function entregar(sesion) {
   if (sesion.payment_status !== 'paid') return 'no pagada';
   const [previa] = await rest(`ventas?id=eq.${ventaId}&select=*`);
   if (!previa) { await avisar('Locus Mundi: pago sin venta', `Sesión ${sesion.id} pagada, venta ${ventaId} inexistente.`).catch(() => {}); return 'venta inexistente'; }
-  if (sesion.amount_total !== previa.total_cent) { await avisar('Locus Mundi: importe distinto', `Venta ${ventaId}: ${sesion.amount_total} frente a ${previa.total_cent}.`).catch(() => {}); return 'importe distinto'; }
+  const pagado = importeEnEuros(sesion); // v2: en euros también con Adaptive Pricing
+  if (pagado !== previa.total_cent) { await avisar('Locus Mundi: importe distinto', `Venta ${ventaId}: ${pagado} (${sesion.amount_total} ${sesion.currency}) frente a ${previa.total_cent}.`).catch(() => {}); return 'importe distinto'; }
   const reclamada = await rest(`ventas?id=eq.${ventaId}&estado=in.(abierta,anulada)`, {
     method: 'PATCH', headers: devolver,
-    body: JSON.stringify({
+    body: JSON.stringify(Object.assign({
       estado: 'pagada', pagada_en: new Date().toISOString(), stripe_pago: sesion.payment_intent || null,
       comprador_nombre: (sesion.customer_details && sesion.customer_details.name) || previa.comprador_nombre,
       comprador_email: (sesion.customer_details && sesion.customer_details.email) || previa.comprador_email,
       pais_declarado: (sesion.customer_details && sesion.customer_details.address && sesion.customer_details.address.country) || null,
-    }),
+    }, impuestosDe(sesion, previa.total_cent))), // v2: el IVA que calculó Stripe
   });
   if (!reclamada.length) return 'ya entregada';
   const v = reclamada[0];
@@ -215,6 +306,7 @@ async function entregar(sesion) {
     if (v.producto === 'fotos') await entregarFotos(v, sesion);
     else if (v.producto === 'asistente') await entregarTinta(v);
     else if (v.producto === 'pdf') await entregarPdf(v);
+    else if (v.producto === 'plan_familiar') { await completarImportes(v).catch(() => {}); await REG().alPagar(v); } // v2: comisión antes (devolución)
   } catch (e) {
     await rest(`ventas?id=eq.${v.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ estado: previa.estado, pagada_en: null }) }).catch(() => {});
     throw e;
@@ -290,12 +382,18 @@ async function aviso(evento) {
       return entregar(o);
     case 'checkout.session.expired': {
       const id = (o.metadata && o.metadata.venta_id) || o.client_reference_id;
-      if (id) await rest(`ventas?id=eq.${id}&estado=eq.abierta`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ estado: 'anulada' }) });
+      if (id) {
+        const w = await rest(`ventas?id=eq.${id}&estado=eq.abierta`, { method: 'PATCH', headers: devolver, body: JSON.stringify({ estado: 'anulada' }) });
+        if (w.length && w[0].producto === 'plan_familiar') await rest(`regalos?venta_id=eq.${id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } }); // v2: fuera los datos
+      }
       return 'anulada';
     }
-    case 'charge.refunded':
-      if (o.payment_intent) await rest(`ventas?stripe_pago=eq.${o.payment_intent}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ estado: 'devuelta', devuelta_en: new Date().toISOString(), devolucion_cent: o.amount_refunded }) });
+    case 'charge.refunded': {
+      if (!o.payment_intent) return 'devuelta';
+      const w = await rest(`ventas?stripe_pago=eq.${o.payment_intent}`, { method: 'PATCH', headers: devolver, body: JSON.stringify({ estado: 'devuelta', devuelta_en: new Date().toISOString(), devolucion_cent: o.amount_refunded }) });
+      if (w.length && w[0].producto === 'plan_familiar') return REG().alDevolverFuera(w[0].id); // v2: desistimiento (panel o Link)
       return 'devuelta';
+    }
     case 'charge.dispute.created':
       if (o.payment_intent) await rest(`ventas?stripe_pago=eq.${o.payment_intent}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ estado: 'en_disputa' }) });
       await avisar('Locus Mundi: disputa de un pago', `Pago ${o.payment_intent}: el cliente ha abierto una disputa (20 €). Revisar en Stripe.`).catch(() => {});
@@ -322,6 +420,7 @@ module.exports = async function handler(req, res) {
     const b = JSON.parse(crudo || '{}');
     if (b.accion === 'abrir') return await abrir(b, req, res);
     if (b.accion === 'consultar') return await consultar(b, res);
+    if (/_regalo$/.test(String(b.accion || ''))) return await accionRegalo(b, res); // v2
     return res.status(400).json({ error: 'ACCION' });
   } catch (e) {
     console.error('pago:', e.message);
@@ -329,4 +428,5 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'ERROR' });
   }
 };
-module.exports._pruebas = { firmaValida, formulario, desglose };
+module.exports._util = { rest, stripe }; // v2: para api/diario.js (regalos)
+module.exports._pruebas = { firmaValida, formulario, desglose, importeEnEuros, impuestosDe, lineaDePago };

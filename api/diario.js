@@ -14,11 +14,16 @@
 // (con guion bajo deja de contar como función; el plan Hobby de Vercel admite 12). Sin más cambios.
 // Versión 1.3 · 19/10/2026 · Conversación 12 (punto 14): borra los PDF de más de 24 horas del almacén
 // privado `pdf` (api/pdf.js, limpiarPdf): sin copias permanentes que purgar ni respaldar.
+// Versión 1.4 · 24/10/2026 · Fase C (conversación C2-2): Plan Familiar. Recordatorios al destinatario (al mes y
+// 15 días antes del plazo; este, también a quien regala), devolución al vencer el plazo (importe menos la
+// comisión) y borrado de los regalos de pagos no hechos. Lógica en api/_regalo.js.
 
 const purgar = require('./_purgar-borrados'); // v1.2
 const { leerTexto } = require('./_r2');
 const { avisar } = require('./_aviso');
 const { limpiarPdf } = require('./pdf'); // v1.3
+const pago = require('./pago'); // v1.4
+const crearRegalos = require('./_regalo'); // v1.4
 
 const { modelosEnUso, modelosSinPrecio } = require('./_modelos'); // v1.1
 const MODELOS = modelosEnUso();
@@ -63,6 +68,14 @@ module.exports = async function handler(req, res) {
 
   // 1 bis. PDF de más de 24 horas (v1.3).
   await comprobar('PDF caducados', async () => `${await limpiarPdf()} borrados`);
+
+  // 1 ter. Regalos del Plan Familiar (v1.4). Sin clave de Stripe no se puede devolver: se salta.
+  await comprobar('Regalos', async () => {
+    if (!process.env.STRIPE_SECRET_KEY) return 'sin Stripe, no se revisan';
+    const c = await crearRegalos(pago._util).diario();
+    if (c.fallos.length) throw new Error(`fallidos: ${c.fallos.join('; ')}`);
+    return `${c.recordatorios} recordatorios, ${c.avisos} avisos, ${c.devueltos} devueltos, ${c.borrados} sin pagar borrados`;
+  });
 
   // 2. Modelos de Google (solo consulta si existen; no genera nada ni cuesta).
   for (const modelo of MODELOS) {
