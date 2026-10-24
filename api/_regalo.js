@@ -1,4 +1,7 @@
 // api/_regalo.js — Locus Mundi
+// Versión 1.3 · 24/10/2026 · C3-III (textos legales): confirmación a quien regala con la aceptación de las condiciones,
+//   «al aceptarlo ya no se puede desistir», recibo y factura de Link y enlace a las Condiciones de Compra. EN: «Publication
+//   Terms». Exporta plantilla y esc (para el correo de confirmación de compra de api/pago.js).
 // Versión 1.2 · 24/10/2026 · C2-3: si el regalo se rechaza en los 14 días siguientes al pago, devolución íntegra
 //   (en ese plazo quien regala aún podría desistir: TRLGDCU, art. 107.1). Correos ajustados. Decisión de Javier.
 // Versión 1.1 · 24/10/2026 · C2-3, prueba real: al devolver, Stripe solo reintegra el IVA retenido en proporción
@@ -114,7 +117,7 @@ function correoInvitacion(r, tipo) {
   if (M) b.push(p(`${R} writes:`), cita(`“${M}”`));
   b.push(h('What Locus Mundi is'), p('A library of autobiographies written by all kinds of people, so that friends, family and those who come after can know you through your memories, in your own words.'),
     h('What your gift includes'), p('Credit for the AI editorial Assistant.<br>10 photos to illustrate your book.<br>The PDF of your published book, to print or keep.'),
-    h('What accepting it means'), p('Having a free account, being of legal age and accepting the Publishing Terms. Your book is published only if and when you choose. No commitments, no fees.'),
+    h('What accepting it means'), p('Having a free account, being of legal age and accepting the Publication Terms. Your book is published only if and when you choose. No commitments, no fees.'),
     boton('Accept the gift', aceptar),
     p(`If the button doesn't work, go to <b>locusmundi.com/regalo</b> and enter this code: <b>${cod}</b>`),
     p(`Not interested? <a href="${noInteresa}" style="color:#1B3A6B;">No, thanks</a>. We'll refund ${R} and delete your details.`),
@@ -144,7 +147,8 @@ function correoRegala(r, tipo, extra) {
         `Gracias por regalar el Plan Familiar de Locus Mundi a ${D}. Le hemos enviado un correo a <b>${esc(r.destinatario_email)}</b> con tu mensaje y el enlace para aceptarlo.`,
         `Tiene hasta el <b>${plazo}</b> para aceptarlo. Si no lo acepta en ese plazo, o nos dice que no le interesa, te devolveremos el importe (íntegro si es en los 14 días siguientes a la compra; después, menos la comisión del pago, alrededor de 1 €) y borraremos sus datos.`,
         'Mientras no lo acepte, puedes desistir de la compra en los 14 días siguientes y te devolveremos los 15 € íntegros: basta con responder a este correo.',
-        'El recibo del pago te lo envía directamente Link, el servicio de Stripe que gestiona el pago. En tu extracto aparecerá como LINK.COM* LOCUS MUNDI.',
+        `Cuando ${D} lo acepte, empezará el servicio y ya no podrás desistir ni pedir la devolución. Así lo aceptaste al comprar, junto con las condiciones del regalo y las <a href="${WEB}/?legal=compra" style="color:#1B3A6B;">Condiciones de Compra</a>.`, // v1.3
+        'El recibo y la factura te los envía directamente Link, el servicio de pagos de Stripe. En tu extracto aparecerá como LINK.COM* LOCUS MUNDI.',
         `Si la dirección de ${D} no es correcta, respóndenos a este correo.`];
     } else if (tipo === 'quince') {
       asunto = `${r.destinatario_nombre} aún no ha aceptado tu regalo`;
@@ -164,7 +168,8 @@ function correoRegala(r, tipo, extra) {
       `Thank you for giving ${D} the Locus Mundi Family Plan. We've sent an email to <b>${esc(r.destinatario_email)}</b> with your message and the link to accept it.`,
       `They have until <b>${plazo}</b> to accept it. If they don't accept it by then, or tell us they're not interested, we'll refund you the amount (in full if within 14 days of the purchase; after that, minus the payment fee, about €1) and delete their details.`,
       'As long as they haven\'t accepted it, you can withdraw from the purchase within 14 days and we\'ll refund the full €15: just reply to this email.',
-      'Your receipt is sent directly by Link, the Stripe service that handles the payment. It will appear on your statement as LINK.COM* LOCUS MUNDI.',
+      `Once ${D} accepts it, the service begins and you can no longer withdraw or ask for a refund. You accepted this when you bought it, together with the gift terms and the <a href="${WEB}/?legal=compra" style="color:#1B3A6B;">Purchase Terms</a>.`, // v1.3
+      'Your receipt and invoice are sent directly by Link, Stripe\'s payment service. It will appear on your statement as LINK.COM* LOCUS MUNDI.',
       `If ${D}'s email address isn't correct, reply to this email.`];
   } else if (tipo === 'quince') {
     asunto = `${r.destinatario_nombre} hasn't accepted your gift yet`;
@@ -380,4 +385,4 @@ module.exports = function regalos({ rest, stripe }) {
 };
 
 module.exports.ajustes = { PRECIO_REGALO, PLAZO_MESES, TINTA_REGALO, FOTOS_REGALO };
-module.exports.utiles = { codigoDe, normalizar, huella, sumarMeses, correoInvitacion, correoRegala };
+module.exports.utiles = { codigoDe, normalizar, huella, sumarMeses, correoInvitacion, correoRegala, plantilla, esc, euros, fechaLarga }; // v1.3: plantilla, esc, euros y fechaLarga

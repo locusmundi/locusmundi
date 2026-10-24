@@ -1,4 +1,7 @@
 // api/pago.js — Locus Mundi
+// Versión 2.3 · 24/10/2026 · C3-III (textos legales): correo de confirmación de cada compra de fotos, Asistente y PDF
+//   (TRLGDCU art. 98.7: confirmación en soporte duradero, con la petición de uso inmediato y la renuncia al desistimiento),
+//   desde compras@locusmundi.com; si falla, no impide la entrega (aviso interno). Versiones de las casillas actualizadas.
 // Versión 2.2 · 24/10/2026 · C2-3, prueba real: Stripe no marca el IVA retenido como 'tax' en fee_details;
 //   si el desglose no lo separa, se resta el IVA apuntado en la venta (iva_cent). Comprobado: fee 332, IVA 260.
 // Versión 2.1 · 24/10/2026 · C2-2, prueba real: la comisión apuntada ya no incluye el IVA retenido por Stripe
@@ -31,7 +34,7 @@
 // Variables de entorno nuevas: STRIPE_SECRET_KEY (sk_test_… / sk_live_…) y STRIPE_WEBHOOK_SECRET (whsec_…).
 
 const crypto = require('crypto');
-const { avisar } = require('./_aviso');
+const { avisar, enviarCorreo } = require('./_aviso'); // v2.3: enviarCorreo
 const crearRegalos = require('./_regalo'); // v2
 
 // --- Ajustes ---------------------------------------------------------------------------------------
@@ -45,8 +48,8 @@ const SIN_PDF = ['AR', 'ZH', 'JA', 'HI']; // = api/pdf.js
 // v2: fuera IVA_TIPO (21 % provisional). Managed Payments: el IVA lo calcula Stripe por el código fiscal.
 const CODIGO_FISCAL = { fotos: 'txcd_10000000', asistente: 'txcd_10000000', pdf: 'txcd_10302000', plan_familiar: 'txcd_10000000' };
 const MANAGED = () => process.env.STRIPE_MANAGED_PAYMENTS !== 'no';
-const VERSION_DESISTIMIENTO = 'terms_consent 2026-09-29'; // texto de la casilla (index.html, terms_consent)
-const VERSION_REGALO = 'gift_terms PROVISIONAL 2026-10-24 (edad + condiciones del regalo)'; // C3-III
+const VERSION_DESISTIMIENTO = 'terms_consent 2026-10-24 C3-III'; // texto de la casilla (index.html, terms_consent); antes 'terms_consent 2026-09-29'
+const VERSION_REGALO = 'gift_consent 2026-10-24 C3-III (edad + condiciones del regalo y de compra)'; // antes 'gift_terms PROVISIONAL 2026-10-24'
 const MAX_NOMBRE = 80; const MAX_MENSAJE = 500;
 const MINUTOS_PAGO = 30;             // mínimo que admite Stripe
 const ORIGENES = ['https://www.locusmundi.com', 'https://locusmundi.com', 'https://locusmundi.vercel.app'];
@@ -316,7 +319,49 @@ async function entregar(sesion) {
     throw e;
   }
   await completarImportes(v).catch(() => {}); // comisión, neto y país de la tarjeta: no impide la entrega
+  if (v.producto !== 'plan_familiar' && v.comprador_email) { // v2.3: confirmación (el regalo tiene la suya en api/_regalo.js)
+    await enviarCorreo(Object.assign({ para: v.comprador_email, de: 'compras' }, correoCompra(v)))
+      .catch((e) => avisar('Locus Mundi: confirmación de compra no enviada', `Venta ${v.id}: ${e.message}`).catch(() => {}));
+  }
   return 'entregada';
+}
+
+// v2.3: correo de confirmación de la compra (ES/EN), con la misma plantilla que los del regalo.
+function correoCompra(v) {
+  const U = crearRegalos.utiles;
+  const EN = v.idioma === 'EN';
+  const idioma = EN ? 'EN' : 'ES';
+  const n = v.producto === 'fotos' ? v.cantidad : v.producto === 'asistente' ? Math.round(v.total_cent / 100) : 1;
+  const nombre = NOMBRE[v.producto][idioma](n);
+  const fecha = U.fechaLarga(v.pagada_en || new Date(), idioma);
+  const importe = U.euros(v.total_cent, idioma);
+  const compra = 'https://www.locusmundi.com/?legal=compra';
+  const enlace = (txt) => `<a href="${compra}" style="color:#1B3A6B;">${txt}</a>`;
+  let asunto; let lineas; let pie;
+  if (!EN) {
+    asunto = `Tu compra en Locus Mundi: ${nombre.replace('Locus Mundi · ', '')}`;
+    lineas = ['Hola:',
+      `Gracias por tu compra: <b>${U.esc(nombre)}</b>, ${importe} (impuestos incluidos), el ${fecha}. Ya la tienes en tu cuenta.`,
+      'Al comprar aceptaste sus condiciones y las ' + enlace('Condiciones de Compra') + ', y pediste usar el servicio desde ese momento, sabiendo que, cuando empieces a usarlo, pierdes el derecho de desistimiento de 14 días.',
+      v.producto === 'asistente'
+        ? 'En los 14 días siguientes a la compra puedes desistir respondiendo a este correo, y te devolveremos la parte del importe que corresponda al saldo que no hayas gastado.'
+        : 'Si no has usado nada de lo comprado, puedes desistir en los 14 días siguientes a la compra respondiendo a este correo, y te devolveremos el importe íntegro.',
+      'El recibo y la factura te los envía directamente Link, el servicio de pagos de Stripe. En tu extracto figurará como LINK.COM* LOCUS MUNDI.'];
+    pie = 'Recibes este correo porque has hecho una compra en www.locusmundi.com.';
+  } else {
+    asunto = `Your Locus Mundi purchase: ${nombre.replace('Locus Mundi · ', '')}`;
+    lineas = ['Hello,',
+      `Thank you for your purchase: <b>${U.esc(nombre)}</b>, ${importe} (taxes included), on ${fecha}. It's already in your account.`,
+      'When buying, you accepted its terms and the ' + enlace('Purchase Terms') + ', and asked to use the service straight away, understanding that once you start using it you lose the 14-day right of withdrawal.',
+      v.producto === 'asistente'
+        ? 'Within 14 days of the purchase you can withdraw by replying to this email, and we\'ll refund the part of the amount corresponding to the balance you haven\'t spent.'
+        : 'If you haven\'t used anything you bought, you can withdraw within 14 days of the purchase by replying to this email, and we\'ll refund the full amount.',
+      'Your receipt and invoice are sent directly by Link, Stripe\'s payment service. It will appear on your statement as LINK.COM* LOCUS MUNDI.'];
+    pie = 'You\'re receiving this email because you made a purchase on www.locusmundi.com.';
+  }
+  const p = (x) => `<p style="margin:0 0 14px;">${x}</p>`;
+  const texto = lineas.map((l) => l.replace(/<[^>]+>/g, '')).join('\n\n') + `\n\n${EN ? 'Purchase Terms' : 'Condiciones de Compra'}: ${compra}`;
+  return { asunto, html: U.plantilla(idioma, lineas.map(p), pie), texto };
 }
 
 async function entregarFotos(v, sesion) {
@@ -443,4 +488,4 @@ module.exports = async function handler(req, res) {
   }
 };
 module.exports._util = { rest, stripe }; // v2: para api/diario.js (regalos)
-module.exports._pruebas = { firmaValida, formulario, desglose, importeEnEuros, impuestosDe, lineaDePago };
+module.exports._pruebas = { firmaValida, formulario, desglose, importeEnEuros, impuestosDe, lineaDePago, correoCompra }; // v2.3: correoCompra

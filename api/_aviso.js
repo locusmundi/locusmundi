@@ -1,4 +1,6 @@
 // api/_aviso.js — Locus Mundi
+// Versión 4 · 24/10/2026 · Fase C, conversación C3-III: enviarCorreo() admite `de` (remitente), para las
+// confirmaciones de compra (compras@locusmundi.com). Sin `de`, como antes: regalos@locusmundi.com.
 // Versión 3 · 24/10/2026 · Fase C, conversación C2-2 (Plan Familiar): añade enviarCorreo(), para los
 // correos del regalo a personas de fuera (destinatario y quien regala). Remitente regalos@locusmundi.com;
 // las respuestas van a contactlocusmundi@gmail.com. avisar() no cambia.
@@ -22,8 +24,8 @@ async function avisar(asunto, texto) {
 }
 
 // v3: correo a una persona (HTML y texto). `para`: una dirección.
-async function enviarCorreo({ para, asunto, html, texto }) {
-  return resend({ from: 'Locus Mundi <regalos@locusmundi.com>', to: para, reply_to: 'contactlocusmundi@gmail.com', subject: asunto, html, text: texto });
+async function enviarCorreo({ para, asunto, html, texto, de }) {
+  return resend({ from: `Locus Mundi <${de || 'regalos'}@locusmundi.com>`, to: para, reply_to: 'contactlocusmundi@gmail.com', subject: asunto, html, text: texto });
 }
 
 module.exports = { avisar, enviarCorreo };
