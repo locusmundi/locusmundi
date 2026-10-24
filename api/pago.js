@@ -1,4 +1,6 @@
 // api/pago.js — Locus Mundi
+// Versión 2.2 · 24/10/2026 · C2-3, prueba real: Stripe no marca el IVA retenido como 'tax' en fee_details;
+//   si el desglose no lo separa, se resta el IVA apuntado en la venta (iva_cent). Comprobado: fee 332, IVA 260.
 // Versión 2.1 · 24/10/2026 · C2-2, prueba real: la comisión apuntada ya no incluye el IVA retenido por Stripe
 //   (balance_transaction.fee_details, tipo 'tax'); si no, la devolución de un regalo se quedaba el IVA.
 // Versión 2 · 24/10/2026 · Fase C, conversación C2-2. Continuidad, sesiones "24/10/2026 (conversación C3, II)"
@@ -374,8 +376,12 @@ async function completarImportes(v) {
   if (typeof bt.fee === 'number') {
     // v2.1: con Managed Payments, bt.fee incluye el IVA que retiene Stripe (fee_details tipo 'tax'). La comisión
     // es solo lo demás (lo que se descuenta al devolver un regalo). Probado el 24/10: fee 332 = 260 de IVA + 72.
-    const fd = Array.isArray(bt.fee_details) ? bt.fee_details : null;
-    cambios.comision_cent = fd ? fd.filter((f) => f.type !== 'tax').reduce((s, f) => s + (Number(f.amount) || 0), 0) : bt.fee;
+    // v2.2: si fee_details no trae el tipo 'tax' (así ocurre en la prueba real), se resta el IVA de la venta.
+    const fd = Array.isArray(bt.fee_details) ? bt.fee_details : [];
+    const impTax = fd.filter((f) => f.type === 'tax').reduce((s, f) => s + (Number(f.amount) || 0), 0);
+    const iva = Number.isInteger(v.iva_cent) ? v.iva_cent : 0;
+    const retenido = impTax > 0 ? impTax : (MANAGED() && iva > 0 && bt.fee > iva ? iva : 0);
+    cambios.comision_cent = bt.fee - retenido;
     cambios.neto_cent = bt.net;
   }
   await rest(`ventas?id=eq.${v.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(cambios) });
