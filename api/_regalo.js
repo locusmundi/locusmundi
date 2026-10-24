@@ -1,4 +1,6 @@
 // api/_regalo.js — Locus Mundi
+// Versión 1.2 · 24/10/2026 · C2-3: si el regalo se rechaza en los 14 días siguientes al pago, devolución íntegra
+//   (en ese plazo quien regala aún podría desistir: TRLGDCU, art. 107.1). Correos ajustados. Decisión de Javier.
 // Versión 1.1 · 24/10/2026 · C2-3, prueba real: al devolver, Stripe solo reintegra el IVA retenido en proporción
 //   (devolver 14,28 € dejaba −0,13 € netos). La devolución se calcula para quedar en cero: (total − comisión − IVA)
 //   × total / (total − IVA), redondeado hacia abajo. Con 15 €: 14,12 € (se retienen 0,88 €). Decisión de Javier, opción (b).
@@ -24,6 +26,7 @@ const DESCARGAS_PDF = 15;            // = api/pdf.js
 const COMISION_ESTIMADA = 100;       // si Stripe no dio la comisión real (≈ 1 € con Managed Payments)
 const DIAS_RECORDATORIO_1 = 30;      // desde el pago
 const DIAS_RECORDATORIO_2 = 15;      // antes del plazo (también a quien regala)
+const DIAS_DESISTIMIENTO = 14;       // v1.2: rechazo en este plazo → devolución íntegra
 const WEB = 'https://www.locusmundi.com';
 const ALFABETO = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'; // sin 0/O, 1/I/L
 
@@ -139,7 +142,7 @@ function correoRegala(r, tipo, extra) {
       asunto = `Tu regalo para ${r.destinatario_nombre} ya está en camino`;
       lineas = [`Hola, ${R}:`,
         `Gracias por regalar el Plan Familiar de Locus Mundi a ${D}. Le hemos enviado un correo a <b>${esc(r.destinatario_email)}</b> con tu mensaje y el enlace para aceptarlo.`,
-        `Tiene hasta el <b>${plazo}</b> para aceptarlo. Si no lo acepta en ese plazo, o nos dice que no le interesa, te devolveremos el importe menos la comisión del pago (alrededor de 1 €) y borraremos sus datos.`,
+        `Tiene hasta el <b>${plazo}</b> para aceptarlo. Si no lo acepta en ese plazo, o nos dice que no le interesa, te devolveremos el importe (íntegro si es en los 14 días siguientes a la compra; después, menos la comisión del pago, alrededor de 1 €) y borraremos sus datos.`,
         'Mientras no lo acepte, puedes desistir de la compra en los 14 días siguientes y te devolveremos los 15 € íntegros: basta con responder a este correo.',
         'El recibo del pago te lo envía directamente Link, el servicio de Stripe que gestiona el pago. En tu extracto aparecerá como LINK.COM* LOCUS MUNDI.',
         `Si la dirección de ${D} no es correcta, respóndenos a este correo.`];
@@ -152,14 +155,14 @@ function correoRegala(r, tipo, extra) {
       lineas = [`Hola, ${R}:`, `${D} ha aceptado el Plan Familiar que le regalaste. Ya puede empezar a escribir su historia en Locus Mundi.`, 'Gracias por regalarlo.'];
     } else {
       asunto = `${r.destinatario_nombre} no ha aceptado tu regalo`;
-      lineas = [`Hola, ${R}:`, `${D} no ha aceptado el Plan Familiar que le regalaste. Te hemos devuelto <b>${euros(extra.importe, 'ES')}</b> (15 € menos ${euros(extra.comision, 'ES')} de comisión del pago); lo verás en tu tarjeta en 5 a 10 días.`,
+      lineas = [`Hola, ${R}:`, `${D} no ha aceptado el Plan Familiar que le regalaste. Te hemos devuelto <b>${euros(extra.importe, 'ES')}</b>${extra.comision > 0 ? ` (15 € menos ${euros(extra.comision, 'ES')} de comisión del pago)` : ''}; lo verás en tu tarjeta en 5 a 10 días.`,
         'Hemos borrado sus datos.'];
     }
   } else if (tipo === 'confirmacion') {
     asunto = `Your gift for ${r.destinatario_nombre} is on its way`;
     lineas = [`Hello ${R},`,
       `Thank you for giving ${D} the Locus Mundi Family Plan. We've sent an email to <b>${esc(r.destinatario_email)}</b> with your message and the link to accept it.`,
-      `They have until <b>${plazo}</b> to accept it. If they don't accept it by then, or tell us they're not interested, we'll refund you the amount minus the payment fee (about €1) and delete their details.`,
+      `They have until <b>${plazo}</b> to accept it. If they don't accept it by then, or tell us they're not interested, we'll refund you the amount (in full if within 14 days of the purchase; after that, minus the payment fee, about €1) and delete their details.`,
       'As long as they haven\'t accepted it, you can withdraw from the purchase within 14 days and we\'ll refund the full €15: just reply to this email.',
       'Your receipt is sent directly by Link, the Stripe service that handles the payment. It will appear on your statement as LINK.COM* LOCUS MUNDI.',
       `If ${D}'s email address isn't correct, reply to this email.`];
@@ -172,7 +175,7 @@ function correoRegala(r, tipo, extra) {
     lineas = [`Hello ${R},`, `${D} has accepted the Family Plan you gave them. They can now start writing their story on Locus Mundi.`, 'Thank you for giving it.'];
   } else {
     asunto = `${r.destinatario_nombre} hasn't accepted your gift`;
-    lineas = [`Hello ${R},`, `${D} hasn't accepted the Family Plan you gave them. We've refunded you <b>${euros(extra.importe, 'EN')}</b> (€15 minus ${euros(extra.comision, 'EN')} payment fee); you'll see it on your card within 5 to 10 days.`,
+    lineas = [`Hello ${R},`, `${D} hasn't accepted the Family Plan you gave them. We've refunded you <b>${euros(extra.importe, 'EN')}</b>${extra.comision > 0 ? ` (€15 minus ${euros(extra.comision, 'EN')} payment fee)` : ''}; you'll see it on your card within 5 to 10 days.`,
       'We have deleted their details.'];
   }
   const html = plantilla(r.idioma, lineas.map(p), pie);
@@ -223,7 +226,8 @@ module.exports = function regalos({ rest, stripe }) {
     const fee = Number.isInteger(v.comision_cent) ? v.comision_cent : COMISION_ESTIMADA;
     const iva = Number.isInteger(v.iva_cent) ? v.iva_cent : 0;
     // v1.1: Stripe reintegra el IVA en proporción a lo devuelto; así el neto de Locus Mundi queda en cero.
-    const importe = iva > 0 && iva < v.total_cent
+    const enPlazo = v.pagada_en && (Date.now() - new Date(v.pagada_en).getTime()) < DIAS_DESISTIMIENTO * 86400000; // v1.2
+    const importe = enPlazo ? v.total_cent : iva > 0 && iva < v.total_cent
       ? Math.floor(((v.total_cent - fee - iva) * v.total_cent) / (v.total_cent - iva))
       : v.total_cent - fee;
     const comision = v.total_cent - importe; // lo retenido, tal como se le dice a quien regaló
