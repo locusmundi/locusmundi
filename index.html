@@ -462,6 +462,18 @@ const SUPABASE_URL = "https://olpfybpykuascwltnqtv.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_p0cfcLah6MHGQ7ELm9b60g_jTHho-g8";
 const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Registro LSSI con la sesión del Autor (api/registro-lssi.js v2, 25/10/2026). Nunca bloquea.
+async function registroLssi(datos){
+  try{
+    const { data } = await supa.auth.getSession();
+    const token = data && data.session && data.session.access_token;
+    if(!token) return;
+    await fetch("/api/registro-lssi",{method:"POST",keepalive:true,
+      headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
+      body:JSON.stringify(datos)});
+  }catch(e){ console.error("registro-lssi:",e); }
+}
+
 // ---- Números romanos, para el marcador de capítulo que se inserta en el texto ----
 function toRoman(num) {
   const vals=[[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
@@ -863,7 +875,7 @@ const FAQ_ES = [
   {q:"¿Qué tipo de historias pueden publicarse?",
    a:"Autobiografías, memorias familiares e historias de vida reales. No es una plataforma de ficción, aunque cada Autor puede usar los recursos literarios que quiera para contar su historia. Cada Autor responde de lo que publica, según las Condiciones de Publicación que debe aceptar. Antes de que un libro llegue a la Biblioteca, revisamos que respete los límites aceptados: principalmente, no se publican contenidos sexuales que involucren a menores ni pasajes que inciten a la violencia. Sobre lo que puedes contar de otras personas, mira la pregunta siguiente."},
   {q:"¿Puedo contar cosas personales o íntimas de otras personas?",
-   a:"Tu historia la cuentas con libertad, también lo que viviste con otros. Pero, antes de publicar tu libro en la Biblioteca, una revisión automática señala los pasajes que revelen hechos privados graves de terceras personas vivas a las que se pueda reconocer: atribuirles un delito que no sea de dominio público, o hablar de su salud, su vida íntima, sus adicciones, su origen, su religión o sus ideas políticas. Tampoco se admiten el lenguaje que ofenda a un colectivo, las descripciones sexuales explícitas ni, mucho menos, los hechos privados de menores de hoy. Los hechos públicos, la historia vivida (la guerra, la represión política, el exilio) y las personas fallecidas se cuentan con libertad. Que un libro pase el filtro de Locus Mundi no te exime de responsabilidad: de lo que publicas respondes tú, según las Condiciones de Publicación."},
+   a:"Tu historia la cuentas con libertad, también lo que viviste con otros. Pero, antes de publicar tu libro en la Biblioteca, una revisión automática señala los pasajes que revelen hechos privados graves de terceras personas vivas a las que se pueda reconocer: atribuirles un delito que no sea de dominio público, o hablar de su salud mental, sus adicciones, su salud sexual o una enfermedad grave que padezcan hoy, de su vida íntima, su origen, su religión o sus ideas políticas actuales. Tampoco se admiten el lenguaje que ofenda a un colectivo, las descripciones sexuales explícitas ni, mucho menos, los hechos privados de menores de hoy. Los hechos públicos, la historia vivida (la guerra, la represión política, el exilio), las dolencias corrientes, la enfermedad grave ya superada y las personas fallecidas se cuentan con libertad. Que un libro pase el filtro de Locus Mundi no te exime de responsabilidad: de lo que publicas respondes tú, según las Condiciones de Publicación."},
   {q:"¿Puedo publicar mi autobiografía aunque todavía no esté acabada?",
    a:"Puedes publicarla capítulo a capítulo o cuando esté terminada, como prefieras, y modificarla en todo momento. La vida es cambiante, afortunadamente, porque solo tenemos una. Razón por la cual cada Autor publica una sola obra."},
   {q:"¿Cómo se modifica una autobiografía publicada?",
@@ -890,7 +902,7 @@ const FAQ_EN = [
   {q:"What kind of stories can be published?",
    a:"Autobiographies, family memoirs and real life stories. It is not a fiction platform, although each Author may use whatever literary resources they wish to tell their story. Each Author is responsible for what they publish, under the Publication Terms they must accept. Before a book reaches the Library, we check that it respects the accepted limits: above all, sexual content involving minors and passages that incite violence are not published. On what you can tell about other people, see the next question."},
   {q:"Can I tell personal or intimate things about other people?",
-   a:"Your story is yours to tell freely, including what you lived through with others. But before your book is published in the Library, an automatic review flags passages that reveal serious private facts about living third parties who can be recognised: attributing to them a crime that is not public knowledge, or talking about their health, their intimate life, their addictions, their origin, their religion or their political views. Language that offends a group of people, explicit sexual descriptions and, above all, private facts about today's minors are not accepted either. Public facts, lived history (war, political repression, exile) and people who have died can be told freely. A book passing Locus Mundi's filter does not relieve you of responsibility: you answer for what you publish, under the Publication Terms."},
+   a:"Your story is yours to tell freely, including what you lived through with others. But before your book is published in the Library, an automatic review flags passages that reveal serious private facts about living third parties who can be recognised: attributing to them a crime that is not public knowledge, or talking about their mental health, their addictions, their sexual health or a serious illness they have today, their intimate life, their origin, their religion or their current political views. Language that offends a group of people, explicit sexual descriptions and, above all, private facts about today's minors are not accepted either. Public facts, lived history (war, political repression, exile), everyday ailments, a serious illness now overcome and people who have died can be told freely. A book passing Locus Mundi's filter does not relieve you of responsibility: you answer for what you publish, under the Publication Terms."},
   {q:"Can I publish even if my autobiography isn't finished?",
    a:"You can publish it chapter by chapter or once it is finished, as you prefer, and change it at any time. Life is ever-changing, fortunately, because we only get one. Which is why each Author publishes a single work."},
   {q:"How do I change an autobiography that is already published?",
@@ -937,8 +949,7 @@ const T = {
     faq_a4:"Tu autobiografía es tuya. Locus Mundi solo te pide permiso para alojarla, preservarla y mostrarla en la plataforma. Pero tú conservas todos los derechos sobre ella, también para modificarla y/o eliminarla.",
     faq_q5:"¿Y qué ocurrirá con mi historia cuando yo ya no esté?",
     faq_a5:"Cuando el Autor fallece, su obra pasa a formar parte del archivo permanente de Locus Mundi. Esta es una de las condiciones principales que todo Autor acepta antes de publicar en Locus Mundi.",
-    foot_policy:"No se acepta contenido ofensivo, discriminatorio ni falso.",
-    foot_contact:"Contacto",foot_policy_lnk:"Política de uso",
+    foot_contact:"Contacto",
     foot_aviso:"Aviso Legal",foot_privacidad:"Privacidad",foot_cookies:"Cookies",foot_condiciones:"Condiciones de Publicación",foot_compra:"Condiciones de Compra" /* [C3-III] */,
     foot_collab:"Colabora con Locus Mundi",
     foot_faq:"Preguntas frecuentes",faq_full_h:"Preguntas frecuentes",
@@ -953,12 +964,10 @@ const T = {
     share_msg:"Hola. He publicado la historia de mi vida en Locus Mundi. Puedes leerla aquí:\n{link}\nUn abrazo.",
     share_copy_msg:"Copiar mensaje",share_my_book:"Compartir mi libro",
     link_opening:"Abriendo el libro…",link_missing:"Este libro no está disponible en este momento.",
-    share_copy_btn:"Ver y copiar texto para compartir",
     collab_b_h:"Patrocina la plataforma",
     collab_b_sub:"Si tienes una empresa, escríbenos para estudiar juntos las distintas formas de patrocinio.",
     collab_b_btn:"Escribir sobre patrocinio",
     collab_sponsor_subject:"Propuesta de Patrocinio",
-    collab_sponsor_body:"Hola,\n\nNos gustaría conocer más sobre las opciones de patrocinio de Locus Mundi.\n\nNombre de la empresa:\nSector:\nTipo de patrocinio que os interesa (económico, en especie, difusión, otro):\nPresupuesto aproximado (opcional):\n\nGracias,",
     collab_c_h:"Haz una aportación directa",
     collab_c_sub:"Si eres Autor, Lector o simplemente quieres contribuir a la expansión y consolidación de la plataforma, cualquier aportación es bienvenida.",
     collab_free_amount:"Otra cantidad",
@@ -974,20 +983,35 @@ const T = {
     translate_and_read:"Traducir y leer",change_lang:"cambiar idioma",
     read_lang_error:"No se ha podido traducir el texto. Inténtalo de nuevo o léelo en el idioma original.",
     tr_wait:"Traduciendo…",tr_more:"Traduciendo la continuación…",
-    tr_part_error:"No se ha podido traducir esta parte. Inténtalo de nuevo.",tr_retry:"Reintentar",
+    tr_part_error:"No se ha podido traducir esta parte. Inténtalo de nuevo.",
+    tr_machine:"Traducción automática con inteligencia artificial; puede contener errores. El texto del Autor es el original ({lang}).", // C3 (25/10/2026),tr_retry:"Reintentar",
     tr_fuse:"Por hoy se ha alcanzado el límite de traducciones nuevas. Mañana podrás seguir leyendo en este idioma. Mientras tanto, puedes usar la traducción de tu navegador o leer el original.",
     translate:"Traducir",
     report_link:"Denunciar contenido inapropiado",
     report_h:"Denunciar contenido inapropiado",
-    report_sub:"Describe el problema y enviaremos tu denuncia a Locus Mundi, con la referencia de esta obra incluida.",
-    report_field_label:"Describe el problema",
-    report_field_ph:"Explica qué contenido te parece inapropiado y por qué…",
-    report_send_btn:"Enviar denuncia",
+    // Denuncias (DSA, arts. 16 y 17; Locus_Mundi_Denuncias_DSA_v1.md, de tú; 25/10/2026)
+    report_sub:"Si crees que este libro contiene algo ilícito o contrario a las Condiciones, cuéntanoslo. Una persona revisará tu denuncia.",
     report_ref_label:"Obra denunciada",
+    report_motivo_label:"Motivo",report_motivo_ph:"Elige un motivo",
+    report_motivos:{privacidad:"Revela datos privados o íntimos de una persona (también si eres tú)",honor:"Daña el honor o la reputación de una persona",imagen:"Publica una fotografía de una persona sin su permiso",autor:"Infringe derechos de autor",menor:"Afecta a un menor",abuso_infantil:"Abuso sexual infantil",odio:"Incita al odio o a la violencia",otro:"Otro contenido ilícito o contrario a las Condiciones"},
+    report_pasaje_label:"Dónde está (opcional)",report_pasaje_ph:"Copia una frase del pasaje, o indica el capítulo o la foto",
+    report_field_label:"Por qué es ilícito o inapropiado",
+    report_field_ph:"Explica por qué este contenido es ilícito o incumple las Condiciones",
+    report_rel_label:"Tu relación con el contenido",
+    report_rels:{afectado:"Soy la persona afectada",representante:"Actúo en nombre de la persona afectada",ninguna:"Ninguna"},
+    report_name_label:"Tu nombre",report_email_label:"Tu correo electrónico",
+    report_optional_note:"En este caso, tu nombre y tu correo son voluntarios.",
+    report_goodfaith:"Declaro de buena fe que la información y las alegaciones de esta denuncia son exactas y completas.",
+    report_privacy:"Usaremos tus datos solo para tramitar esta denuncia y comunicarte la decisión. No los comunicaremos al Autor.",
+    report_privacy_more:"Más información en la Política de Privacidad.",
+    report_send_btn:"Enviar denuncia",
     report_cancel:"Cancelar",
-    report_empty_error:"Escribe una breve descripción antes de continuar.",
+    report_empty_error:"Completa los campos obligatorios y marca la casilla antes de enviar.",
+    report_email_error:"Revisa tu correo electrónico: no parece válido.",
     report_sending:"Enviando…",
-    report_sent:"✓ Denuncia recibida. Gracias por ayudarnos a mantener la plataforma.",
+    report_sent:"Denuncia recibida. Te hemos enviado un acuse de recibo a tu correo. La estudiaremos y te comunicaremos la decisión y su motivo.",
+    report_sent_noack:"Denuncia recibida. La estudiaremos y te comunicaremos la decisión y su motivo.",
+    report_sent_anon:"Denuncia recibida. La estudiaremos.",
     report_send_error:"No se ha podido enviar la denuncia. Escribe directamente a contactlocusmundi@gmail.com.",
     contact_sending:"Enviando…",
     contact_send_error:"No se ha podido enviar el mensaje. Escribe directamente a contactlocusmundi@gmail.com.",
@@ -999,13 +1023,12 @@ const T = {
     f_title:"Título de la obra",f_title_ph:"p. ej. Recuerdos de mi familia",
     f_subtitle:"Subtítulo (opcional)",f_dedication:"Dedicatoria (opcional)",f_dedication_ph:"p. ej. A mis nietos, para que sepan de dónde vienen",f_subtitle_ph:"p. ej. Historia de tres generaciones",
     f_cover:"Imagen de portada (gratuita)",f_cover_btn:"Subir foto",f_cover_note:"JPG o PNG · Se puede cambiar después",
-    policy_tit:"📋 Condiciones de publicación",
     pol1:"Publicación completamente gratuita, sin límites de extensión.",
     pol2:"No se admite contenido ofensivo, discriminatorio o falso.",
     pol3:"Al publicar, aceptas que tu historia pueda ser leída por cualquier persona en el mundo.",
     pol4:"Conservas todos los derechos sobre tu texto.",
     f_name:"Nombre de Autor",f_name_ph:"p. ej. X. Batlle — así firmarás tu libro",
-    f_born:"Año de nacimiento",f_country:"País de origen",f_lang:"Idioma",f_text:"Tu historia",
+    f_born:"Año de nacimiento",f_country:"País de origen",f_lang:"Idioma",
     pub_extra_h:"Antes de publicar, cuéntanos un poco más de ti",
     pub_city:"Ciudad o lugar donde has vivido tu vida",pub_city_ph:"Ej. Barcelona",
     pub_profession:"Profesión",pub_profession_ph:"Ej. Poeta",
@@ -1034,13 +1057,10 @@ const T = {
     pais_aviso:"Habías escrito «{x}». Elige tu país en la lista: se guardará el que elijas.",
     addon_pdf_unpub:"Podrás crear el archivo PDF de tu libro cuando lo publiques.",
     privacy_home_btn:"Ir al inicio",
-    ed_blocks_h:"Orden del libro — sube, baja, renombra o borra. Si no divides, todo vive en el Capítulo 1.",
     ed_add_chapter:"+ Capítulo",ed_add_apartado:"+ Apartado",
     ed_chapter_word:"capítulo",ed_apartado_word:"apartado",ed_untitled:"sin título",
-    ed_rename_prompt:"Título de este",ed_new_block_prompt:"Título del nuevo",ed_confirm_delete:"¿Borrar este bloque de la lista?",
-    ed_need_one_block:"Tu libro necesita al menos un bloque.",
+    ed_new_block_prompt:"Título del nuevo",
     ed_italic:"Cursiva",ed_undo:"↺ Deshacer",ed_add_photo:"+ Fotografía",
-    ed_blocks_short:"Orden del libro",
     // Dos versiones de cada libro (07/10/2026). Fuera ed_confirm_title y ed_confirm_name (diseño §2.2).
     ed_unsent:"Tienes cambios sin subir a la Biblioteca.",ed_upload_now:"Subir ahora",
     ed_view_library:"Ver cómo está en la Biblioteca",up_busy:"Subiendo…",
@@ -1053,8 +1073,11 @@ const T = {
     up_err_cover:"No hemos podido comprobar la imagen de portada. Escríbenos desde «Contacto» y lo revisamos.",
     up_err_generic:"No se ha podido subir a la Biblioteca. Inténtalo de nuevo dentro de un momento.",
     // Segunda subida: moderación (08/10/2026; diseño de la moderación v10, §11.13, puntos 8 a 12).
-    up_reviewing:"Revisando tu libro…",up_reviewing_n:"Revisando tu libro… ({a} de {b})",
+    up_reviewing_n:"Revisando tu libro… ({a} de {b})",
     up_err_limit:"Has subido tu libro varias veces hoy. Podrás volver a subirlo mañana.",
+    up_err_limit_conj:"Mientras tu libro necesite una revisión detallada, puedes subirlo una vez al día y tres veces por semana. Corrige con calma los pasajes y vuelve a subirlo mañana.",
+    up_err_limit_conj_week:"Mientras tu libro necesite una revisión detallada, puedes subirlo una vez al día y tres veces por semana, y esta semana ya lo has subido tres veces. Corrige con calma los pasajes: podrás volver a subirlo dentro de unos días.",
+    mod_ver_lista:"Ver la lista de pasajes",mod_ocultar_lista:"Ocultar la lista",
     up_err_fuse:"Ahora mismo no podemos revisar tu libro. Inténtalo de nuevo mañana.",
     up_err_review:"No hemos podido revisar tu libro ahora mismo. Inténtalo de nuevo dentro de un momento: lo ya revisado queda guardado.",
     up_err_img_photo:"Tu libro no se ha subido: la foto {n} no ha pasado la revisión de imágenes ({motivo}). Cámbiala o quítala del texto para poder subirlo. Si crees que es un error, escríbenos desde «Contacto».",
@@ -1062,6 +1085,9 @@ const T = {
     img_motivo_menor:"muestra a un niño o una niña sin ropa",img_motivo_adulto:"muestra un desnudo o contenido sexual",
     img_motivo_violencia:"muestra heridas, cadáveres o maltrato",img_motivo_ilegible:"no hemos podido abrirla",
     mod_box_h:"Pasajes señalados",
+    mod_dsa:"Estos pasajes los ha señalado una revisión automática, con inteligencia artificial, por no cumplir el apartado 4 de las Condiciones de Publicación; junto a cada uno está su motivo. Hasta que los cambies, el libro no se publica; lo demás de tu cuenta sigue igual. Si crees que alguno es un error, pulsa «Creo que es un error» y lo revisará una persona. También puedes reclamar en contactlocusmundi@gmail.com o ante los tribunales.", // C8, DSA art. 17.3 (25/10/2026)
+    mod_dsa_conjunto:"Lo ha decidido una revisión automática, con inteligencia artificial: varios pasajes no cumplen el apartado 4 de las Condiciones de Publicación. Hasta que los cambies, el libro no se publica; lo demás de tu cuenta sigue igual. Puedes reclamar en contactlocusmundi@gmail.com, y lo revisará una persona, o ante los tribunales.",
+    img_dsa:"Revisión automática con inteligencia artificial; apartado 4 de las Condiciones de Publicación. Si crees que es un error, pulsa «Creo que es un error»; también puedes reclamar en contactlocusmundi@gmail.com o ante los tribunales.",img_dsa_nobtn:"Revisión automática con inteligencia artificial; apartado 4 de las Condiciones de Publicación. Puedes reclamar en contactlocusmundi@gmail.com o ante los tribunales.",
     mod_hay_one:"hay 1 pasaje",mod_hay_many:"hay {n} pasajes",
     mod_not_up_pub:"Tu libro no se ha subido: {hay} que revisar. La Biblioteca sigue con la versión anterior.",
     mod_not_up_unpub:"Tu libro no se ha subido: {hay} que revisar. Todavía no está en la Biblioteca.",
@@ -1083,16 +1109,14 @@ const T = {
     mod_err_sent:"Hemos recibido tu aviso y lo revisaremos a mano. Mientras tanto, ese pasaje impide subir el libro: si no quieres esperar, puedes suprimirlo ahora y volver a ponerlo cuando te demos la razón. Verás la respuesta aquí al abrir el editor.",
     mod_err_once:"Ya nos has enviado un aviso en esta subida: solo se puede enviar uno cada vez.",
     mod_err_fail:"No hemos podido enviar tu aviso. Inténtalo de nuevo dentro de un momento.",
-    mod_av_pending:"Tu aviso «Creo que es un error» está pendiente de revisión.",
-    mod_av_accepted:"Te hemos dado la razón en tu aviso: ese pasaje ya no impedirá subir el libro. Vuelve a subirlo.",
-    mod_av_rejected:"Hemos revisado tu aviso: ese pasaje debe cambiarse o suprimirse para publicar el libro.",
+    
     // [P16-B4] avisos «Creo que es un error», junto a su pasaje (12/10/2026)
     mod_ps_accepted_tag:"Aceptado",mod_ps_accepted:"Te hemos dado la razón: este pasaje ya no impide subir el libro.",
     mod_ps_pending:"Tu aviso «Creo que es un error» sobre este pasaje está pendiente de revisión.",
     mod_ps_rejected:"Hemos revisado tu aviso: este pasaje debe cambiarse o suprimirse para publicar el libro.",
     mod_all_accepted:"Te hemos dado la razón: ya puedes volver a subir el libro.",
     mod_reupload:"Volver a subir",mod_with_ai:"Revisar con el Asistente",
-    mod_conjunto:"Tu libro trata asuntos delicados en varios pasajes. Para publicarlo, necesita una revisión detallada con el Asistente editorial, pasaje a pasaje. Las Condiciones de Publicación son las mismas para todos: el Asistente te ayuda a cumplirlas.", // [P16-B1-3]
+    mod_conjunto:"Tu libro trata asuntos delicados en varios pasajes. Para publicarlo, necesita una revisión detallada, pasaje a pasaje: la forma más cómoda es hacerla con el Asistente editorial, pero también puedes ver la lista y corregirlos tú. Las Condiciones de Publicación son las mismas para todos.", // [P16-B1-3]
     mod_conjunto_ai:"Revisar los pasajes con el Asistente",mod_conjunto_buy:"Contratar el Asistente",
     mod_guide_link:"¿Qué hago si mi libro tiene pasajes señalados?", // [P16-B1-2] guía del editor, C.12
     card_founder:"Autor fundador", // [P16-B1-4]
@@ -1113,7 +1137,7 @@ const T = {
     img_in_review:"Foto en revisión", // [P16-B4]
     img_av_accepted_photo:"Hemos revisado a mano la foto {n} que nos enviaste y te damos la razón.",
     img_av_accepted_cover:"Hemos revisado a mano la portada que nos enviaste y te damos la razón.",
-    img_av_use:"Usar esta imagen",img_av_used:"Hecho: ya está en tu libro.",
+    img_av_use:"Usar esta imagen",
     img_av_rejected:"Hemos revisado a mano la imagen que nos enviaste y no podemos publicarla.",
     img_av_dismiss:"Entendido",
     ps_title:"Pasaje {i} de {n}",ps_delete:"Suprimir el pasaje",ps_skip:"Dejarlo así y pasar al siguiente",
@@ -1141,8 +1165,8 @@ const T = {
     ol_conv_chapter:"Convertir en capítulo",ol_conv_section:"Convertir en apartado",
     ol_num_warn:"Los capítulos no siguen el estilo del libro: numeración correlativa en romanos y título en mayúsculas (hay números repetidos, saltos, desorden, números arábigos, capítulos sin número o en minúsculas).",
     ol_renumber:"Renumerar capítulos",ol_close:"Cerrar",ed_search_ph:"Buscar en el texto (palabra, frase o título)",ed_search_prev:"↑ Anterior",ed_search_next:"↓ Siguiente",ed_search_none:"Sin resultados",ed_search_of:"de",ed_search_one:"coincidencia",ed_search_many:"coincidencias",
-    ed_save_exit:"Guardar y salir",ed_save_exit_q:"¿Quieres guardarlo solo para ti o subirlo a la Biblioteca?",
-    ed_save_private:"Guardar para mí",ed_save_upload:"Subir a la Biblioteca",
+    ed_save_exit:"Guardar y salir",
+    ed_save_upload:"Subir a la Biblioteca",
     // [P16-F7] ficha 7 (12/10/2026)
     ed_save_exit_q2:"Tienes cambios sin subir a la Biblioteca. ¿Los subes ahora o los guardas solo para ti?",ed_save_private2:"Guardar solo para mí",
     ficha_h:"Tu ficha en la Biblioteca",ficha_change:"Cambiar",ficha_complete:"Completar",ficha_save:"Guardar",ficha_cancel:"Cancelar",
@@ -1186,16 +1210,13 @@ const T = {
     fe_load_error:"No se ha podido cargar la imagen. Cierra la ventana e inténtalo de nuevo.",
     ai_ask_name_h:"¿Con qué nombre quieres que te llame?",
     ai_ask_tuusted_h:"¿Prefieres que te hable de tú o de usted?",
-    ai_tu:"De tú",ai_usted:"De usted",ai_start_using:"Empezar a usar el Asistente",
+    ai_tu:"De tú",ai_usted:"De usted",
     ai_activate_btn:"Activar Asistente",ai_active_msg:"✓ Asistente activo — te llamará",
     ai_hours_note:"Ayuda a escribir, corregir y ordenar tu historia. Pagas solo lo que usas, en cargas de 5 o 10 €, sin cuotas.",
     unpub_link:"Despublicar mi historia",
     unpub_confirm_h:"¿Despublicar tu historia?",
     unpub_confirm_sub:"Tu historia dejará de poder leerse por cualquier visitante. Tu archivo no se borra: seguirá aquí, solo para ti, y podrás volver a publicarlo cuando quieras.",
     unpub_confirm_btn:"Sí, despublicar",unpub_cancel_btn:"No, dejarlo publicado",
-    unpub_sent_h:"Confirmación enviada",
-    unpub_sent_sub:"Te enviamos un enlace a tu correo. Ábrelo para confirmar (esto es una simulación: pulsa el botón como si lo hubieras abierto).",
-    unpub_sim_btn:"Simular apertura del enlace",
     unpub_done_msg:"✓ Tu historia ya no es visible públicamente.",
     unpub_undo_btn:"Deshacer",
     unpub_err:"No se ha podido despublicar. Inténtalo de nuevo.",
@@ -1205,14 +1226,12 @@ const T = {
     privacy_delete_warn:"Esto borra tu historia para siempre, con todas sus fotografías, también las que hayas pagado, e incluido tu propio archivo. No hay vuelta atrás, ni siquiera para ti. La tinta del Asistente que te quede se conserva en tu cuenta. Si solo quieres que no se lea, usa \"Despublicar mi historia\" en vez de esto.",
     privacy_delete_error:"No se ha podido eliminar tu historia. No se ha borrado nada. Inténtalo de nuevo dentro de un momento.",
     save_error_banner:"No se ha podido guardar tu trabajo. Lo seguimos intentando; no cierres esta página hasta que desaparezca este aviso.",
-    photos_add_error:"Ha habido un problema al preparar tus fotos y puede que no aparezcan todas. No vuelvas a pagarlas: escríbenos a contactlocusmundi@gmail.com y lo resolvemos.",
     ai_setup_h:"Prepara tu Asistente para este libro",ai_setup_start:"Empezar",ai_active_short:"✓ Asistente activo",
     privacy_delete_phrase:"quiero borrar mi historia para siempre",
     privacy_delete_phrase_lbl:"Escribe exactamente esta frase para continuar:",
     privacy_delete_input_ph:"Escribe aquí la frase",
     privacy_delete_btn:"Eliminar por completo",
-    privacy_delete_sent_h:"Confirmación enviada",
-    privacy_delete_sent_sub:"Te enviamos un enlace a tu correo. Ábrelo para confirmar el borrado definitivo (simulación: pulsa el botón como si lo hubieras abierto).",
+    privacy_delete_pw_lbl:"Y tu contraseña de Autor:",privacy_delete_pw_err:"La contraseña no es correcta. No se ha borrado nada.",
     privacy_delete_done_h:"Tu historia se ha eliminado por completo.",
     privacy_back_btn:"← Volver a mi libro",
     ai_h:"Asistente IA",ai_sub:"La IA se adapta a tu voz y tu idioma. Escribe abajo tus dudas o consultas.",
@@ -1220,7 +1239,6 @@ const T = {
     ai_usage_h:"Uso de IA",ai_usage_ok:"Queda tinta de sobra",ai_usage_mid:"La tinta se está acabando",
     ai_usage_low:"Queda muy poca tinta",ai_usage_none:"Se ha agotado la tinta",
     ai_recharge_btn:"Recargar el Asistente",
-    ai_recharge_notice:"Esta función estará activa en cuanto abramos los pagos en la plataforma. De momento no se te ha cobrado nada.",
     ai_no_ink:"Se ha agotado la tinta del Asistente. Puedes recargarlo arriba, en «Uso de IA». Lo que ya has escrito está a salvo.",
     ai_no_session:"Tu sesión ha caducado. Sal y vuelve a entrar para seguir; lo que has escrito está guardado.",
     ai_error_retry:"He tenido un problema para responder. ¿Puedes repetir tu último mensaje?",
@@ -1262,18 +1280,14 @@ const T = {
     claim_err_code:"Ese código no es válido. Revísalo en el correo del regalo.",claim_aceptado:"Este regalo ya se ha aceptado.",
     claim_anulado:"Este regalo ya no está disponible.",claim_caducado:"El plazo para aceptar este regalo ha terminado.",
     claim_err:"No hemos podido completar la operación. Inténtalo de nuevo dentro de unos minutos.",
-    ai_continue:"Continuar",ai_continue_d:"sigue desde donde lo dejé",
-    ai_improve:"Mejorar",ai_improve_d:"más evocador, misma voz",
-    ai_structure:"Sugerir estructura",ai_structure_d:"qué contar y cómo",
-    translate_to:"Traducir a",go:"Ir",ai_thinking:"La IA está pensando…",proposal:"Propuesta",
-    add_text:"Añadir al texto",replace_text:"Reemplazar con esto",
+    
+    go:"Ir",ai_thinking:"La IA está pensando…",
     pub_opts:"✦ Opciones de publicación",
-    free:"Incluido",premium:"De pago",active:"Activo",
+    free:"Incluido",active:"Activo",
     unlimited_text:"Texto ilimitado",one_img:"1 foto de portada",
     permanent_archive:"Archivo permanente",
     ai_sub_label:"Asistente editorial — desde 5 €",
     mob_strip_ai:"Asistente",mob_strip_photos:"Fotos",mob_strip_pdf:"PDF",
-    ai_sub_note:"Sin cuotas ni renovaciones automáticas",
     ai_pick_amount:"Elige tu carga",ai_activate_with:"Activar con",ai_recharge_with:"Recargar con",
     terms_h_photos:"Condiciones de las fotografías",terms_h_ai:"Condiciones del Asistente editorial",
     terms_consent:"Acepto estas condiciones y las Condiciones de Compra, y pido usar el servicio desde ahora: sé que, cuando empiece a usarlo, pierdo el derecho de desistimiento de 14 días." /* [C3-III] original: "Acepto las condiciones y solicito usar el servicio desde ahora mismo, sabiendo que al usarlo pierdo el derecho de desistimiento de 14 días." */,
@@ -1294,20 +1308,14 @@ const T = {
       "Puede equivocarse. Es una inteligencia artificial: revisa siempre sus comentarios y propuestas. Lo que publicas es responsabilidad tuya.",
       "Tu texto. Para responderte, lo que escribes se envía a un proveedor de inteligencia artificial (Google), en la modalidad de pago, que no lo usa para mejorar sus productos. Más detalles en la Política de Privacidad."
     ],
-    free_plan:"Base · Gratuita",forever:"siempre",
-    addons_title:"Extras",addons_from:"desde 1 €",/* [P20-c] original: "desde €1" */precio_5:"5 €",precio_foto:"1 €/foto",precio_n:"{n} €",addons_sub:"solo pagas por lo que uses",
+    forever:"siempre",
+    /* [P20-c] original: "desde €1" */precio_5:"5 €",precio_foto:"1 €/foto",precio_n:"{n} €",
     addon_photos_h:"Fotos adicionales",addon_photos_sub:"1 € por foto, en lotes de 5" /* [P20-c] original: "€1 por foto, …" */, // [P16-B6]
     photos_left:"Cada libro puede tener hasta 20 fotos; al tuyo le quedan {n}.",photos_full:"Tu libro ya tiene las 20 fotos posibles.", // [P16-B6]
-   
     addon_photos_btn:"Añadir fotos",addon_photos_add_more:"Añadir más fotos",
     addon_pdf_h:"Archivo imprimible (PDF)",addon_pdf_sub:"DIN A4 o A5, para imprimir tu autobiografía",
     addon_pdf_btn:"Crear archivo PDF — 5 €" /* [P20-c] original: "… — €5" */,
-    addon_ai_h:"Asistente editorial IA",
-    photo_word:"foto",month_word:"mes",/* [C2-p2] fuera, sin uso: other_amount, photo_min_note */
-    pay_generic:"Pagar",
-    photos_activated:"Fotos añadidas",
-    pdf_activated:"Archivo PDF listo",
-    pdf_note:"Incluye 15 descargas, en DIN A5 y DIN A4." /* 19/10/2026; antes: "Se genera al finalizar tu historia." */,
+    photo_word:"foto",/* [C2-p2] fuera, sin uso: other_amount, photo_min_note */
     pdf_soon:"El archivo PDF estará disponible próximamente para los libros en este idioma.",
     pdf_left:"Te quedan {n} descargas (como máximo {m} al día).",
     pdf_download:"Descargar DIN {f}",pdf_download_A5:"Descargar DIN A5 (libro)",pdf_download_A4:"Descargar DIN A4 (cuaderno)", /* [P14] */
@@ -1341,9 +1349,8 @@ const T = {
       "Precio: 5 € (impuestos incluidos)." /* [C3-III] original: "Precio: 5 €." */
     ],
     pdf_rebuy:"Comprar 15 descargas más — 5 €",
-    pdf_err_buy:"No hemos podido completar la compra. No se te ha cobrado nada. Inténtalo de nuevo dentro de unos minutos.",
     processing:"Procesando…",
-    contact_h:"Contacto",contact_sub:"¿Tienes alguna pregunta o quieres colaborar? Escríbenos a contactlocusmundi@gmail.com",
+    contact_h:"Contacto",
     contact_name:"Tu nombre",contact_email:"Tu correo",contact_msg:"Tu mensaje",
     contact_send:"Enviar",contact_sent:"✓ Mensaje enviado. Te responderemos pronto.",/* [C5a-4] 21/10/2026. Original: "✓ Mensaje recibido. Te respondemos pronto." */
     subject_label:"Asunto",subject_placeholder:"(opcional)",
@@ -1355,13 +1362,12 @@ const T = {
     search_ph:"Nombre, título, país, ciudad o profesión…",no_results:"Sin resultados.",
     lib_more:"Ver más historias",lib_all_langs:"Todos los idiomas",lib_loading:"Cargando…", // [P12 18/10/2026]
     auth_have_account:"Ya tengo cuenta en Locus Mundi",auth_first_time:"Es la primera vez que vengo",
-    auth_enter:"Entrar",auth_start:"Empezar",
     auth_signup_h:"Crea tu cuenta",auth_signup_sub:"Solo hace falta un correo y una contraseña.",
     auth_email:"Tu correo electrónico",auth_password:"Contraseña",auth_password_repeat:"Repite la contraseña",
     auth_legal_name:"Tu nombre completo (legal)",
     auth_legal_name_note:"No se muestra en público — es para identificarte como responsable de lo que escribes.",
     auth_security_q:"Pregunta de seguridad",auth_security_a:"Tu respuesta",
-    auth_security_note:"La usaremos solo para confirmar acciones importantes, como despublicar tu historia.",
+    auth_security_note:"Solo la usaremos si un día pierdes el acceso a tu correo, para ayudarte a recuperar tu cuenta.",
     auth_create_account_btn:"Crear mi cuenta",
     auth_login_h:"Accede a tu cuenta",auth_login_sub:"Introduce tu correo y tu contraseña.",
     auth_login_btn:"Entrar",auth_forgot:"He olvidado mi contraseña",
@@ -1378,7 +1384,6 @@ const T = {
     auth_err_exists:"Ya existe una cuenta con este correo. Prueba a entrar en vez de crear una nueva.",
     auth_err_mismatch:"Las contraseñas no coinciden.",
     auth_err_login:"Correo o contraseña incorrectos.",
-    auth_err_notfound:"No existe ninguna cuenta con ese correo.",
     auth_err_fields:"Rellena todos los campos.",
     // Subida pequeña de arreglos (06/10/2026): correo enviado, reenviar enlace, contraseñas y errores propios.
     auth_sent_to:"Lo hemos enviado a:",auth_wrong_email:"¿No es tu correo? Vuelve atrás y corrígelo.",
@@ -1421,8 +1426,7 @@ const T = {
     faq_a4:"Your autobiography is yours. Locus Mundi only asks for permission to host it, preserve it and display it on the platform. But you keep all rights over it, including the right to modify or delete it.",
     faq_q5:"What will happen to my story when I'm no longer here?",
     faq_a5:"When the Author passes away, their story becomes part of Locus Mundi's permanent archive. While alive, they may modify or delete it whenever they wish. This is one of the main terms every Author accepts before publishing on Locus Mundi.",
-    foot_policy:"Offensive, discriminatory or false content is not accepted.",
-    foot_contact:"Contact",foot_policy_lnk:"Terms of use",
+    foot_contact:"Contact",
     foot_aviso:"Legal Notice",foot_privacidad:"Privacy",foot_cookies:"Cookies",foot_condiciones:"Publication Terms" /* [C3-III] original: "Publishing Terms" */,foot_compra:"Purchase Terms" /* [C3-III] */,
     foot_collab:"Get involved with Locus Mundi",
     foot_faq:"Frequently asked questions",faq_full_h:"Frequently asked questions",
@@ -1437,12 +1441,10 @@ const T = {
     share_msg:"Hi. I've published the story of my life on Locus Mundi. You can read it here:\n{link}\nWith love.",
     share_copy_msg:"Copy message",share_my_book:"Share my book",
     link_opening:"Opening the book…",link_missing:"This book isn't available at the moment.",
-    share_copy_btn:"View and copy message to share",
     collab_b_h:"Sponsor the platform",
     collab_b_sub:"If you have a company, write to us to explore sponsorship options together.",
     collab_b_btn:"Write about sponsorship",
     collab_sponsor_subject:"Sponsorship Proposal",
-    collab_sponsor_body:"Hello,\n\nWe'd like to learn more about Locus Mundi's sponsorship options.\n\nCompany name:\nIndustry:\nType of sponsorship you're interested in (financial, in-kind, promotion, other):\nApproximate budget (optional):\n\nThank you,",
     collab_c_h:"Make a direct contribution",
     collab_c_sub:"Whether you're an Author, a Reader, or simply want to contribute to the platform's growth and consolidation, every contribution is welcome.",
     collab_free_amount:"Other amount",
@@ -1458,19 +1460,34 @@ const T = {
     translate_and_read:"Translate and read",change_lang:"change language",
     read_lang_error:"Couldn't translate the text. Try again, or read it in the original language.",
     tr_wait:"Translating…",tr_more:"Translating the next part…",
-    tr_part_error:"This part could not be translated. Please try again.",tr_retry:"Try again",
+    tr_part_error:"This part could not be translated. Please try again.",
+    tr_machine:"Machine translation by artificial intelligence; it may contain errors. The Author's own text is the original ({lang}).", // C3 (25/10/2026),tr_retry:"Try again",
     tr_fuse:"Today's limit for new translations has been reached. You can continue reading in this language tomorrow. In the meantime, you can use your browser's translation or read the original.",
     report_link:"Report inappropriate content",
     report_h:"Report inappropriate content",
-    report_sub:"Describe the issue and we'll send your report to Locus Mundi, with this work's reference included.",
-    report_field_label:"Describe the issue",
-    report_field_ph:"Explain what content you find inappropriate and why…",
-    report_send_btn:"Send report",
+    // Reports (DSA, arts. 16 and 17; 25/10/2026)
+    report_sub:"If you think this book contains something illegal or against the Terms, tell us. A person will review your report.",
     report_ref_label:"Work reported",
+    report_motivo_label:"Reason",report_motivo_ph:"Choose a reason",
+    report_motivos:{privacidad:"Reveals private or intimate details about a person (including you)",honor:"Damages a person's honour or reputation",imagen:"Publishes a photo of a person without their permission",autor:"Infringes copyright",menor:"Concerns a minor",abuso_infantil:"Child sexual abuse",odio:"Incites hatred or violence",otro:"Other illegal content or content against the Terms"},
+    report_pasaje_label:"Where it is (optional)",report_pasaje_ph:"Copy a sentence from the passage, or say which chapter or photo",
+    report_field_label:"Why it is illegal or inappropriate",
+    report_field_ph:"Explain why this content is illegal or breaks the Terms",
+    report_rel_label:"Your relationship to the content",
+    report_rels:{afectado:"I am the person affected",representante:"I act on behalf of the person affected",ninguna:"None"},
+    report_name_label:"Your name",report_email_label:"Your email",
+    report_optional_note:"In this case, your name and email are optional.",
+    report_goodfaith:"I declare in good faith that the information and allegations in this report are accurate and complete.",
+    report_privacy:"We will only use your data to handle this report and tell you the decision. We will not share it with the Author.",
+    report_privacy_more:"More information in the Privacy Policy.",
+    report_send_btn:"Send report",
     report_cancel:"Cancel",
-    report_empty_error:"Please write a brief description before continuing.",
+    report_empty_error:"Please fill in the required fields and tick the box before sending.",
+    report_email_error:"Please check your email address: it doesn't look valid.",
     report_sending:"Sending…",
-    report_sent:"✓ Report received. Thank you for helping us keep the platform safe.",
+    report_sent:"Report received. We have sent an acknowledgement to your email. We will examine it and let you know the decision and the reason for it.",
+    report_sent_noack:"Report received. We will examine it and let you know the decision and the reason for it.",
+    report_sent_anon:"Report received. We will examine it.",
     report_send_error:"The report could not be sent. Please write directly to contactlocusmundi@gmail.com.",
     contact_sending:"Sending…",
     contact_send_error:"The message could not be sent. Please write directly to contactlocusmundi@gmail.com.",
@@ -1483,13 +1500,12 @@ const T = {
     f_title:"Title of your work",f_title_ph:"e.g. Memories of my family",
     f_subtitle:"Subtitle (optional)",f_dedication:"Dedication (optional)",f_dedication_ph:"e.g. To my grandchildren, so they know where they come from",f_subtitle_ph:"e.g. Three generations of history",
     f_cover:"Cover image (free)",f_cover_btn:"Upload photo",f_cover_note:"JPG or PNG · Can be changed later",
-    policy_tit:"📋 Publication terms" /* [C3-III] original: "📋 Publishing terms" */,
     pol1:"Completely free publishing, with no length limit.",
     pol2:"Offensive, discriminatory or false content is not allowed.",
     pol3:"By publishing, you agree your story may be read by anyone in the world.",
     pol4:"You retain all rights to your text.",
     f_name:"Author name",f_name_ph:"e.g. X. Batlle — this is how you'll sign your book",
-    f_born:"Year of birth",f_country:"Country",f_lang:"Language",f_text:"Your story",
+    f_born:"Year of birth",f_country:"Country",f_lang:"Language",
     pub_extra_h:"Before publishing, tell us a bit more about yourself",
     pub_city:"City or place where you've lived your life",pub_city_ph:"E.g. Barcelona",
     pub_profession:"Profession",pub_profession_ph:"E.g. Poet",
@@ -1517,13 +1533,10 @@ const T = {
     pais_aviso:"You had written “{x}”. Choose your country from the list: the one you choose will be saved.",
     addon_pdf_unpub:"You'll be able to create the PDF of your book once you publish it.",
     privacy_home_btn:"Go to the home page",
-    ed_blocks_h:"Book order — move up, down, rename or delete. If you don't split it, everything lives in Chapter 1.",
     ed_add_chapter:"+ Chapter",ed_add_apartado:"+ Section",
     ed_chapter_word:"chapter",ed_apartado_word:"section",ed_untitled:"untitled",
-    ed_rename_prompt:"Title for this",ed_new_block_prompt:"Title for the new",ed_confirm_delete:"Delete this block from the list?",
-    ed_need_one_block:"Your book needs at least one block.",
+    ed_new_block_prompt:"Title for the new",
     ed_italic:"Italics",ed_undo:"↺ Undo",ed_add_photo:"+ Photo",
-    ed_blocks_short:"Book order",
     // Two versions of each book (07/10/2026). ed_confirm_title and ed_confirm_name removed (design §2.2).
     ed_unsent:"You have changes not yet uploaded to the Library.",ed_upload_now:"Upload now",
     ed_view_library:"See how it looks in the Library",up_busy:"Uploading…",
@@ -1536,8 +1549,11 @@ const T = {
     up_err_cover:"We couldn't check the cover image. Write to us from \u201cContact\u201d and we'll look into it.",
     up_err_generic:"It couldn't be uploaded to the Library. Please try again in a moment.",
     // Second upload: moderation (08/10/2026; moderation design v10, §11.13, points 8 to 12).
-    up_reviewing:"Reviewing your book…",up_reviewing_n:"Reviewing your book… ({a} of {b})",
+    up_reviewing_n:"Reviewing your book… ({a} of {b})",
     up_err_limit:"You have uploaded your book several times today. You can upload it again tomorrow.",
+    up_err_limit_conj:"While your book needs a detailed review, you can upload it once a day and three times a week. Take your time to correct the passages and upload it again tomorrow.",
+    up_err_limit_conj_week:"While your book needs a detailed review, you can upload it once a day and three times a week, and you have already uploaded it three times this week. Take your time to correct the passages: you can upload it again in a few days.",
+    mod_ver_lista:"See the list of passages",mod_ocultar_lista:"Hide the list",
     up_err_fuse:"We can't review your book right now. Please try again tomorrow.",
     up_err_review:"We couldn't review your book right now. Please try again in a moment: what has already been reviewed is saved.",
     up_err_img_photo:"Your book hasn't been uploaded: photo {n} didn't pass the image review ({motivo}). Change it or remove it from the text so it can be uploaded. If you think this is a mistake, write to us from \u201cContact\u201d.",
@@ -1545,6 +1561,9 @@ const T = {
     img_motivo_menor:"it shows a child without clothes",img_motivo_adulto:"it shows nudity or sexual content",
     img_motivo_violencia:"it shows wounds, corpses or cruelty",img_motivo_ilegible:"we couldn't open it",
     mod_box_h:"Flagged passages",
+    mod_dsa:"These passages were flagged by an automatic review, using artificial intelligence, because they do not meet section 4 of the Publication Terms; each one shows its reason. Until you change them, the book is not published; the rest of your account stays as it is. If you think one is a mistake, press \u201cI think this is a mistake\u201d and a person will review it. You can also complain at contactlocusmundi@gmail.com or before the courts.", // C8, DSA art. 17.3 (25/10/2026)
+    mod_dsa_conjunto:"This was decided by an automatic review, using artificial intelligence: several passages do not meet section 4 of the Publication Terms. Until you change them, the book is not published; the rest of your account stays as it is. You can complain at contactlocusmundi@gmail.com, and a person will review it, or before the courts.",
+    img_dsa:"Automatic review using artificial intelligence; section 4 of the Publication Terms. If you think it is a mistake, press \u201cI think this is a mistake\u201d; you can also complain at contactlocusmundi@gmail.com or before the courts.",img_dsa_nobtn:"Automatic review using artificial intelligence; section 4 of the Publication Terms. You can complain at contactlocusmundi@gmail.com or before the courts.",
     mod_hay_one:"there is 1 passage",mod_hay_many:"there are {n} passages",
     mod_not_up_pub:"Your book hasn't been uploaded: {hay} to review. The Library still has the previous version.",
     mod_not_up_unpub:"Your book hasn't been uploaded: {hay} to review. It isn't in the Library yet.",
@@ -1566,16 +1585,14 @@ const T = {
     mod_err_sent:"We have received your note and will review it by hand. Meanwhile, that passage prevents the book from being uploaded: if you'd rather not wait, you can delete it now and put it back once we agree with you. You'll see the answer here when you open the editor.",
     mod_err_once:"You have already sent us a note for this upload: only one can be sent each time.",
     mod_err_fail:"We couldn't send your note. Please try again in a moment.",
-    mod_av_pending:"Your \u201cI think this is a mistake\u201d note is waiting to be reviewed.",
-    mod_av_accepted:"We agree with your note: that passage will no longer prevent the book from being uploaded. Upload it again.",
-    mod_av_rejected:"We have reviewed your note: that passage must be changed or deleted to publish the book.",
+    
     // [P16-B4]
     mod_ps_accepted_tag:"Accepted",mod_ps_accepted:"We agree with you: this passage no longer prevents the book from being uploaded.",
     mod_ps_pending:"Your \u201cI think this is a mistake\u201d note about this passage is waiting to be reviewed.",
     mod_ps_rejected:"We have reviewed your note: this passage must be changed or deleted to publish the book.",
     mod_all_accepted:"We agree with you: you can now upload the book again.",
     mod_reupload:"Upload again",mod_with_ai:"Review with the Assistant",
-    mod_conjunto:"Your book deals with sensitive matters in several passages. To publish it, it needs a detailed review with the Editorial Assistant, passage by passage. The Publication Terms are the same for everyone: the Assistant helps you meet them.", // [P16-B1-3]
+    mod_conjunto:"Your book deals with sensitive matters in several passages. To publish it, it needs a detailed review, passage by passage: the easiest way is with the Editorial Assistant, but you can also see the list and correct them yourself. The Publication Terms are the same for everyone.", // [P16-B1-3]
     mod_conjunto_ai:"Review the passages with the Assistant",mod_conjunto_buy:"Get the Assistant",
     mod_guide_link:"What do I do if my book has flagged passages?", // [P16-B1-2] editor guide, C.12
     card_founder:"Founding Author", // [P16-B1-4]
@@ -1596,7 +1613,7 @@ const T = {
     img_in_review:"Photo under review", // [P16-B4]
     img_av_accepted_photo:"We have reviewed by hand the photo {n} you sent us, and we agree with you.",
     img_av_accepted_cover:"We have reviewed by hand the cover you sent us, and we agree with you.",
-    img_av_use:"Use this image",img_av_used:"Done: it is now in your book.",
+    img_av_use:"Use this image",
     img_av_rejected:"We have reviewed by hand the image you sent us, and we can't publish it.",
     img_av_dismiss:"OK",
     ps_title:"Passage {i} of {n}",ps_delete:"Delete the passage",ps_skip:"Leave it and go to the next one",
@@ -1624,8 +1641,8 @@ const T = {
     ol_conv_chapter:"Make it a chapter",ol_conv_section:"Make it a section",
     ol_num_warn:"Chapters do not follow the book's style: consecutive Roman numerals and titles in capitals (there are repeated numbers, gaps, disorder, Arabic numerals, unnumbered chapters or lowercase titles).",
     ol_renumber:"Renumber chapters",ol_close:"Close",ed_search_ph:"Search the text (word, phrase or title)",ed_search_prev:"↑ Previous",ed_search_next:"↓ Next",ed_search_none:"No results",ed_search_of:"of",ed_search_one:"match",ed_search_many:"matches",
-    ed_save_exit:"Save and exit",ed_save_exit_q:"Do you want to keep it just for yourself, or upload it to the Library?",
-    ed_save_private:"Save for myself",ed_save_upload:"Upload to the Library",
+    ed_save_exit:"Save and exit",
+    ed_save_upload:"Upload to the Library",
     // [P16-F7]
     ed_save_exit_q2:"You have changes not yet uploaded to the Library. Do you want to upload them now or keep them just for yourself?",ed_save_private2:"Keep just for myself",
     ficha_h:"Your details in the Library",ficha_change:"Change",ficha_complete:"Complete",ficha_save:"Save",ficha_cancel:"Cancel",
@@ -1668,16 +1685,13 @@ const T = {
     fe_load_error:"The image couldn't be loaded. Close the window and try again.",
     ai_ask_name_h:"What name should I call you?",
     ai_ask_tuusted_h:"Not applicable in English — name only.",
-    ai_tu:"Informal",ai_usted:"Formal",ai_start_using:"Start using the Assistant",
+    ai_tu:"Informal",ai_usted:"Formal",
     ai_activate_btn:"Activate Assistant",ai_active_msg:"✓ Assistant active — will call you",
     ai_hours_note:"Helps you write, correct and organise your story. You only pay for what you use, in top-ups of €5 or €10, with no subscription.",
     unpub_link:"Unpublish my story",
     unpub_confirm_h:"Unpublish your story?",
     unpub_confirm_sub:"Your story will stop being readable by visitors. Your file isn't deleted: it stays here, just for you, and you can publish it again whenever you want.",
     unpub_confirm_btn:"Yes, unpublish",unpub_cancel_btn:"No, keep it published",
-    unpub_sent_h:"Confirmation sent",
-    unpub_sent_sub:"We've sent a link to your email. Open it to confirm (this is a simulation: click the button as if you had opened it).",
-    unpub_sim_btn:"Simulate opening the link",
     unpub_done_msg:"✓ Your story is no longer publicly visible.",
     unpub_undo_btn:"Undo",
     unpub_err:"It couldn't be unpublished. Please try again.",
@@ -1687,14 +1701,12 @@ const T = {
     privacy_delete_warn:"This deletes your story forever, with all its photographs, including any you paid for, and your own file too. There's no going back, not even for you. Any Assistant ink you have left stays in your account. If you just want it unread, use \"Unpublish my story\" instead.",
     privacy_delete_error:"Your story could not be deleted. Nothing has been removed. Please try again in a moment.",
     save_error_banner:"Your work could not be saved. We're still trying; please don't close this page until this notice disappears.",
-    photos_add_error:"There was a problem setting up your photos and some may be missing. Please don't pay for them again: write to us at contactlocusmundi@gmail.com and we'll sort it out.",
     ai_setup_h:"Set up your Assistant for this book",ai_setup_start:"Start",ai_active_short:"✓ Assistant active",
     privacy_delete_phrase:"I want to delete my story forever",
     privacy_delete_phrase_lbl:"Type this exact phrase to continue:",
     privacy_delete_input_ph:"Type the phrase here",
     privacy_delete_btn:"Delete completely",
-    privacy_delete_sent_h:"Confirmation sent",
-    privacy_delete_sent_sub:"We've sent a link to your email. Open it to confirm the permanent deletion (simulation: click the button as if you had opened it).",
+    privacy_delete_pw_lbl:"And your Author password:",privacy_delete_pw_err:"The password is not correct. Nothing has been deleted.",
     privacy_delete_done_h:"Your story has been completely deleted.",
     privacy_back_btn:"← Back to my book",
     ai_h:"AI Assistant",ai_sub:"The AI adapts to your voice and your language. Type your questions or queries below.",
@@ -1702,7 +1714,6 @@ const T = {
     ai_usage_h:"AI usage",ai_usage_ok:"Plenty of ink left",ai_usage_mid:"Ink is running low",
     ai_usage_low:"Very little ink left",ai_usage_none:"Out of ink",
     ai_recharge_btn:"Top up the Assistant",
-    ai_recharge_notice:"This feature will be active once we turn on payments on the platform. Nothing has been charged yet.",
     ai_no_ink:"The Assistant has run out of ink. You can top it up above, under “AI usage”. What you have written is safe.",
     ai_no_session:"Your session has expired. Sign out and back in to continue; your writing is saved.",
     ai_error_retry:"I had a problem answering. Could you repeat your last message?",
@@ -1744,18 +1755,14 @@ const T = {
     claim_err_code:"That code isn't valid. Please check it in the gift email.",claim_aceptado:"This gift has already been accepted.",
     claim_anulado:"This gift is no longer available.",claim_caducado:"The time to accept this gift has ended.",
     claim_err:"We couldn't complete this. Please try again in a few minutes.",
-    ai_continue:"Continue",ai_continue_d:"carry on from where I left off",
-    ai_improve:"Improve",ai_improve_d:"more evocative, same voice",
-    ai_structure:"Suggest structure",ai_structure_d:"what to tell and how",
-    translate_to:"Translate to",go:"Go",ai_thinking:"AI is thinking…",proposal:"Suggestion",
-    add_text:"Add to text",replace_text:"Replace with this",
+    
+    go:"Go",ai_thinking:"AI is thinking…",
     pub_opts:"✦ Publishing options",
-    free:"Included",premium:"Paid",active:"Active",
+    free:"Included",active:"Active",
     unlimited_text:"Unlimited text",one_img:"1 cover photo",
     permanent_archive:"Permanent archive",
     ai_sub_label:"Editorial assistant — from €5",
     mob_strip_ai:"Assistant",mob_strip_photos:"Photos",mob_strip_pdf:"PDF",
-    ai_sub_note:"No subscriptions, no automatic renewals",
     ai_pick_amount:"Choose your top-up",ai_activate_with:"Activate with",ai_recharge_with:"Top up with",
     terms_h_photos:"Photo terms",terms_h_ai:"Editorial Assistant terms",
     terms_consent:"I accept these terms and the Purchase Terms, and I ask to use the service right away: I understand that once I start using it, I lose the 14-day right of withdrawal." /* [C3-III] original: "I accept the terms and ask to use the service right away, understanding that once I use it I lose the 14-day right of withdrawal." */,
@@ -1776,20 +1783,16 @@ const T = {
       "It can make mistakes. It is an artificial intelligence: always check its comments and proposals. What you publish is your responsibility.",
       "Your text. To answer you, what you write is sent to an artificial intelligence provider (Google), on its paid plan, which does not use it to improve its products. More details in the Privacy Policy."
     ],
-    free_plan:"Base · Free",forever:"always",
-    addons_title:"Add-ons",addons_from:"from €1",precio_5:"€5",precio_foto:"€1/photo",precio_n:"€{n}" /* [P20-c] */,addons_sub:"pay only for what you use",
+    forever:"always",
+    precio_5:"€5",precio_foto:"€1/photo",precio_n:"€{n}" /* [P20-c] */,
     addon_photos_h:"Additional photos",addon_photos_sub:"€1 per photo, in sets of 5", // [P16-B6]
     photos_left:"Each book can have up to 20 photos; yours has {n} left.",photos_full:"Your book already has the maximum of 20 photos.", // [P16-B6]
-   
     addon_photos_btn:"Add photos",addon_photos_add_more:"Add more photos",
     addon_pdf_h:"Printable file (PDF)",addon_pdf_sub:"DIN A4 or A5, to print your autobiography",
     addon_pdf_btn:"Create PDF file — €5",
-    addon_ai_h:"AI editorial assistant",
-    photo_word:"photo",month_word:"month",/* [C2-p2] fuera, sin uso: other_amount, photo_min_note */
-    pay_generic:"Pay",
-    photos_activated:"Photos added",
-    pdf_activated:"PDF file ready",
-    pdf_note:"Includes 15 downloads, in DIN A5 and DIN A4.",
+    photo_word:"photo",/* [C2-p2] fuera, sin uso: other_amount, photo_min_note */
+    
+    
     pdf_soon:"The PDF file will soon be available for books in this language.",
     pdf_left:"You have {n} downloads left (up to {m} a day).",
     pdf_download:"Download DIN {f}",pdf_download_A5:"Download A5 (book)",pdf_download_A4:"Download A4 (notebook)", /* [P14] */
@@ -1823,9 +1826,8 @@ const T = {
       "Price: €5 (taxes included)." /* [C3-III] original: "Price: €5." */
     ],
     pdf_rebuy:"Buy 15 more downloads — €5",
-    pdf_err_buy:"We couldn't complete the purchase, and you haven't been charged. Please try again in a few minutes.",
     processing:"Processing…",
-    contact_h:"Contact",contact_sub:"Do you have a question or want to collaborate? Write to us at contactlocusmundi@gmail.com",
+    contact_h:"Contact",
     contact_name:"Your name",contact_email:"Your email",contact_msg:"Your message",
     contact_send:"Send",contact_sent:"✓ Message sent. We will reply soon.",/* [C5a-4] 21/10/2026. Original: "✓ Message received. We will reply soon." */
     subject_label:"Subject",subject_placeholder:"(optional)",
@@ -1837,13 +1839,12 @@ const T = {
     search_ph:"Name, title, country, city or profession…",no_results:"No results.",
     lib_more:"See more stories",lib_all_langs:"All languages",lib_loading:"Loading…", // [P12 18/10/2026]
     auth_have_account:"I already have a Locus Mundi account",auth_first_time:"It's my first time here",
-    auth_enter:"Enter",auth_start:"Start",
     auth_signup_h:"Create your account",auth_signup_sub:"You just need an email and a password.",
     auth_email:"Your email",auth_password:"Password",auth_password_repeat:"Repeat password",
     auth_legal_name:"Your full legal name",
     auth_legal_name_note:"Not shown publicly — it identifies you as responsible for what you write.",
     auth_security_q:"Security question",auth_security_a:"Your answer",
-    auth_security_note:"We'll only use this to confirm important actions, like unpublishing your story.",
+    auth_security_note:"We'll only use it if one day you lose access to your email, to help you recover your account.",
     auth_create_account_btn:"Create my account",
     auth_login_h:"Access your account",auth_login_sub:"Enter your email and password.",
     auth_login_btn:"Enter",auth_forgot:"I forgot my password",
@@ -1860,7 +1861,6 @@ const T = {
     auth_err_exists:"An account with this email already exists. Try logging in instead.",
     auth_err_mismatch:"The passwords don't match.",
     auth_err_login:"Incorrect email or password.",
-    auth_err_notfound:"There's no account with that email.",
     auth_err_fields:"Please fill in every field.",
     auth_sent_to:"We sent it to:",auth_wrong_email:"Not your email? Go back and correct it.",
     auth_spam_note:"If you don't see it within a few minutes, check your junk (spam) folder too.",
@@ -2405,6 +2405,7 @@ function Read({auto,setView,t,volverEditor,uiLang}) { // [P16-B8] volverEditor: 
     <div className="read-wrap fu">
       {volverEditor?<button className="back" onClick={volverEditor}>{t.back_editor}</button>:<button className="back" onClick={()=>setView("library")}>{t.back}</button>}
       {coverAndTitle(shownLang?.label||readLangCode, translated&&<> · <span onClick={backToLangChoice} style={{cursor:"pointer",textDecoration:"underline"}}>{t.change_lang}</span></>, trHead)}
+      {translated&&<div className="r-meta" style={{fontSize:"0.78em",fontStyle:"italic",marginTop:"0.35rem",opacity:0.85}}>{t.tr_machine.replace("{lang}",originalLang?.label||auto.lang)}</div>}{/* C3: aviso de traducción automática (TRLPI art. 14.4) */}
       {(()=>{ const d=String((trHead&&trHead.dedicatoria)||auto.dedication||"").trim(); const dl=(trHead&&trHead.dedicatoria)?readLangCode:auto.lang; return d?<div className="r-ded" lang={bookLangTag(dl)} dir={bookDir(dl)}>{d}</div>:null; })()}{/* [P14] Dedicatoria (en la lectura traducida, la original mientras api/traducir.js no la traduzca) */}
       <div className="r-body" lang={bookLangTag(readLangCode)} dir={bookDir(readLangCode)}>{renderStoryBody(bodyText, fotosLectura, readLangCode)}</div>{/* [P22] idioma y dirección */}
       {volverEditor&&!translated&&<div style={{margin:"2.4rem 0 0.6rem"}}><button className="back" onClick={volverEditor}>{t.back_editor}</button></div>}{/* [P16-B8] al final */}
@@ -2431,26 +2432,34 @@ function Read({auto,setView,t,volverEditor,uiLang}) { // [P16-B8] volverEditor: 
     <div style={{maxWidth:"720px",margin:"-1.6rem auto 2.5rem",textAlign:"center"}}>
       <button type="button" onClick={()=>setShowReport(true)} style={{background:"none",border:"none",padding:"0.6rem 0.8rem",fontFamily:"var(--body)",fontSize:"0.78rem",color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}}>{t.report_link}</button>
     </div>
-    {showReport&&<ReportModal auto={auto} t={t} onClose={()=>setShowReport(false)}/>}
+    {showReport&&<ReportModal auto={auto} t={t} lang={uiLang} onClose={()=>setShowReport(false)}/>}
   </>);
 }
 
-function ReportModal({auto,t,onClose}) {
-  const [desc,setDesc]=useState("");
+// Denuncias (DSA, arts. 16 y 17; 25/10/2026): formulario de Locus_Mundi_Denuncias_DSA_v1.md, §1.
+// api/enviar-formulario.js v3 la guarda en `denuncias` (sin IP) y envía el acuse de recibo.
+function ReportModal({auto,t,lang,onClose}) {
+  const [f,setF]=useState({motivo:"",pasaje:"",explicacion:"",relacion:"",nombre:"",email:"",buenaFe:false});
   const [err,setErr]=useState("");
   const [sending,setSending]=useState(false);
-  const [sent,setSent]=useState(false);
-
-  const ref=`${auto.id} — ${auto.title||auto.name}`;
+  const [sent,setSent]=useState(null); // null | "ack" | "noack" | "anon"
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const anonimoPosible=f.motivo==="abuso_infantil";
+  const titulo=auto.title||auto.name;
 
   const send=async()=>{
-    if(!desc.trim()){setErr(t.report_empty_error);return;}
-    setErr("");
-    setSending(true);
+    const faltan=!f.motivo||!f.explicacion.trim()||!f.relacion||!f.buenaFe||(!anonimoPosible&&(!f.nombre.trim()||!f.email.trim()));
+    if(faltan){setErr(t.report_empty_error);return;}
+    if(f.email.trim()&&!/^[^\s@]+@[^\s@]+\.[^\s@.]+$/.test(f.email.trim())){setErr(t.report_email_error);return;}
+    setErr(""); setSending(true);
     try{
-      const r=await fetch("/api/enviar-formulario",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:"denuncia",ref,desc:desc.trim()})});
+      const r=await fetch("/api/enviar-formulario",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        tipo:"denuncia",historia_id:String(auto.id||""),titulo,autor:auto.name,lang,
+        motivo:f.motivo,pasaje:f.pasaje.trim(),explicacion:f.explicacion.trim(),relacion:f.relacion,
+        nombre:f.nombre.trim(),email:f.email.trim(),buena_fe:f.buenaFe})});
       if(!r.ok) throw new Error("fallo");
-      setSent(true);
+      const d=await r.json().catch(()=>({}));
+      setSent(!f.email.trim()?"anon":(d.acuse?"ack":"noack"));
     }catch(e){
       setErr(t.report_send_error);
     }finally{
@@ -2458,19 +2467,50 @@ function ReportModal({auto,t,onClose}) {
     }
   };
 
+  const small={fontFamily:"var(--body)",fontSize:"0.76rem",color:"var(--muted)",lineHeight:1.5};
   return ReactDOM.createPortal((
     <div className="ov" onClick={onClose}>
-      <div className="modal" style={{maxWidth:"480px"}} onClick={e=>e.stopPropagation()}>
+      <div className="modal" style={{maxWidth:"520px",maxHeight:"92vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
         <button className="modal-x" onClick={onClose}>✕</button>
         <div className="modal-h">{t.report_h}</div>
         {sent?(
-          <p style={{fontFamily:"var(--body)",color:"var(--muted)",textAlign:"center",padding:"1.2rem 0"}}>{t.report_sent}</p>
+          <p style={{fontFamily:"var(--body)",color:"var(--muted)",textAlign:"center",padding:"1.2rem 0",lineHeight:1.55}}>{sent==="ack"?t.report_sent:sent==="noack"?t.report_sent_noack:t.report_sent_anon}</p>
         ):(<>
           <p className="modal-sub">{t.report_sub}</p>
           <div className="fld">
-            <label className="lbl">{t.report_field_label}</label>
-            <textarea className="ta" style={{minHeight:"120px"}} placeholder={t.report_field_ph} value={desc} onChange={e=>setDesc(e.target.value)}/>
+            <label className="lbl">{t.report_ref_label}</label>
+            <p style={{fontFamily:"var(--body)",fontSize:"0.9rem",color:"var(--ink)",margin:0}}>«{titulo}», {t.by_author} {auto.name}</p>
           </div>
+          <div className="fld">
+            <label className="lbl">{t.report_motivo_label}</label>
+            <select className="inp" value={f.motivo} onChange={e=>set("motivo",e.target.value)}>
+              <option value="">{t.report_motivo_ph}</option>
+              {Object.entries(t.report_motivos).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          <div className="fld">
+            <label className="lbl">{t.report_pasaje_label}</label>
+            <input className="inp" maxLength={2000} placeholder={t.report_pasaje_ph} value={f.pasaje} onChange={e=>set("pasaje",e.target.value)}/>
+          </div>
+          <div className="fld">
+            <label className="lbl">{t.report_field_label}</label>
+            <textarea className="ta" style={{minHeight:"110px"}} maxLength={5000} placeholder={t.report_field_ph} value={f.explicacion} onChange={e=>set("explicacion",e.target.value)}/>
+          </div>
+          <div className="fld">
+            <label className="lbl">{t.report_rel_label}</label>
+            {Object.entries(t.report_rels).map(([k,v])=>(
+              <label key={k} style={{display:"flex",gap:"0.5rem",alignItems:"center",fontFamily:"var(--body)",fontSize:"0.88rem",margin:"0.25rem 0",cursor:"pointer"}}>
+                <input type="radio" name="lm-rel" checked={f.relacion===k} onChange={()=>set("relacion",k)}/>{v}
+              </label>
+            ))}
+          </div>
+          {anonimoPosible&&<p style={{...small,margin:"0 0 0.6rem"}}>{t.report_optional_note}</p>}
+          <div className="fld"><label className="lbl">{t.report_name_label}</label><input className="inp" maxLength={200} autoComplete="name" value={f.nombre} onChange={e=>set("nombre",e.target.value)}/></div>
+          <div className="fld"><label className="lbl">{t.report_email_label}</label><input className="inp" type="email" maxLength={200} autoComplete="email" value={f.email} onChange={e=>set("email",e.target.value)}/></div>
+          <label style={{display:"flex",gap:"0.55rem",alignItems:"flex-start",fontFamily:"var(--body)",fontSize:"0.84rem",lineHeight:1.5,cursor:"pointer",margin:"0.3rem 0 0.7rem"}}>
+            <input type="checkbox" checked={f.buenaFe} onChange={e=>set("buenaFe",e.target.checked)} style={{marginTop:"0.25rem"}}/>{t.report_goodfaith}
+          </label>
+          <p style={{...small,margin:"0 0 0.4rem"}}>{t.report_privacy} <a href="/?legal=privacidad" target="_blank" rel="noopener" style={{color:"var(--navy)"}}>{t.report_privacy_more}</a></p>
           {err&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginTop:"0.3rem"}}>{err}</p>}
           <div style={{display:"flex",gap:"0.7rem",marginTop:"1rem"}}>
             <button className="btn-out" onClick={onClose}>{t.report_cancel}</button>
@@ -2839,9 +2879,8 @@ function ImagenRechazadaModal({aviso,t,onClose}){
     const ex=texto.trim(); if(!ex) return;
     setPaso("enviando"); setError("");
     const r=await moderarApi({operacion:"errorImagen",...aviso.objetivo,ruta:aviso.ruta,explicacion:ex});
-    if(r.status===200 && r.d.ok) setPaso("enviado");
-    else if(r.d.error==="AVISO_YA_ENVIADO") setPaso("enviado");
-    if(r.status===200 && r.d.ok) window.dispatchEvent(new CustomEvent("lm-aviso-imagen")); // [P16-B4]
+    if(r.status===200 && r.d.ok){ setPaso("enviado"); window.dispatchEvent(new CustomEvent("lm-aviso-imagen")); } // [P16-B4]
+    else if(r.d && r.d.error==="AVISO_YA_ENVIADO") setPaso("enviado"); // 25/10/2026: antes caía en el error
     else { setPaso("escribir"); setError(t.mod_err_fail); }
   };
   return (
@@ -2851,6 +2890,7 @@ function ImagenRechazadaModal({aviso,t,onClose}){
         {paso==="enviado"
           ? <p className="ok-msg" style={{lineHeight:1.55}}>{t.img_err_sent}</p>
           : <p style={{fontFamily:"var(--body)",fontSize:"0.95rem",lineHeight:1.6,color:"var(--ink)",margin:"0.4rem 0 0.8rem"}}>{mensaje}</p>}
+        {paso==="ver"&&!aviso.mensaje&&t["img_rej_"+aviso.categoria]&&<p style={{fontFamily:"var(--body)",fontSize:"0.74rem",lineHeight:1.5,color:"var(--muted)",margin:"0 0 0.8rem"}}>{puedeAvisar?t.img_dsa:t.img_dsa_nobtn}</p>}{/* C8: DSA art. 17.3 */}
         {(paso==="escribir"||paso==="enviando")&&(<>
           <label className="lbl">{t.img_err_prompt}</label>
           <textarea className="inp" rows={3} maxLength={300} value={texto} onChange={e=>setTexto(e.target.value)} style={{width:"100%",resize:"vertical",fontFamily:"var(--body)",fontSize:"0.9rem"}}/>
@@ -3335,7 +3375,7 @@ const EDITOR_FAQ_ES = [
   {q:"¿Cómo llega mi libro a la Biblioteca?",
    a:"Cuando quieras publicarlo, pulsa «Subir a la Biblioteca», arriba, junto al «Esquema del libro». La primera vez te pediremos unos datos sobre ti para la ficha del libro. Antes de publicarse, el libro pasa una revisión automática y gratuita, que tarda unos segundos (algo más si es largo). Si encuentra pasajes que deben cambiarse, el libro no se sube y los verás en el recuadro «Pasajes señalados»: mira la pregunta siguiente.\n\nUna vez publicado, lo que cambies no llega a la Biblioteca hasta que lo subas: en ese mismo sitio verás «Tienes cambios sin subir a la Biblioteca» con «Subir ahora». Solo se revisa de nuevo lo que has cambiado. Si lo subes muchas veces en un mismo día, puede que tengas que esperar al siguiente.\n\n«Guardar y salir», abajo, guarda tu trabajo y te lleva al inicio. Si tienes cambios sin subir, antes te pregunta si quieres subirlos o guardarlos solo para ti.\n\nCon el libro publicado, bajo «Autoguardado activo» tienes además «Compartir mi libro» (un mensaje con el enlace, listo para enviar por correo o WhatsApp), «Ver cómo está en la Biblioteca» y «Despublicar mi historia», que lo retira de la Biblioteca sin borrarlo."},
   {q:"¿Qué hago si mi libro tiene pasajes señalados?",
-   a:"Si la revisión señala pasajes, el libro no se sube, y la Biblioteca sigue mostrando la versión anterior (o nada, si aún no estaba publicado). Qué se señala y por qué lo explican las Preguntas frecuentes de la web: «¿Puedo contar cosas personales o íntimas de otras personas?».\n\nLo más sencillo suele ser quitar el nombre o el parentesco: «Mi vecina Rosa estuvo ingresada por una depresión» puede pasar a ser «Una vecina estuvo ingresada por una depresión». Una referencia vaga, como «un familiar» o «una vecina», no identifica a nadie.\n\nLos pasajes aparecen en el recuadro «Pasajes señalados», encima del texto, cada uno con su motivo:\n- «Ir al pasaje» lo selecciona en tu texto para que lo cambies tú.\n- «Suprimir» borra la frase señalada, y solo esa: relee lo que hay alrededor, por si alguna frase queda suelta. Puedes recuperarla con «↺ Deshacer».\n- «Creo que es un error» nos envía un aviso con una frase tuya, y lo revisamos a mano. Solo se puede enviar uno en cada subida, y mientras tanto ese pasaje impide subir el libro.\n- «Subir sin los pasajes señalados» borra de tu texto todos los pasajes señalados y sube el libro. Los que ya te hayamos dado por buenos no se borran. No aparece si hay algo que nunca puede publicarse.\n- «Revisar con el Asistente», si lo tienes contratado, te explica los pasajes uno a uno y te propone el cambio más pequeño posible.\n\nCuando corrijas, vuelve a subir el libro: solo se revisa lo que has cambiado. Si hay pasajes en muchos capítulos, en lugar de la lista verás un aviso: el libro necesita una revisión pasaje a pasaje con el Asistente editorial. Las Condiciones de Publicación son las mismas para todos, y pagar no las cambia: el Asistente te ayuda a cumplirlas."}
+   a:"Si la revisión señala pasajes, el libro no se sube, y la Biblioteca sigue mostrando la versión anterior (o nada, si aún no estaba publicado). Qué se señala y por qué lo explican las Preguntas frecuentes de la web: «¿Puedo contar cosas personales o íntimas de otras personas?».\n\nLo más sencillo suele ser quitar el nombre o el parentesco: «Mi vecina Rosa estuvo ingresada por una depresión» puede pasar a ser «Una vecina estuvo ingresada por una depresión». Una referencia vaga, como «un familiar», «una vecina» o «una de mis tías», no identifica a nadie.\n\nLos pasajes aparecen en el recuadro «Pasajes señalados», encima del texto, cada uno con su motivo:\n- «Ir al pasaje» lo selecciona en tu texto para que lo cambies tú.\n- «Suprimir» borra la frase señalada, y solo esa: relee lo que hay alrededor, por si alguna frase queda suelta. Puedes recuperarla con «↺ Deshacer».\n- «Creo que es un error» nos envía un aviso con una frase tuya, y lo revisamos a mano. Solo se puede enviar uno en cada subida, y mientras tanto ese pasaje impide subir el libro.\n- «Subir sin los pasajes señalados» borra de tu texto todos los pasajes señalados y sube el libro. Los que ya te hayamos dado por buenos no se borran. No aparece si hay algo que nunca puede publicarse.\n- «Revisar con el Asistente», si lo tienes contratado, te explica los pasajes uno a uno y te propone el cambio más pequeño posible.\n\nCuando corrijas, vuelve a subir el libro: solo se revisa lo que has cambiado. Si hay pasajes en muchos capítulos, verás primero un aviso: el libro necesita una revisión pasaje a pasaje, más cómoda con el Asistente editorial; con «Ver la lista de pasajes» puedes hacerla tú. Mientras tanto, puedes subirlo una vez al día y tres veces por semana. Las Condiciones de Publicación son las mismas para todos, y pagar no las cambia: el Asistente te ayuda a cumplirlas."}
 ];
 // [P16-B1-1] Texto de LOCUS_MUNDI_REVISION_FAQ_GUIAS.md v1 (A.5 con "la historia vivida", 11/10/2026).
 const EDITOR_FAQ_EN = [
@@ -3362,7 +3402,7 @@ const EDITOR_FAQ_EN = [
   {q:"How does my book reach the Library?",
    a:"When you want to publish it, press “Upload to the Library”, at the top, next to the “Book outline”. The first time, we'll ask you for a few details about yourself for your book's page. Before it is published, the book goes through an automatic, free review that takes a few seconds (a little longer if the book is long). If it finds passages that need changing, the book is not uploaded and you'll see them in the “Flagged passages” box: see the next question.\n\nOnce it is published, what you change does not reach the Library until you upload it: in that same place you'll see “You have changes not yet uploaded to the Library.” with “Upload now”. Only what you have changed is reviewed again. If you upload it many times in one day, you may have to wait until the next.\n\n“Save and exit”, at the bottom, saves your work and takes you to the home page. If you have changes not yet uploaded, it first asks whether you want to upload them or keep them just for yourself.\n\nWith the book published, under “Autosave on” you also have “Share my book” (a message with the link, ready to send by email or WhatsApp), “See how it looks in the Library” and “Unpublish my story”, which takes it out of the Library without deleting it."},
   {q:"What do I do if my book has flagged passages?",
-   a:"If the review flags passages, the book is not uploaded, and the Library keeps showing the previous version (or nothing, if it wasn't published yet). What is flagged and why is explained in the website's FAQ: “Can I tell personal or intimate things about other people?”.\n\nThe simplest thing is usually to remove the name or the family relationship: “My neighbour Rosa was admitted to hospital with depression” can become “A neighbour was admitted to hospital with depression”. A vague reference, such as “a relative” or “a neighbour”, doesn't identify anyone.\n\nThe passages appear in the “Flagged passages” box, above the text, each with its reason:\n- “Go to the passage” selects it in your text so you can change it yourself.\n- “Delete” removes the flagged sentence, and only that one: reread what is around it, in case a sentence is left hanging. You can get it back with “↺ Undo”.\n- “I think this is a mistake” sends us a note with one sentence of yours, and we review it by hand. Only one can be sent per upload, and meanwhile that passage prevents the book from being uploaded.\n- “Upload without the flagged passages” deletes all the flagged passages from your text and uploads the book. Those we have already accepted are not deleted. It doesn't appear if there is something that can never be published.\n- “Review with the Assistant”, if you have it, explains the passages one by one and proposes the smallest possible change.\n\nWhen you have made your corrections, upload the book again: only what you have changed is reviewed. If there are passages in many chapters, instead of the list you'll see a notice: the book needs a passage-by-passage review with the Editorial Assistant. The Publication Terms are the same for everyone, and paying doesn't change them: the Assistant helps you meet them."}
+   a:"If the review flags passages, the book is not uploaded, and the Library keeps showing the previous version (or nothing, if it wasn't published yet). What is flagged and why is explained in the website's FAQ: “Can I tell personal or intimate things about other people?”.\n\nThe simplest thing is usually to remove the name or the family relationship: “My neighbour Rosa was admitted to hospital with depression” can become “A neighbour was admitted to hospital with depression”. A vague reference, such as “a relative”, “a neighbour” or “one of my aunts”, doesn't identify anyone.\n\nThe passages appear in the “Flagged passages” box, above the text, each with its reason:\n- “Go to the passage” selects it in your text so you can change it yourself.\n- “Delete” removes the flagged sentence, and only that one: reread what is around it, in case a sentence is left hanging. You can get it back with “↺ Undo”.\n- “I think this is a mistake” sends us a note with one sentence of yours, and we review it by hand. Only one can be sent per upload, and meanwhile that passage prevents the book from being uploaded.\n- “Upload without the flagged passages” deletes all the flagged passages from your text and uploads the book. Those we have already accepted are not deleted. It doesn't appear if there is something that can never be published.\n- “Review with the Assistant”, if you have it, explains the passages one by one and proposes the smallest possible change.\n\nWhen you have made your corrections, upload the book again: only what you have changed is reviewed. If there are passages in many chapters, you'll first see a notice: the book needs a passage-by-passage review, easier with the Editorial Assistant; with “See the list of passages” you can do it yourself. Meanwhile, you can upload it once a day and three times a week. The Publication Terms are the same for everyone, and paying doesn't change them: the Assistant helps you meet them."}
 ];
 function PhotosFaqModal({onClose,lang}) {
   const items = lang==="EN" ? PHOTOS_FAQ_EN : PHOTOS_FAQ_ES;
@@ -4874,6 +4914,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
 
   // [P16-B2] 12/10/2026: temas de cada guía, móvil sin dictado, "la revisión al subir", regla de
   // identificación, seudónimos e historia política (Agente Editorial V7.4, 2.2, 2.3 b y 2.8).
+  // 25/10/2026: criterio de la v7.5 (2.8): salud de terceros, dolencias corrientes, "una de mis tías".
   const buildAssistantSystemPrompt=(capituloActual)=>{
     const nombre=f.assistantName||f.name||"";
     const tratamiento=f.assistantTuUsted==="usted"?"usted":"tú";
@@ -5096,8 +5137,11 @@ se hace al subir el libro a la Biblioteca, ni más ni menos.
 - Puedes advertir al Autor, en una sola frase, y sugerirle quitar el
   nombre o el dato, sin escribir tú la alternativa, ante: hechos privados
   graves de OTRA persona viva e identificable (atribuirle un delito o una
-  conducta gravemente reprochable sin constancia pública, su salud física
-  o mental, su sexualidad o vida íntima, sus adicciones, su origen étnico,
+  conducta gravemente reprochable sin constancia pública; su salud, solo
+  si es salud mental, una adicción o salud sexual o reproductiva (también
+  en pasado), o una enfermedad grave que padece hoy (cáncer, VIH,
+  demencia, enfermedad terminal o degenerativa, discapacidad); su
+  sexualidad o vida íntima; sus adicciones; su origen étnico,
   sus creencias religiosas o sus opiniones políticas); cualquier hecho
   privado de un menor identificable de hoy; lenguaje ofensivo o
   discriminatorio contra un colectivo, salvo el testimonio histórico
@@ -5107,13 +5151,16 @@ se hace al subir el libro a la Biblioteca, ni más ni menos.
   tía", "mi vecino del tercero"), porque el libro va firmado. Una
   referencia vaga ("un familiar", "un conocido", "un vecino", "una
   persona") no identifica a nadie, salvo que el contexto deje claro de
-  quién se trata.
+  quién se trata. Tampoco identifica "una de mis tías", "uno de mis
+  primos", "un tío mío": uno entre varios, sin nombre.
   Viva: si el texto no deja claro que ha muerto.
 - No adviertas de: lo que el Autor cuenta de sí mismo; lo que otro le
   hizo, contado como experiencia propia ("mi marido me engañó y me fui de
   casa"); los hechos públicos, incluida la crítica dura; los asuntos
   corrientes de la vida compartida (peleas, distancias, carácter); los
-  fallecidos; a quien aparece solo con un apodo o un nombre inventado
+  fallecidos; las dolencias corrientes que no marcan a la persona (un
+  infarto, la covid, una operación, una gripe) y la enfermedad grave
+  contada como historia acabada, vencida o terminada con la muerte; a quien aparece solo con un apodo o un nombre inventado
   para ocultar quién es ("el señor Oso"); la actividad política o
   sindical, y la persecución, el juicio, la cárcel, el exilio o la
   represión por motivos políticos en el pasado, contados como testimonio
@@ -5370,6 +5417,7 @@ ${capituloActual}
       : t.up_err_cover;
     // Segunda subida (api/moderar.js v2; diseño §7 y §11.15).
     if(code==="LIMITE_DIARIO") return t.up_err_limit;
+    if(code==="LIMITE_CONJUNTO") return d&&d.semana ? t.up_err_limit_conj_week : t.up_err_limit_conj; // moderar v3.11
     if(code==="FUSIBLE") return t.up_err_fuse;
     if(code==="REVISION_NO_DISPONIBLE"||code==="RED") return t.up_err_review;
     if(code==="IMAGEN_RECHAZADA"){
@@ -5470,6 +5518,7 @@ ${capituloActual}
   const [errPasaje,setErrPasaje]=useState(null); // {id, texto, estado: "escribir"|"enviando"|"error"}
   const [modErrEnviado,setModErrEnviado]=useState(false);
   const [atajoPregunta,setAtajoPregunta]=useState(false);
+  const [verListaConjunto,setVerListaConjunto]=useState(false); // 25/10/2026: lista gratis también en el conjunto
   const consultarModeracion=async(id)=>{
     const r=await moderarApi({operacion:"consultar", historia_id:id});
     if(r.status!==200) return;
@@ -5990,7 +6039,7 @@ ${capituloActual}
   // ---- Fotos añadidas: se crean tantos huecos como fotos compradas; cada hueco se puede
   // subir, cambiar o quitar de forma independiente (filas reales en la tabla `fotos`) ----
 
-  const [unpubStep,setUnpubStep]=useState(null); // null | "confirm" | "sent" | "done"
+  const [unpubStep,setUnpubStep]=useState(null); // null | "confirm" | "done" (25/10/2026: sin "sent")
   const [showUndo,setShowUndo]=useState(false);
   const lastUnpublishedRef=useRef(null);
   const undoTimerRef=useRef(null);
@@ -6015,13 +6064,7 @@ ${capituloActual}
       setUnpubError(true);
       return;
     }
-    if(autorIdRef.current){
-      fetch("/api/registro-lssi", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accion: "despublicacion", autor_id: autorIdRef.current })
-      }).catch(()=>{}); // si falla, no debe bloquear la despublicación
-    }
+    registroLssi({ accion: "despublicacion" }); // si falla, no debe bloquear la despublicación (v2: con sesión)
     lastUnpublishedRef.current=sinCambios?id:null;
     onUnpublish(id);
     setPubRow(null);
@@ -6040,10 +6083,19 @@ ${capituloActual}
   };
 
   const [deletePhrase,setDeletePhrase]=useState("");
-  const [deleteStep,setDeleteStep]=useState(null); // null | "sent" | "done"
+  const [deleteStep,setDeleteStep]=useState(null); // null | "done" (25/10/2026: sin "sent")
   const [deleteError,setDeleteError]=useState(false);
+  const [deletePw,setDeletePw]=useState("");
+  const [deletePwError,setDeletePwError]=useState(false);
+  const [deleteBusy,setDeleteBusy]=useState(false);
+  // 25/10/2026 (decisión de Javier): eliminar exige la frase y la contraseña; después,
+  // api/registro-lssi.js (accion "eliminacion") manda al Autor el correo «Has eliminado tu libro…».
   const doDeleteForever=async ()=>{
-    setDeleteError(false);
+    if(deleteBusy) return;
+    setDeleteError(false); setDeletePwError(false); setDeleteBusy(true);
+    const { error: pwErr } = await supa.auth.signInWithPassword({ email, password: deletePw });
+    if(pwErr){ setDeleteBusy(false); setDeletePwError(true); return; }
+    const idBorrado=historiaIdRef.current;
     // Primero se marca; si falla, no se toca nada más (03/10/2026).
     if(historiaIdRef.current){
       // 04/10/2026, tarde: eliminar también despublica, en la misma operación.
@@ -6055,19 +6107,16 @@ ${capituloActual}
       }).eq("id", historiaIdRef.current).select("id");
       if(error || !marcadas || !marcadas.length){
         console.error("No se pudo marcar la historia:", error);
+        setDeleteBusy(false);
         setDeleteError(true);
         return;
       }
     }
+    setDeleteBusy(false); setDeletePw("");
     if(publicado) onUnpublish(historiaIdRef.current||f.publishedId);
-    // Registro LSSI: si estaba publicada, eliminar es también despublicar (no depende del autoguardado).
-    if(publicado && autorIdRef.current){
-      fetch("/api/registro-lssi", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accion: "despublicacion", autor_id: autorIdRef.current })
-      }).catch(()=>{});
-    }
+    // Registro LSSI y correo al Autor: api/registro-lssi.js v2, accion "eliminacion" (si el libro
+    // llegó a publicarse, anota la despublicación; después, el correo). No bloquea.
+    if(idBorrado) registroLssi({ accion: "eliminacion", historia_id: idBorrado, lang });
     setPubRow(null);
     if(saveTimerRef.current){ clearTimeout(saveTimerRef.current); saveTimerRef.current=null; }
     if(saveRetryTimerRef.current){ clearTimeout(saveRetryTimerRef.current); saveRetryTimerRef.current=null; }
@@ -6173,7 +6222,7 @@ ${capituloActual}
     <div className="wr-wrap">
       {topBar}
       {narrowCard(<>
-        {deleteStep!=="done"&&<button className="back" onClick={()=>{setDeleteStep(null);setDeletePhrase("");setWStep("editor");}}>{t.privacy_back_btn}</button>}
+        {deleteStep!=="done"&&<button className="back" onClick={()=>{setDeleteStep(null);setDeletePhrase("");setDeletePw("");setDeletePwError(false);setWStep("editor");}}>{t.privacy_back_btn}</button>}
         <h2 className="wr-h">{t.privacy_h}</h2>
         {deleteStep===null&&(<>
           <div style={{background:"rgba(178,59,59,0.06)",border:"1px solid #b23b3b",borderRadius:"3px",padding:"0.9rem 1rem",marginBottom:"1.1rem"}}>
@@ -6185,15 +6234,15 @@ ${capituloActual}
             <p style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--muted)",fontStyle:"italic",marginBottom:"0.4rem"}}>&ldquo;{t.privacy_delete_phrase}&rdquo;</p>
             <input className="inp" placeholder={t.privacy_delete_input_ph} value={deletePhrase} onChange={e=>setDeletePhrase(e.target.value)}/>
           </div>
-          <button className="btn-out" style={{width:"100%",borderColor:"#b23b3b",color:"#b23b3b"}}
-            disabled={deletePhrase.trim().toLowerCase()!==t.privacy_delete_phrase.toLowerCase()}
-            onClick={()=>setDeleteStep("sent")}>{t.privacy_delete_btn}</button>
-        </>)}
-        {deleteStep==="sent"&&(<>
-          <button className="back" onClick={()=>setDeleteStep(null)}>{t.auth_back}</button>
-          <p className="wr-sub">{t.privacy_delete_sent_sub}</p>
+          <div className="fld">
+            <label className="lbl">{t.privacy_delete_pw_lbl}</label>
+            <input className="inp" type="password" autoComplete="current-password" value={deletePw} onChange={e=>{setDeletePw(e.target.value);setDeletePwError(false);}}/>
+          </div>
+          {deletePwError&&<p style={{fontFamily:"var(--body)",fontSize:"0.84rem",color:"#b23b3b",lineHeight:1.5}}>{t.privacy_delete_pw_err}</p>}
           {deleteError&&<p style={{fontFamily:"var(--body)",fontSize:"0.84rem",color:"#b23b3b",lineHeight:1.5}}>{t.privacy_delete_error}</p>}
-          <button className="btn-pub" style={{width:"100%"}} onClick={doDeleteForever}>{t.unpub_sim_btn}</button>
+          <button className="btn-out" style={{width:"100%",borderColor:"#b23b3b",color:"#b23b3b"}}
+            disabled={deleteBusy||!deletePw||deletePhrase.trim().toLowerCase()!==t.privacy_delete_phrase.toLowerCase()}
+            onClick={doDeleteForever}>{t.privacy_delete_btn}</button>
         </>)}
         {deleteStep==="done"&&(<>
           <p className="ok-msg">{t.privacy_delete_done_h}</p>
@@ -6367,14 +6416,9 @@ ${capituloActual}
             {unpubStep==="confirm"&&(<>
               <div className="modal-h" style={{fontSize:"1.15rem"}}>{t.unpub_confirm_h}</div>
               <p className="modal-sub">{t.unpub_confirm_sub}</p>
-              <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} onClick={()=>setUnpubStep("sent")}>{t.unpub_confirm_btn}</button>
+              {/* 25/10/2026: un solo paso, sin el enlace simulado (decisión de Javier). */}
+              <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} disabled={unpubBusy} onClick={doUnpublishConfirmed}>{t.unpub_confirm_btn}</button>
               <button className="btn-out" style={{width:"100%"}} onClick={()=>setUnpubStep(null)}>{t.unpub_cancel_btn}</button>
-            </>)}
-            {unpubStep==="sent"&&(<>
-              <button className="back" onClick={()=>setUnpubStep("confirm")}>{t.auth_back}</button>
-              <div className="modal-h" style={{fontSize:"1.15rem"}}>{t.unpub_sent_h}</div>
-              <p className="modal-sub">{t.unpub_sent_sub}</p>
-              <button className="btn-pub" style={{width:"100%",marginTop:"0.8rem"}} disabled={unpubBusy} onClick={doUnpublishConfirmed}>{t.unpub_sim_btn}</button>
               {unpubError&&<p style={{color:"#b23b3b",fontFamily:"var(--body)",fontSize:"0.82rem",marginTop:"0.6rem"}}>{t.unpub_err}</p>}
             </>)}
             {unpubStep==="done"&&(<>
@@ -6547,11 +6591,14 @@ ${capituloActual}
               {" "}<button type="button" className="toolbar-btn" disabled={subiendo} onClick={()=>startUpload("ahora")}>{subiendo?subiendoTexto():t.mod_reupload}</button>
               {subirError&&!showSaveExit&&<p style={{color:"#b23b3b",fontSize:"0.82rem",margin:"0.5rem 0 0"}}>{subirError}</p>}
               <p style={{margin:"0.7rem 0 0",fontSize:"0.8rem"}}><span style={{color:"var(--navy)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setShowEditorFaq(12)}>{t.mod_guide_link}</span></p>{/* [P16-B1-2] */}
+              {(modRes.pasajes||[]).length>0&&<p style={{margin:"0.6rem 0 0",fontSize:"0.8rem"}}><span style={{color:"var(--navy)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setVerListaConjunto(v=>!v)}>{verListaConjunto?t.mod_ocultar_lista:t.mod_ver_lista}</span></p>}
+              {!verListaConjunto&&<p style={{margin:"0.7rem 0 0",fontSize:"0.74rem",lineHeight:1.5,color:"var(--muted)"}}>{t.mod_dsa_conjunto}</p>}{/* C8: DSA art. 17.3 */}
             </div>
           )}
           {/* Pasajes señalados (§4.3; §11.13, punto 8): encima del texto, cada uno con sus tres salidas. */}
-          {modRes&&(modRes.resultado==="pasajes"||modRes.resultado==="limite_duro")&&(()=>{
+          {modRes&&(modRes.resultado==="pasajes"||modRes.resultado==="limite_duro"||(modRes.resultado==="conjunto"&&verListaConjunto&&(modRes.pasajes||[]).length>0))&&(()=>{
             const lista=modRes.pasajes||[];
+            const esConjunto=modRes.resultado==="conjunto"; // 25/10/2026: lista gratis, sin el atajo de borrar todo
             const n=lista.filter(x=>!pasajeAceptado(x)).length; // [P16-B4] los aceptados no cuentan
             const hay=n===1?t.mod_hay_one:t.mod_hay_many.replace("{n}",String(n));
             const cabecera = n===0 ? t.mod_all_accepted // [P16-B4]
@@ -6566,8 +6613,8 @@ ${capituloActual}
                 <p style={{margin:"0 0 0.6rem",fontSize:"0.9rem",lineHeight:1.5,fontWeight:modRes.recien?600:400}}>{cabecera}</p>
                 {modErrEnviado&&<p role="status" style={{margin:"0 0 0.6rem",fontSize:"0.85rem",lineHeight:1.5,color:"#2a6a2a"}}>{modErrEnviado==="ya"?t.mod_err_once:t.mod_err_sent}</p>}
                 <div style={{display:"flex",gap:"0.6rem",flexWrap:"wrap",margin:"0 0 0.7rem"}}>
-                  {!conDuro&&n>0&&<button type="button" className="toolbar-btn" disabled={subiendo} onClick={()=>setAtajoPregunta(true)}>{t.mod_shortcut}</button>}
-                  <button type="button" className="toolbar-btn" disabled={subiendo} onClick={()=>startUpload("ahora")}>{subiendo?subiendoTexto():t.mod_reupload}</button>
+                  {!conDuro&&!esConjunto&&n>0&&<button type="button" className="toolbar-btn" disabled={subiendo} onClick={()=>setAtajoPregunta(true)}>{t.mod_shortcut}</button>}
+                  {!esConjunto&&<button type="button" className="toolbar-btn" disabled={subiendo} onClick={()=>startUpload("ahora")}>{subiendo?subiendoTexto():t.mod_reupload}</button>}
                   {hasAiRight&&n>0&&<button type="button" className="toolbar-btn" onClick={empezarRevisionPasajes}>✦ {t.mod_with_ai}</button>}{/* [P16-B4] */}
                 </div>
                 {subirError&&!showSaveExit&&<p style={{color:"#b23b3b",fontSize:"0.82rem",margin:"0 0 0.6rem"}}>{subirError}</p>}
@@ -6612,6 +6659,7 @@ ${capituloActual}
                   );
                 })}
                 <p style={{margin:"0.5rem 0 0",fontSize:"0.8rem"}}><span style={{color:"var(--navy)",textDecoration:"underline",cursor:"pointer"}} onClick={()=>setShowEditorFaq(12)}>{t.mod_guide_link}</span></p>{/* [P16-B1-2] */}
+                <p style={{margin:"0.7rem 0 0",fontSize:"0.74rem",lineHeight:1.5,color:"var(--muted)"}}>{t.mod_dsa}</p>{/* C8: DSA art. 17.3 */}
               </div>
             );
           })()}

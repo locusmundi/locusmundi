@@ -3,15 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <title>Locus Mundi — Admin</title>
+<!-- v5 · 25/10/2026: "Suprimir un pasaje", aviso al Autor (DSA art. 17) y "Resolver una denuncia" (api/admin.js v5). -->
 <style>
-  body { font-family: sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+  body { font-family: sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; }
   label { display:block; margin-top: 16px; font-weight: bold; }
+  label.check { font-weight: normal; display:flex; gap:8px; align-items:flex-start; }
+  label.check input { width:auto; margin-top:3px; }
   input, select, textarea { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
-  textarea { min-height: 120px; }
+  textarea { min-height: 100px; }
   button { margin-top: 20px; padding: 10px 20px; font-size: 16px; }
-  #resultado { margin-top: 20px; padding: 12px; border-radius: 6px; white-space: pre-wrap; }
+  .nota { font-size: 13px; color: #555; margin-top: 4px; }
+  .res { margin-top: 20px; padding: 12px; border-radius: 6px; white-space: pre-wrap; }
   .ok { background: #dff5df; }
   .error { background: #f8d7da; }
+  hr { margin: 40px 0 24px; }
 </style>
 </head>
 <body>
@@ -24,69 +29,120 @@
 <label>Tu nombre (queda registrado como responsable)</label>
 <input type="text" id="realizado_por" value="Javier Batlle">
 
+<h3>1. Actuar sobre un libro</h3>
+
 <label>ID de la historia</label>
 <input type="text" id="historia_id" placeholder="El id (UUID) de la fila en 'historias'">
 
 <label>Acción</label>
 <select id="accion">
   <option value="retirar">Retirar publicación (ocultar de la Biblioteca)</option>
-  <option value="modificar">Modificar el texto</option>
+  <option value="suprimir">Suprimir un pasaje</option>
+  <option value="modificar">Modificar el texto completo</option>
 </select>
+
+<div id="campoCita" style="display:none">
+  <label>Pasaje que se suprime (copiado tal cual)</label>
+  <textarea id="cita"></textarea>
+  <div class="nota">Copia la frase entera, con su puntuación. Debe aparecer una sola vez en el texto.</div>
+</div>
 
 <div id="campoTexto" style="display:none">
   <label>Nuevo texto completo</label>
   <textarea id="nuevo_texto"></textarea>
 </div>
 
-<label>Motivo (obligatorio, se registra tal cual)</label>
+<label>Motivo (obligatorio, se registra tal cual; si avisas al Autor, es lo que leerá)</label>
 <textarea id="motivo"></textarea>
 
-<button onclick="enviar()">Aplicar acción</button>
+<div id="campoAviso">
+  <label class="check"><input type="checkbox" id="aviso_autor"> Avisar al Autor por correo, con el motivo (DSA, art. 17). Solo si no viene de una denuncia: entonces avisa la sección 2.</label>
+  <label>Base (lo que incumple)</label>
+  <input type="text" id="base" value="apartado 4 de las Condiciones de Publicación">
+</div>
 
-<div id="resultado"></div>
+<button onclick="enviar()">Aplicar acción</button>
+<div id="resultado" class="res"></div>
+
+<hr>
+<h3>2. Resolver una denuncia</h3>
+<p class="nota">Primero, si hace falta, retira el libro o suprime el pasaje en la sección 1 (sin marcar el aviso). Después, anota aquí la decisión: se envía a quien denunció y, si hay medida, al Autor (sin decirle quién denunció).</p>
+
+<label>Referencia de la denuncia</label>
+<input type="text" id="denuncia" placeholder="Los 8 caracteres del correo, p. ej. 3F2A9C10">
+
+<label>Decisión</label>
+<select id="decision">
+  <option value="sin_accion">No se toma ninguna medida</option>
+  <option value="pasaje_suprimido">Se ha suprimido el pasaje</option>
+  <option value="libro_retirado">Se ha retirado la obra</option>
+</select>
+
+<div id="campoCitaD" style="display:none">
+  <label>Pasaje suprimido (se cita al Autor)</label>
+  <textarea id="citaD"></textarea>
+</div>
+
+<label>Motivo de la decisión (lo leen quien denunció y, si hay medida, el Autor)</label>
+<textarea id="motivo_decision"></textarea>
+
+<div id="campoBaseD" style="display:none">
+  <label>Base (lo que incumple)</label>
+  <input type="text" id="baseD" value="apartado 4 de las Condiciones de Publicación">
+</div>
+
+<button onclick="resolver()">Resolver la denuncia</button>
+<div id="resultadoD" class="res"></div>
 
 <script>
-document.getElementById('accion').addEventListener('change', function() {
-  document.getElementById('campoTexto').style.display = this.value === 'modificar' ? 'block' : 'none';
+const $ = (id) => document.getElementById(id);
+$('accion').addEventListener('change', function() {
+  $('campoTexto').style.display = this.value === 'modificar' ? 'block' : 'none';
+  $('campoCita').style.display = this.value === 'suprimir' ? 'block' : 'none';
+  $('campoAviso').style.display = this.value === 'modificar' ? 'none' : 'block';
+});
+$('decision').addEventListener('change', function() {
+  $('campoCitaD').style.display = this.value === 'pasaje_suprimido' ? 'block' : 'none';
+  $('campoBaseD').style.display = this.value === 'sin_accion' ? 'none' : 'block';
 });
 
-async function enviar() {
-  const resultado = document.getElementById('resultado');
-  resultado.className = '';
-  resultado.textContent = 'Enviando...';
-
-  const body = {
-    clave: document.getElementById('clave').value,
-    realizado_por: document.getElementById('realizado_por').value,
-    historia_id: document.getElementById('historia_id').value,
-    accion: document.getElementById('accion').value,
-    motivo: document.getElementById('motivo').value,
-    nuevo_texto: document.getElementById('nuevo_texto').value,
-  };
-
-  if (!body.motivo) {
-    resultado.className = 'error';
-    resultado.textContent = 'El motivo es obligatorio.';
-    return;
-  }
-  if (!confirm('¿Seguro? Esta acción queda registrada de forma permanente.')) {
-    resultado.textContent = '';
-    return;
-  }
-
+async function llamar(body, caja) {
+  caja.className = 'res'; caja.textContent = 'Enviando...';
   try {
-    const r = await fetch('/api/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const r = await fetch('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await r.json();
-    resultado.className = r.ok ? 'ok' : 'error';
-    resultado.textContent = r.ok ? data.mensaje : ('Error: ' + data.error);
+    caja.className = 'res ' + (r.ok ? 'ok' : 'error');
+    caja.textContent = r.ok ? data.mensaje : ('Error: ' + data.error);
   } catch (e) {
-    resultado.className = 'error';
-    resultado.textContent = 'Error de red: ' + e.message;
+    caja.className = 'res error'; caja.textContent = 'Error de red: ' + e.message;
   }
+}
+
+async function enviar() {
+  const caja = $('resultado');
+  const accion = $('accion').value;
+  const body = {
+    clave: $('clave').value, realizado_por: $('realizado_por').value,
+    historia_id: $('historia_id').value, accion,
+    motivo: $('motivo').value, nuevo_texto: $('nuevo_texto').value,
+    cita: $('cita').value, aviso_autor: accion !== 'modificar' && $('aviso_autor').checked, base: $('base').value,
+  };
+  if (!body.motivo) { caja.className = 'res error'; caja.textContent = 'El motivo es obligatorio.'; return; }
+  if (accion === 'suprimir' && !body.cita.trim()) { caja.className = 'res error'; caja.textContent = 'Falta el pasaje.'; return; }
+  if (!confirm('¿Seguro? Esta acción queda registrada de forma permanente.')) { caja.textContent = ''; return; }
+  llamar(body, caja);
+}
+
+async function resolver() {
+  const caja = $('resultadoD');
+  const body = {
+    clave: $('clave').value, realizado_por: $('realizado_por').value, accion: 'resolver_denuncia',
+    denuncia: $('denuncia').value, decision: $('decision').value,
+    motivo_decision: $('motivo_decision').value, cita: $('citaD').value, base: $('baseD').value,
+  };
+  if (!body.denuncia.trim() || !body.motivo_decision.trim()) { caja.className = 'res error'; caja.textContent = 'Faltan la referencia o el motivo.'; return; }
+  if (!confirm('¿Seguro? Se enviarán los correos y la denuncia quedará resuelta.')) { caja.textContent = ''; return; }
+  llamar(body, caja);
 }
 </script>
 </body>
