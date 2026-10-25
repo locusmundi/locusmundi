@@ -1,4 +1,10 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.11 · 25/10/2026 · Fase C, pendientes de index.html (II). Decisiones de Javier:
+//   - Veredicto de conjunto: la lista de pasajes y sus motivos se envían también, gratis (Condiciones
+//     de Publicación, apartado 4; DSA art. 17.3). Sustituye a "nunca la lista sin el Asistente" (§6.2).
+//     «Creo que es un error» vale también en ese caso. El Asistente sigue siendo la vía cómoda (de pago).
+//   - Límite propio para esos libros: si la última revisión fue de conjunto, como mucho 1 subida
+//     revisada al día y 3 en 7 días (LIMITE_CONJUNTO). Lo demás, sin cambios.
 // Versión 3.10 · 21/10/2026 · Campo «Dedicatoria» (Fase B2, punto 14; Continuidad, sesión "20-21/10/2026
 // (conversación 12-4)"). 'dedication' se copia a lo publicado (hasta 400 caracteres) y se revisa con la
 // cabecera, como el subtítulo, en una sola línea (sus saltos de línea, como espacios). No entra en la
@@ -738,13 +744,29 @@ async function subir(body, autorId, ip, res) {
     if (!continuacion && await mod.subidasRevisadasHoy(autorId) >= mod.LIMITE_SUBIDAS_DIA) {
       return res.status(429).json({ error: 'LIMITE_DIARIO' });
     }
+    // v3.11: libro con veredicto de conjunto: 1 subida revisada al día y 3 en 7 días.
+    if (!continuacion) {
+      const previa = (await leer(`moderaciones?historia_id=eq.${h.id}&select=resultado&limit=1`))[0];
+      if (previa && previa.resultado === 'conjunto') {
+        const semana = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+        const hechas = await leer(
+          `registro_gasto?servicio=eq.subida&historia_id=eq.${h.id}&fecha=gte.${encodeURIComponent(semana)}` +
+          `&detalle->>revisada=eq.true&select=fecha`
+        );
+        const hoy = new Date(mod.inicioDeHoy()).getTime();
+        const deHoy = hechas.filter(x => new Date(x.fecha).getTime() >= hoy).length;
+        if (deHoy >= 1 || hechas.length >= 3) {
+          return res.status(429).json({ error: 'LIMITE_CONJUNTO', semana: hechas.length >= 3 });
+        }
+      }
+    }
     if (await mod.fusibleSaltado()) {
       await mod.avisarFusible(autorId, h.id);
       return res.status(503).json({ error: 'FUSIBLE' });
     }
   }
   const anotarSubida = (detalle) => mod.anotarGasto('subida', autorId, h.id, 0, {
-    version: 'moderar v3.9', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
+    version: 'moderar v3.11', revisada: hayQueRevisar && !continuacion, continuacion, ...detalle
   });
 
   // 6. Imágenes sin revisar (§5.2): la portada y las fotos colocadas.
@@ -837,8 +859,8 @@ async function subir(body, autorId, ip, res) {
       historia_id: h.id, fecha: new Date().toISOString(), resultado, pasajes, aviso_enviado_en: null
     }, 'historia_id');
     await anotarSubida({ resultado, pasajes: pasajes.length });
-    if (resultado === 'conjunto') {
-      return res.status(200).json({ ok: false, resultado, total: pasajes.length });
+    if (resultado === 'conjunto') { // v3.11: con la lista, gratis
+      return res.status(200).json({ ok: false, resultado, total: pasajes.length, pasajes: pasajes.map(pasajePublico) });
     }
     return res.status(200).json({ ok: false, resultado, pasajes: pasajes.map(pasajePublico) });
   }
@@ -927,11 +949,9 @@ async function consultar(body, autorId, res) {
   )).map(a => ({ ruta: a.ruta, estado: a.estado, fecha: a.fecha, resuelto_en: a.resuelto_en,
     objetivo: a.detalle && a.detalle.objetivo, foto_id: a.detalle && a.detalle.foto_id }));
   if (!m) return res.status(200).json({ resultado: null, avisos, avisosImagen });
-  if (m.resultado === 'conjunto') {
-    // Nunca la lista sin el Asistente (§6.2).
-    return res.status(200).json({ resultado: 'conjunto', total: (m.pasajes || []).length, fecha: m.fecha, avisosImagen });
-  }
+  // v3.11: también el conjunto lleva la lista (antes, "nunca la lista sin el Asistente", §6.2).
   return res.status(200).json({
+    ...(m.resultado === 'conjunto' ? { total: (m.pasajes || []).length } : {}),
     resultado: m.resultado, fecha: m.fecha,
     pasajes: (m.pasajes || []).map(pasajePublico),
     aviso_enviado: !!m.aviso_enviado_en,
@@ -948,7 +968,7 @@ async function errorTexto(body, autorId, res) {
   const explicacion = String(body.explicacion || '').trim().slice(0, MAX_EXPLICACION);
   if (!explicacion) return res.status(400).json({ error: 'FALTA_EXPLICACION' });
   const m = (await leer(`moderaciones?historia_id=eq.${h.id}&select=fecha,resultado,pasajes,aviso_enviado_en&limit=1`))[0];
-  if (!m || !['pasajes', 'limite_duro'].includes(m.resultado)) return res.status(409).json({ error: 'SIN_PASAJES' });
+  if (!m || !['pasajes', 'limite_duro', 'conjunto'].includes(m.resultado)) return res.status(409).json({ error: 'SIN_PASAJES' }); // v3.11: conjunto
   if (m.aviso_enviado_en) return res.status(409).json({ error: 'AVISO_YA_ENVIADO' });
   const p = (m.pasajes || []).find(x => x.id === body.pasaje_id);
   if (!p) return res.status(404).json({ error: 'PASAJE_NO_ENCONTRADO' });
