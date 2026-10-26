@@ -1,4 +1,11 @@
 // api/traducir.js — Locus Mundi
+// Versión 3.3 · 26/10/2026 · TEST de los pendientes de index.html: Flash-Lite devolvió en gallego, sin
+//   traducir, los tramos del libro de Olegario pedidos en español, y se guardaron en la caché.
+//   (1) La instrucción dice también el idioma de origen («del gallego al español»).
+//   (2) Un tramo que vuelve casi igual al original (pareceSinTraducir) no vale.
+//   (3) El segundo intento se hace con el modelo de respaldo (_modelos.js v1.1: gemini-3.5-flash).
+//   (4) Si tampoco vale, no se guarda nada y el lector ve el aviso de error.
+//   La caché ya guardada mal se borra a mano (no la toca este archivo).
 // Versión 3.2 · 21/10/2026 · Fase B2, punto 14 (conversación 12-4): la cabecera traduce también la
 // Dedicatoria (contenido.dedication), si la hay: { titulo, subtitulo, dedicatoria, pies }. Su huella
 // lleva la dedicatoria (si cambia, se traduce de nuevo); sin dedicatoria, la huella de siempre (la caché
@@ -53,6 +60,7 @@ const {
 
 const M = require('./_modelos'); // v3.1
 const MODELO = M.MODELOS.traduccion;
+const MODELO_RESPALDO = M.MODELOS.traduccion_respaldo || 'gemini-3.5-flash'; // v3.3
 
 // Fusible: gasto máximo diario en traducciones NUEVAS (euros). Decisión de
 // Javier, 03/10/2026. Lo ya guardado en la caché se sirve siempre.
@@ -81,8 +89,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ─── Instrucciones ──────────────────────────────────────────────────────
 
-function instruccionTramo(destino) {
-  return `Traduce al ${destino} este fragmento de una autobiografía publicada. Haz una traducción fiel, clara y natural, que conserve la voz y el tono de quien escribe, sin adornarla, resumirla ni añadir nada. Adapta la puntuación del diálogo y las comillas a la convención propia del ${destino}. Mantén los nombres propios de personas y lugares como en el original. Las líneas entre corchetes, como [FOTO 2], son marcas técnicas: cópialas exactamente igual, cada una en su propia línea. Las líneas que empiezan por ¶ (capítulo) o § (apartado) son títulos: conserva el signo al principio de la línea y traduce solo el texto que lo sigue. Conserva la separación entre párrafos (una línea en blanco) y los guiones bajos de la cursiva (_así_). Devuelve solo la traducción, sin comentarios.`;
+function instruccionTramo(destino, origen) { // v3.3: con el idioma de origen
+  return `Traduce ${origen ? `del ${origen} ` : ''}al ${destino} este fragmento de una autobiografía publicada. Haz una traducción fiel, clara y natural, que conserve la voz y el tono de quien escribe, sin adornarla, resumirla ni añadir nada. Adapta la puntuación del diálogo y las comillas a la convención propia del ${destino}. Mantén los nombres propios de personas y lugares como en el original. Las líneas entre corchetes, como [FOTO 2], son marcas técnicas: cópialas exactamente igual, cada una en su propia línea. Las líneas que empiezan por ¶ (capítulo) o § (apartado) son títulos: conserva el signo al principio de la línea y traduce solo el texto que lo sigue. Conserva la separación entre párrafos (una línea en blanco) y los guiones bajos de la cursiva (_así_). Todo el texto debe quedar en ${destino}: no dejes ninguna frase en el idioma original. Devuelve solo la traducción, sin comentarios.`;
 }
 
 function instruccionCabecera(destino) {
@@ -183,9 +191,8 @@ async function guardarEnCache(fila) {
 
 // ─── Gemini ─────────────────────────────────────────────────────────────
 
-const costeEnEuros = uso => M.costeEnEuros(MODELO, uso); // v3.1
-
-async function llamarGemini(sistema, mensaje, json) {
+// v3.3: el modelo, como parámetro (por defecto, el de siempre).
+async function llamarGemini(sistema, mensaje, json, modelo = MODELO) {
   const body = {
     system_instruction: { parts: [{ text: sistema }] },
     contents: [{ role: 'user', parts: [{ text: mensaje }] }]
@@ -193,7 +200,7 @@ async function llamarGemini(sistema, mensaje, json) {
   if (json) body.generationConfig = { responseMimeType: 'application/json' };
 
   const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
@@ -212,19 +219,35 @@ async function llamarGemini(sistema, mensaje, json) {
     pensar: uso.thoughtsTokenCount || 0
   }));
   const texto = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
-  return { texto, coste: costeEnEuros(uso) };
+  return { texto, coste: M.costeEnEuros(modelo, uso) };
 }
 
-// Hasta dos intentos. Devuelve { contenido, coste }; contenido es null si no cuadra.
-async function traducirTramo(texto, destino) {
+// v3.3: ¿ha vuelto el tramo (casi) sin traducir? Se comparan los pares de palabras seguidas:
+// copiado, coinciden casi todos; traducido entre lenguas cercanas (gallego, español, catalán,
+// portugués), cambian muchos (artículos, preposiciones, verbos). Solo con 30 palabras o más.
+const palabras = t => String(t || '').toLowerCase().replace(/\[[^\]]*\]/g, ' ').match(/[\p{L}\p{N}]+/gu) || [];
+function pareceSinTraducir(original, traduccion) {
+  const a = palabras(original), b = palabras(traduccion);
+  if (a.length < 30 || b.length < 30) return false;
+  const pares = w => { const s = new Set(); for (let i = 0; i + 1 < w.length; i++) s.add(w[i] + ' ' + w[i + 1]); return s; };
+  const pa = pares(a), pb = pares(b);
+  let comunes = 0;
+  for (const x of pb) if (pa.has(x)) comunes++;
+  return comunes / Math.max(1, pb.size) >= 0.6;
+}
+
+// Dos intentos: el modelo de siempre y, si no vale, el de respaldo (v3.3).
+// Devuelve { contenido, coste, modelo }; contenido es null si ninguno vale.
+async function traducirTramo(texto, destino, origen) {
   let coste = 0;
-  for (let intento = 0; intento < 2; intento++) {
-    const r = await llamarGemini(instruccionTramo(destino), texto, false);
+  for (const modelo of [MODELO, MODELO_RESPALDO]) {
+    const r = await llamarGemini(instruccionTramo(destino, origen), texto, false, modelo);
     coste += r.coste;
-    if (r.texto && mismaEstructura(texto, r.texto)) return { contenido: { texto: r.texto }, coste };
-    console.error('Traducción con estructura distinta; intento', intento + 1);
+    if (!r.texto || !mismaEstructura(texto, r.texto)) { console.error('Traducción con estructura distinta;', modelo); continue; }
+    if (pareceSinTraducir(texto, r.texto)) { console.error('Traducción casi igual al original (sin traducir);', modelo); continue; }
+    return { contenido: { texto: r.texto }, coste, modelo };
   }
-  return { contenido: null, coste }; // v3: lo gastado se anota aunque no sirva
+  return { contenido: null, coste, modelo: MODELO_RESPALDO }; // v3: lo gastado se anota aunque no sirva
 }
 
 async function traducirCabecera(original, destino) {
@@ -341,9 +364,10 @@ module.exports = async function handler(req, res) {
     // 7. Traducir y validar.
     const resultado = esCabecera
       ? await traducirCabecera(original, destino)
-      : await traducirTramo(original, destino);
+      : await traducirTramo(original, destino, IDIOMAS[origen] || '');
+    const modeloUsado = resultado.modelo || MODELO; // v3.3
     await anotarGasto(historia_id, resultado.coste, {
-      idioma, parte: esCabecera ? 'cabecera' : numTramo, valida: !!resultado.contenido, modelo: MODELO
+      idioma, parte: esCabecera ? 'cabecera' : numTramo, valida: !!resultado.contenido, modelo: modeloUsado
     });
     if (!resultado.contenido) {
       res.status(502).json({ error: 'ERROR_TRADUCCION' });
@@ -356,7 +380,7 @@ module.exports = async function handler(req, res) {
       idioma,
       huella: laHuella,
       contenido_traducido: resultado.contenido,
-      modelo: MODELO,
+      modelo: modeloUsado,
       coste_euros: Math.round(resultado.coste * 1e6) / 1e6
     });
 

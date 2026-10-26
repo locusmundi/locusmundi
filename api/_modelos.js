@@ -1,4 +1,6 @@
 // api/_modelos.js — Locus Mundi
+// Versión 1.1 · 26/10/2026 · TEST de los pendientes de index.html: nuevo trabajo «traduccion_respaldo»
+//   (gemini-3.5-flash), para cuando Flash-Lite devuelve el tramo sin traducir (pasó con el gallego).
 // Versión 1 · 17/10/2026 · Fase B2, punto 19 (c). Continuidad, sesión "17/10/2026 (conversación 6)".
 // ÚNICO sitio donde viven los nombres de los modelos de Google, sus precios y el cambio
 // dólar/euro. Lo leen asistente.js, _moderacion.js, moderar.js, traducir.js, foto-editor.js y
@@ -15,6 +17,7 @@ const MODELOS = {
   revision:     'gemini-3.5-flash-lite', // Asistente: revisión automática por párrafo
   dictado:      'gemini-3.5-flash-lite', // Asistente: puntuación del dictado
   traduccion:   'gemini-3.5-flash-lite', // Traducción para lectores
+  traduccion_respaldo: 'gemini-3.5-flash', // v1.1: segundo intento si el primero no sirve
   moderacion:   'gemini-3.5-flash-lite', // Moderación: texto (primera revisión) e imágenes
   confirmacion: 'gemini-3.5-flash',      // Moderación: confirma lo que señala la primera revisión
   fotos:        'gemini-3.1-flash-image-preview' // Editor de fotos (Nano Banana 2)
