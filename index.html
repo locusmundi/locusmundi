@@ -1037,7 +1037,8 @@ const T = {
     f_text_ph:"Empieza donde quieras: tu infancia, un lugar, un momento decisivo... No hay reglas.",
     publish:"Publicar en Locus Mundi",published_ok:"✓ Tu historia está en la Biblioteca.",
     wiz_continue:"Continuar",
-    wiz_number_lbl:"Eres el Autor",wiz_founder:"✦ Autor Fundador",
+    wiz_number_lbl:"Eres el Autor",wiz_founder:"✦ Autor Fundador",wiz_number_of:"de Locus Mundi", // [NA 26/10/2026] número al publicar
+    wiz_number_pending:"Recibirás tu número de Autor al publicar los primeros pasajes de tu libro.",num_received:"Ya eres el Autor Nº {n} de Locus Mundi",
     wiz_cond_tag:"Antes de empezar a escribir",wiz_cond_h:"Condiciones de Publicación",
     wiz_cond_sub:"Léelas con calma — son cortas.",wiz_cond_start_btn:"Empezar a escribir",
     ed_change_cover:"Cambiar portada",
@@ -1514,7 +1515,8 @@ const T = {
     f_text_ph:"Start anywhere: your childhood, a place, a key moment... No rules.",
     publish:"Publish on Locus Mundi",published_ok:"✓ Your story is in the Library.",
     wiz_continue:"Continue",
-    wiz_number_lbl:"You are Author",wiz_founder:"✦ Founding Author",
+    wiz_number_lbl:"You are Author",wiz_founder:"✦ Founding Author",wiz_number_of:"of Locus Mundi", // [NA 26/10/2026]
+    wiz_number_pending:"You'll receive your Author number when you publish the first passages of your book.",num_received:"You are now Author No. {n} of Locus Mundi",
     wiz_cond_tag:"Before you start writing",wiz_cond_h:"Publication Terms" /* [C3-III] original: "Publishing Terms" */,
     wiz_cond_sub:"Take your time — they're short.",wiz_cond_start_btn:"Start writing",
     ed_change_cover:"Change cover",
@@ -4141,6 +4143,8 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // era la causa de que "Mía" mostrara el 2 en vez del 3. Criterio provisional de fundador: Nº <= 100
   // (el definitivo, "los 100 primeros + los 10 primeros de cada país", queda para la Fase B2).
   const [numAutor,setNumAutor]=useState(null);
+  const [numLeido,setNumLeido]=useState(false); // [NA 26/10/2026] ya se ha consultado (evita mostrar el texto de espera a quien ya tiene número)
+  const [numeroNuevo,setNumeroNuevo]=useState(null); // [NA] número recién recibido al publicar por primera vez (api/moderar.js v3.13)
   const esFundador = numAutor!=null && numAutor<=100;
   // Guardado robusto (03/10/2026): si crear o guardar la historia falla, se avisa en una
   // franja visible y se reintenta solo; nunca se aparenta guardar lo que no se ha guardado.
@@ -4588,7 +4592,7 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
     setShareCopied(false);setShareCopyFailed(false);
     setShowShareAfterSave(true);
   };
-  const closeShare=()=>{ setShowShareAfterSave(false); if(shareFrom==="publish") setView("library"); };
+  const closeShare=()=>{ setShowShareAfterSave(false); setNumeroNuevo(null); if(shareFrom==="publish") setView("library"); };
   const shareText2=shareMsg;
   const shareFallback=()=>{
     try{
@@ -5481,6 +5485,8 @@ ${capituloActual}
       if(row){ setPubRow(row); onPublish(publicacionToAuto(row)); }
       else setPubRow({historia_id:pid}); // publicado, pero sin copia leída: no se marcan cambios (ver hayCambios)
       setF(p=>({...p,publishedId:pid}));
+      // [NA 26/10/2026] Primera publicación del Autor: recibe su número (api/moderar.js v3.13).
+      if(d.numero_nuevo && d.numero_autor!=null){ setNumAutor(d.numero_autor); setNumeroNuevo(d.numero_autor); }
       if(desde==="salir"){
         if(d.nueva){ setShowSaveExit(false); setSaveExitStep("choose"); openShare("publish"); }
         else setSaveExitStep("done"); // "Tus cambios ya están en la Biblioteca." y volver al inicio
@@ -5803,16 +5809,19 @@ ${capituloActual}
     else salir();
   };
 
-  // ---- Paso "número de Autor" — ya no se genera localmente: se asignó de verdad
-  // en Supabase (columna `numero_autor` de `autores`) mediante el trigger de alta
-  // en el momento del registro. Aquí solo lo leemos para mostrarlo. ----
+  // ---- Paso "número de Autor" — [NA 26/10/2026] el número ya no se da en el alta: lo asigna
+  // publicar_historia en Supabase al publicar por primera vez (contador que solo sube; nunca se
+  // reutiliza). Aquí solo se lee: sin número, el paso dice que llegará al publicar. ----
   useEffect(()=>{
     if(wStep==="numero"&&numAutor==null){
+      setNumLeido(false);
       (async () => {
-        const { data: { user } } = await supa.auth.getUser();
-        if(!user) return;
-        const { data, error } = await supa.from("autores").select("numero_autor").eq("id", user.id).single();
-        if(!error && data) setNumAutor(data.numero_autor ?? null);
+        try{
+          const { data: { user } } = await supa.auth.getUser();
+          if(!user) return;
+          const { data, error } = await supa.from("autores").select("numero_autor").eq("id", user.id).single();
+          if(!error && data) setNumAutor(data.numero_autor ?? null);
+        } finally { setNumLeido(true); }
       })();
     }
   },[wStep]);
@@ -6208,9 +6217,11 @@ ${capituloActual}
       {topBar}
       {narrowCard(<>
         <div style={{textAlign:"center",padding:"1rem 0"}}>
-          <div style={{fontFamily:"var(--serif)",fontSize:"3rem",color:"var(--navy)",lineHeight:1}}>Nº {numAutor||"—"}</div>
-          <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",letterSpacing:"0.15em",textTransform:"uppercase",color:"var(--muted)",marginTop:"0.3rem"}}>{t.wiz_number_lbl} {numAutor||"—"} {"de Locus Mundi"}</div>
+          {numAutor!=null ? (<>{/* [NA 26/10/2026] con número (p. ej., Toni, Nº 5) */}
+          <div style={{fontFamily:"var(--serif)",fontSize:"3rem",color:"var(--navy)",lineHeight:1}}>Nº {numAutor}</div>
+          <div style={{fontFamily:"var(--body)",fontSize:"0.78rem",letterSpacing:"0.15em",textTransform:"uppercase",color:"var(--muted)",marginTop:"0.3rem"}}>{t.wiz_number_lbl} {numAutor} {t.wiz_number_of}</div>
           {esFundador&&<div style={{marginTop:"1rem",display:"inline-flex",alignItems:"center",gap:"0.4rem",background:"rgba(196,147,42,0.12)",border:"1px solid var(--gold)",color:"var(--gold)",fontFamily:"var(--body)",fontSize:"0.78rem",letterSpacing:"0.08em",padding:"0.4rem 0.9rem",borderRadius:"20px"}}>{t.wiz_founder}</div>}
+          </>) : (numLeido && <p style={{fontFamily:"var(--serif)",fontSize:"1.25rem",color:"var(--navy)",lineHeight:1.45,margin:"0.5rem 0"}}>{t.wiz_number_pending}</p>)}
         </div>
         <button className="btn-pub" style={{width:"100%"}} onClick={()=>setWStep("condiciones")}>{t.wiz_continue}</button>
       </>)}
@@ -6388,6 +6399,10 @@ ${capituloActual}
           <div className="modal" style={{maxWidth:"420px"}}>
             <button className="modal-x" onClick={closeShare}>×</button>
             <p className="ok-msg" style={{marginBottom:"0.8rem"}}>{t.published_ok}</p>
+            {numeroNuevo!=null&&shareFrom==="publish"&&(<div style={{textAlign:"center",margin:"0 0 1rem"}}>{/* [NA 26/10/2026] */}
+              <div style={{fontFamily:"var(--serif)",fontSize:"1.15rem",color:"var(--navy)"}}>{t.num_received.replace("{n}",numeroNuevo)}</div>
+              {numeroNuevo<=100&&<div style={{marginTop:"0.6rem",display:"inline-flex",alignItems:"center",gap:"0.4rem",background:"rgba(196,147,42,0.12)",border:"1px solid var(--gold)",color:"var(--gold)",fontFamily:"var(--body)",fontSize:"0.78rem",letterSpacing:"0.08em",padding:"0.4rem 0.9rem",borderRadius:"20px"}}>{t.wiz_founder}</div>}
+            </div>)}
             <div className="modal-h" style={{fontSize:"1.02rem"}}>{t.share_after_publish_h}</div>
             <p className="wr-sub" style={{marginBottom:"0.6rem"}}>{t.share_after_publish_sub}</p>
             {/* Mensaje editable (04/10/2026, tarde): el Autor puede retocarlo antes de copiarlo. */}
