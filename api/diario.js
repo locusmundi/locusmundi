@@ -17,6 +17,10 @@
 // Versión 1.4 · 24/10/2026 · Fase C (conversación C2-2): Plan Familiar. Recordatorios al destinatario (al mes y
 // 15 días antes del plazo; este, también a quien regala), devolución al vencer el plazo (importe menos la
 // comisión) y borrado de los regalos de pagos no hechos. Lógica en api/_regalo.js.
+// Versión 1.5 · 26/10/2026 · Fase C (limpieza). (a) Plazos de conservación (Privacidad y Registro de
+// actividades): IP de registro_lssi, un año tras la baja; alegaciones (avisos_moderacion) y denuncias, dos
+// años; compras (ventas) y regalos, seis años. (b) El vigía cuenta los avisos de «Creo que es un error» y las
+// denuncias sin resolver; si alguno lleva más de 7 días, cuenta como fallo (correo diario hasta resolverlo).
 
 const purgar = require('./_purgar-borrados'); // v1.2
 const { leerTexto } = require('./_r2');
@@ -29,6 +33,24 @@ const { modelosEnUso, modelosSinPrecio } = require('./_modelos'); // v1.1
 const MODELOS = modelosEnUso();
 const WEB = 'https://locusmundi.vercel.app/';
 const DIAS_MAXIMOS_COPIA = 8;
+const DIAS_MAXIMOS_PENDIENTE = 7; // v1.5
+const DIA = 86400000;
+// v1.5: tabla, columna de fecha y días que se conserva cada fila.
+const PLAZOS = [
+  ['registro_lssi', 'baja_en', 365],
+  ['avisos_moderacion', 'fecha', 730],
+  ['denuncias', 'recibida_en', 730],
+  ['ventas', 'creado_en', 2192],
+  ['regalos', 'creado_en', 2192],
+];
+
+function supa(ruta, opciones = {}) {
+  const llave = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return fetch(`${process.env.SUPABASE_URL}/rest/v1/${ruta}`, {
+    ...opciones,
+    headers: { apikey: llave, Authorization: `Bearer ${llave}`, ...(opciones.headers || {}) },
+  });
+}
 
 async function ejecutarPurga(req) {
   return new Promise((resolver) => {
@@ -76,6 +98,38 @@ module.exports = async function handler(req, res) {
     if (c.fallos.length) throw new Error(`fallidos: ${c.fallos.join('; ')}`);
     return `${c.recordatorios} recordatorios, ${c.avisos} avisos, ${c.devueltos} devueltos, ${c.borrados} sin pagar borrados`;
   });
+
+  // 1 quater. Plazos de conservación (v1.5).
+  await comprobar('Plazos de conservación', async () => {
+    const partes = [];
+    for (const [tabla, col, dias] of PLAZOS) {
+      const limite = new Date(Date.now() - dias * DIA).toISOString();
+      const r = await supa(`${tabla}?${col}=lt.${encodeURIComponent(limite)}&select=id`, {
+        method: 'DELETE',
+        headers: { Prefer: 'return=representation' },
+      });
+      if (!r.ok) throw new Error(`${tabla}: ${r.status} ${(await r.text()).slice(0, 200)}`);
+      partes.push(`${tabla} ${(await r.json()).length}`);
+    }
+    return partes.join(', ');
+  });
+
+  // 1 quinquies. Avisos y denuncias sin resolver (v1.5).
+  for (const [nombre, ruta, col] of [
+    ['Avisos pendientes', 'avisos_moderacion?estado=eq.pendiente', 'fecha'],
+    ['Denuncias pendientes', 'denuncias?estado=eq.recibida', 'recibida_en'],
+  ]) {
+    await comprobar(nombre, async () => {
+      const r = await supa(`${ruta}&select=${col}&order=${col}.asc`);
+      if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
+      const filas = await r.json();
+      if (!filas.length) return '0';
+      const dias = Math.floor((Date.now() - new Date(filas[0][col]).getTime()) / DIA);
+      const texto = `${filas.length}, el más antiguo de hace ${dias} días`;
+      if (dias > DIAS_MAXIMOS_PENDIENTE) throw new Error(`${texto} (revisar en Supabase o admin.html)`);
+      return texto;
+    });
+  }
 
   // 2. Modelos de Google (solo consulta si existen; no genera nada ni cuesta).
   for (const modelo of MODELOS) {

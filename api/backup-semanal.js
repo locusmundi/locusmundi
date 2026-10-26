@@ -9,6 +9,7 @@
 // Estructura en R2: copia-AAAA-MM-DD/tablas/<tabla>.json, copia-AAAA-MM-DD/fotos/<ruta original>,
 // copia-AAAA-MM-DD/fin.json (resumen) y ultima-copia.json (solo si la copia está completa; lo lee
 // el vigía, api/diario.js).
+// Versión 3.1 · 26/10/2026 · Fase C (limpieza): copia también denuncias, avisos_moderacion, ventas y regalos.
 // Límite conocido: con el tiempo máximo de 60 s, unas 1.500 fotos por pasada. Si no le da tiempo,
 // la copia queda incompleta y avisa (revisar con Vercel Pro o copia incremental).
 
@@ -22,6 +23,10 @@ const TABLAS = {
   autores: 'id',
   registro_lssi: 'id',
   admin_log: 'id',
+  denuncias: 'id', // v3.1
+  avisos_moderacion: 'id', // v3.1
+  ventas: 'id', // v3.1
+  regalos: 'id', // v3.1
 };
 const BUCKET_FOTOS = 'fotos';
 const TIEMPO_MAXIMO_MS = 45000;
