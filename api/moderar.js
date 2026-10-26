@@ -1,4 +1,9 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.12 · 26/10/2026 · TEST de los pendientes de index.html: cada «Creo que es un error» (texto o
+//   imagen) manda además un aviso interno (api/_aviso.js, a la dirección de los avisos), para que Javier
+//   sepa que hay uno pendiente. Si el aviso falla, el «Creo que es un error» queda guardado igual.
+//   LIMITE_CONJUNTO cuenta solo las subidas revisadas con resultado «conjunto» (antes, todas las revisadas
+//   de la semana: un libro con dos subidas normales quedaba bloqueado una semana tras su primer conjunto).
 // Versión 3.11 · 25/10/2026 · Fase C, pendientes de index.html (II). Decisiones de Javier:
 //   - Veredicto de conjunto: la lista de pasajes y sus motivos se envían también, gratis (Condiciones
 //     de Publicación, apartado 4; DSA art. 17.3). Sustituye a "nunca la lista sin el Asistente" (§6.2).
@@ -141,6 +146,7 @@ const crypto = require('crypto');
 const { huellasVigentes, tramosConCapitulo, fotosColocadas } = require('./_tramos'); // compartido
 const almacen = require('./_almacen');      // compartido con api/foto-editor.js
 const mod = require('./_moderacion');       // compartido con api/foto-editor.js
+const { avisar } = require('./_aviso');     // v3.12: aviso interno de «Creo que es un error»
 
 // ─── Constantes ─────────────────────────────────────────────────────────
 
@@ -751,7 +757,7 @@ async function subir(body, autorId, ip, res) {
         const semana = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
         const hechas = await leer(
           `registro_gasto?servicio=eq.subida&historia_id=eq.${h.id}&fecha=gte.${encodeURIComponent(semana)}` +
-          `&detalle->>revisada=eq.true&select=fecha`
+          `&detalle->>revisada=eq.true&detalle->>resultado=eq.conjunto&select=fecha` // v3.12: solo las subidas con veredicto de conjunto
         );
         const hoy = new Date(mod.inicioDeHoy()).getTime();
         const deHoy = hechas.filter(x => new Date(x.fecha).getTime() >= hoy).length;
@@ -982,6 +988,9 @@ async function errorTexto(body, autorId, res) {
     tipo: 'error_texto', autor_id: autorId, historia_id: h.id, huella: p.huella, cita: p.cita,
     explicacion, detalle: { pasaje_id: p.id, tipo: p.tipo, motivo_es: p.motivo_es, capitulo: p.tituloCapitulo }
   });
+  await avisar('Locus Mundi: «Creo que es un error» (texto) pendiente', // v3.12
+    `Libro: ${h.id}\nAutor: ${autorId}\nMotivo señalado: ${p.motivo_es || ''}\nPasaje: ${String(p.cita || '').slice(0, 400)}\nExplicación del Autor: ${explicacion}\n\nEstá en avisos_moderacion (pendiente). Resuélvelo con Claude.`
+  ).catch(e => console.error('Aviso interno no enviado:', e.message));
   return res.status(200).json({ ok: true });
 }
 
@@ -1096,6 +1105,9 @@ async function errorImagen(body, autorId, res) {
     tipo: 'error_imagen', autor_id: autorId, historia_id: obj.historia.id, ruta, explicacion,
     detalle: { categoria, objetivo: obj.tipo, foto_id: obj.foto ? obj.foto.id : null }
   });
+  await avisar('Locus Mundi: «Creo que es un error» (imagen) pendiente', // v3.12
+    `Libro: ${obj.historia.id}\nAutor: ${autorId}\nCategoría del rechazo: ${categoria}\nImagen: ${ruta}\nExplicación del Autor: ${explicacion}\n\nEstá en avisos_moderacion (pendiente). Resuélvelo con Claude.`
+  ).catch(e => console.error('Aviso interno no enviado:', e.message));
   return res.status(200).json({ ok: true });
 }
 

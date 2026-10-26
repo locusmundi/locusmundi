@@ -1,4 +1,7 @@
 // api/_regalo.js — Locus Mundi
+// Versión 1.4 · 25/10/2026 · Pendientes de index.html, III: el regalo no aceptado se devuelve SIEMPRE íntegro
+//   (descontar la comisión podría ser un recargo prohibido, TRLGDCU art. 60 ter). Decisión de Javier, opción B.
+//   Correos ajustados. Sin cambios en la lógica de aceptar, recordatorios ni plazos.
 // Versión 1.3 · 24/10/2026 · C3-III (textos legales): confirmación a quien regala con la aceptación de las condiciones,
 //   «al aceptarlo ya no se puede desistir», recibo y factura de Link y enlace a las Condiciones de Compra. EN: «Publication
 //   Terms». Exporta plantilla y esc (para el correo de confirmación de compra de api/pago.js).
@@ -26,10 +29,8 @@ const TINTA_REGALO = 2;              // euros de tinta (carga de 5 €)
 const FOTOS_REGALO = 10;
 const MAX_FOTOS_LIBRO = 20;          // = index.html y api/pago.js (las del regalo cuentan dentro)
 const DESCARGAS_PDF = 15;            // = api/pdf.js
-const COMISION_ESTIMADA = 100;       // si Stripe no dio la comisión real (≈ 1 € con Managed Payments)
 const DIAS_RECORDATORIO_1 = 30;      // desde el pago
 const DIAS_RECORDATORIO_2 = 15;      // antes del plazo (también a quien regala)
-const DIAS_DESISTIMIENTO = 14;       // v1.2: rechazo en este plazo → devolución íntegra
 const WEB = 'https://www.locusmundi.com';
 const ALFABETO = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'; // sin 0/O, 1/I/L
 
@@ -145,7 +146,7 @@ function correoRegala(r, tipo, extra) {
       asunto = `Tu regalo para ${r.destinatario_nombre} ya está en camino`;
       lineas = [`Hola, ${R}:`,
         `Gracias por regalar el Plan Familiar de Locus Mundi a ${D}. Le hemos enviado un correo a <b>${esc(r.destinatario_email)}</b> con tu mensaje y el enlace para aceptarlo.`,
-        `Tiene hasta el <b>${plazo}</b> para aceptarlo. Si no lo acepta en ese plazo, o nos dice que no le interesa, te devolveremos el importe (íntegro si es en los 14 días siguientes a la compra; después, menos la comisión del pago, alrededor de 1 €) y borraremos sus datos.`,
+        `Tiene hasta el <b>${plazo}</b> para aceptarlo. Si no lo acepta en ese plazo, o nos dice que no le interesa, te devolveremos los 15 € íntegros y borraremos sus datos.`,
         'Mientras no lo acepte, puedes desistir de la compra en los 14 días siguientes y te devolveremos los 15 € íntegros: basta con responder a este correo.',
         `Cuando ${D} lo acepte, empezará el servicio y ya no podrás desistir ni pedir la devolución. Así lo aceptaste al comprar, junto con las condiciones del regalo y las <a href="${WEB}/?legal=compra" style="color:#1B3A6B;">Condiciones de Compra</a>.`, // v1.3
         'El recibo y la factura te los envía directamente Link, el servicio de pagos de Stripe. En tu extracto aparecerá como LINK.COM* LOCUS MUNDI.',
@@ -153,20 +154,20 @@ function correoRegala(r, tipo, extra) {
     } else if (tipo === 'quince') {
       asunto = `${r.destinatario_nombre} aún no ha aceptado tu regalo`;
       lineas = [`Hola, ${R}:`, `${D} aún no ha aceptado el Plan Familiar que le regalaste; tiene hasta el <b>${plazo}</b>. Quizá quieras recordárselo.`,
-        'Si no lo acepta, te devolveremos el importe menos la comisión del pago (alrededor de 1 €).'];
+        'Si no lo acepta, te devolveremos los 15 € íntegros.'];
     } else if (tipo === 'aceptado') {
       asunto = `${r.destinatario_nombre} ha aceptado tu regalo`;
       lineas = [`Hola, ${R}:`, `${D} ha aceptado el Plan Familiar que le regalaste. Ya puede empezar a escribir su historia en Locus Mundi.`, 'Gracias por regalarlo.'];
     } else {
       asunto = `${r.destinatario_nombre} no ha aceptado tu regalo`;
-      lineas = [`Hola, ${R}:`, `${D} no ha aceptado el Plan Familiar que le regalaste. Te hemos devuelto <b>${euros(extra.importe, 'ES')}</b>${extra.comision > 0 ? ` (15 € menos ${euros(extra.comision, 'ES')} de comisión del pago)` : ''}; lo verás en tu tarjeta en 5 a 10 días.`,
+      lineas = [`Hola, ${R}:`, `${D} no ha aceptado el Plan Familiar que le regalaste. Te hemos devuelto <b>${euros(extra.importe, 'ES')}</b>; lo verás en tu tarjeta en 5 a 10 días.`,
         'Hemos borrado sus datos.'];
     }
   } else if (tipo === 'confirmacion') {
     asunto = `Your gift for ${r.destinatario_nombre} is on its way`;
     lineas = [`Hello ${R},`,
       `Thank you for giving ${D} the Locus Mundi Family Plan. We've sent an email to <b>${esc(r.destinatario_email)}</b> with your message and the link to accept it.`,
-      `They have until <b>${plazo}</b> to accept it. If they don't accept it by then, or tell us they're not interested, we'll refund you the amount (in full if within 14 days of the purchase; after that, minus the payment fee, about €1) and delete their details.`,
+      `They have until <b>${plazo}</b> to accept it. If they don't accept it by then, or tell us they're not interested, we'll refund you the full €15 and delete their details.`,
       'As long as they haven\'t accepted it, you can withdraw from the purchase within 14 days and we\'ll refund the full €15: just reply to this email.',
       `Once ${D} accepts it, the service begins and you can no longer withdraw or ask for a refund. You accepted this when you bought it, together with the gift terms and the <a href="${WEB}/?legal=compra" style="color:#1B3A6B;">Purchase Terms</a>.`, // v1.3
       'Your receipt and invoice are sent directly by Link, Stripe\'s payment service. It will appear on your statement as LINK.COM* LOCUS MUNDI.',
@@ -174,13 +175,13 @@ function correoRegala(r, tipo, extra) {
   } else if (tipo === 'quince') {
     asunto = `${r.destinatario_nombre} hasn't accepted your gift yet`;
     lineas = [`Hello ${R},`, `${D} hasn't accepted the Family Plan you gave them yet; they have until <b>${plazo}</b>. You may want to remind them.`,
-      'If they don\'t accept it, we\'ll refund you the amount minus the payment fee (about €1).'];
+      'If they don\'t accept it, we\'ll refund you the full €15.'];
   } else if (tipo === 'aceptado') {
     asunto = `${r.destinatario_nombre} has accepted your gift`;
     lineas = [`Hello ${R},`, `${D} has accepted the Family Plan you gave them. They can now start writing their story on Locus Mundi.`, 'Thank you for giving it.'];
   } else {
     asunto = `${r.destinatario_nombre} hasn't accepted your gift`;
-    lineas = [`Hello ${R},`, `${D} hasn't accepted the Family Plan you gave them. We've refunded you <b>${euros(extra.importe, 'EN')}</b>${extra.comision > 0 ? ` (€15 minus ${euros(extra.comision, 'EN')} payment fee)` : ''}; you'll see it on your card within 5 to 10 days.`,
+    lineas = [`Hello ${R},`, `${D} hasn't accepted the Family Plan you gave them. We've refunded you <b>${euros(extra.importe, 'EN')}</b>; you'll see it on your card within 5 to 10 days.`,
       'We have deleted their details.'];
   }
   const html = plantilla(r.idioma, lineas.map(p), pie);
@@ -223,19 +224,13 @@ module.exports = function regalos({ rest, stripe }) {
     }
   }
 
-  // --- Devolución (rechazo o plazo vencido): importe menos la comisión real --------------------------
+  // --- Devolución (rechazo o plazo vencido): siempre íntegra (v1.4) ------------------------------------
   async function devolverRegalo(r, motivo) { // motivo: 'rechazado' | 'devuelto'
     const v = r.ventas;
     const tomado = await rest(`regalos?id=eq.${r.id}&estado=eq.pendiente`, { method: 'PATCH', headers: devolver, body: JSON.stringify({ estado: motivo }) });
     if (!tomado.length) return 'ya resuelto';
-    const fee = Number.isInteger(v.comision_cent) ? v.comision_cent : COMISION_ESTIMADA;
-    const iva = Number.isInteger(v.iva_cent) ? v.iva_cent : 0;
-    // v1.1: Stripe reintegra el IVA en proporción a lo devuelto; así el neto de Locus Mundi queda en cero.
-    const enPlazo = v.pagada_en && (Date.now() - new Date(v.pagada_en).getTime()) < DIAS_DESISTIMIENTO * 86400000; // v1.2
-    const importe = enPlazo ? v.total_cent : iva > 0 && iva < v.total_cent
-      ? Math.floor(((v.total_cent - fee - iva) * v.total_cent) / (v.total_cent - iva))
-      : v.total_cent - fee;
-    const comision = v.total_cent - importe; // lo retenido, tal como se le dice a quien regaló
+    const importe = v.total_cent; // v1.4: íntegro siempre (la comisión de Stripe la asume Locus Mundi)
+    const comision = 0;
     try {
       if (importe > 0) await stripe('POST', 'refunds', { payment_intent: v.stripe_pago, amount: importe, metadata: { venta_id: v.id, motivo: `regalo_${motivo}` } });
     } catch (e) {
