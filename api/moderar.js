@@ -1,4 +1,7 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.13 · 26/10/2026 · Número de Autor al publicar por primera vez (Continuidad, sesión
+//   «26/10/2026 (limpieza)», punto 3). publicar_historia lo asigna en Supabase; aquí solo se devuelve
+//   al editor: numero_autor y numero_nuevo (true la primera vez). Nada más cambia.
 // Versión 3.12 · 26/10/2026 · TEST de los pendientes de index.html: cada «Creo que es un error» (texto o
 //   imagen) manda además un aviso interno (api/_aviso.js, a la dirección de los avisos), para que Javier
 //   sepa que hay uno pendiente. Si el aviso falla, el «Creo que es un error» queda guardado igual.
@@ -922,7 +925,9 @@ async function subir(body, autorId, ip, res) {
     ok: true,
     nueva: !!publicado.nueva,
     fecha_publicacion: publicado.fecha_publicacion,
-    fecha_actualizacion: publicado.fecha_actualizacion
+    fecha_actualizacion: publicado.fecha_actualizacion,
+    numero_autor: publicado.numero_autor ?? null, // v3.13
+    numero_nuevo: !!publicado.numero_nuevo        // v3.13: true solo al publicar por primera vez
   });
 }
 
