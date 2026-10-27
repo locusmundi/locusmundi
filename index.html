@@ -451,6 +451,31 @@ nav{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 <body>
 <div id="root"><div style="display:flex;align-items:center;justify-content:center;min-height:60vh;flex-direction:column;gap:1rem"><div class="sp" style="width:24px;height:24px"></div><p style="font-family:Georgia,serif;color:#7A6248">Cargando Locus Mundi…</p></div></div>
 <!-- [P16-B1-7] Las cuatro piezas, con versión fija y servidas desde el repositorio (inventario: Protocolo de Seguridad v1.11). Antes, de cdnjs y jsdelivr (supabase-js "@2", sin versión fija). -->
+<!-- Registro de errores (E3, 27/10/2026): fallos del navegador a api/contador-historias.js v8; máx. 5 por visita. -->
+<script>
+(function(){
+  var enviados = 0, vistos = {};
+  function enviar(mensaje){
+    try {
+      mensaje = String(mensaje || "").slice(0, 500);
+      if (!mensaje || /^Script error\.?$/.test(mensaje) || /ResizeObserver/.test(mensaje)) return;
+      if (enviados >= 5 || vistos[mensaje]) return;
+      enviados++; vistos[mensaje] = 1;
+      fetch("/api/contador-historias", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: { mensaje: mensaje, pagina: location.pathname } }),
+        keepalive: true }).catch(function(){});
+    } catch (e) {}
+  }
+  window.addEventListener("error", function(ev){
+    if (!ev || !ev.message) return;
+    enviar(ev.message + (ev.filename ? " @" + ev.filename.split("/").pop() + ":" + ev.lineno : ""));
+  });
+  window.addEventListener("unhandledrejection", function(ev){
+    var r = ev && ev.reason;
+    enviar("Promesa: " + (r && r.message ? r.message : r));
+  });
+})();
+</script>
 <script src="/vendor/react-18.2.0.production.min.js"></script>
 <script src="/vendor/react-dom-18.2.0.production.min.js"></script>
 <script src="/vendor/babel-standalone-7.23.2.min.js"></script>
