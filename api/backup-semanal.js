@@ -10,6 +10,10 @@
 // copia-AAAA-MM-DD/fin.json (resumen) y ultima-copia.json (solo si la copia está completa; lo lee
 // el vigía, api/diario.js).
 // Versión 3.1 · 26/10/2026 · Fase C (limpieza): copia también denuncias, avisos_moderacion, ventas y regalos.
+// Versión 3.2 · 27/10/2026 · Fase C, endurecimiento (primera subida, V6 del Mapa del sistema): copia
+// también pdf_compras y pdf_descargas (quién pagó el PDF y cuántas descargas le quedan), contadores
+// (sin él, una restauración repetiría números de Autor), paises y regiones (sin ellas falla la
+// búsqueda al publicar) y lecturas. Las tablas de IA (regenerables) siguen fuera.
 // Límite conocido: con el tiempo máximo de 60 s, unas 1.500 fotos por pasada. Si no le da tiempo,
 // la copia queda incompleta y avisa (revisar con Vercel Pro o copia incremental).
 
@@ -27,6 +31,12 @@ const TABLAS = {
   avisos_moderacion: 'id', // v3.1
   ventas: 'id', // v3.1
   regalos: 'id', // v3.1
+  pdf_compras: 'historia_id', // v3.2
+  pdf_descargas: 'id', // v3.2
+  contadores: 'nombre', // v3.2
+  paises: 'codigo', // v3.2
+  regiones: 'codigo', // v3.2
+  lecturas: 'historia_id', // v3.2
 };
 const BUCKET_FOTOS = 'fotos';
 const TIEMPO_MAXIMO_MS = 45000;
