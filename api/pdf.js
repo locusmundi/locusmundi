@@ -61,6 +61,7 @@
 //   crea api/pago.js al confirmarse el pago en Stripe (origen 'stripe'); el Plan Familiar, sin cambios.
 // Versión 2.3 · 24/10/2026 · Fase C (conversación C2-2, Plan Familiar): al crear la compra del PDF incluido
 //   se pone autores.pdf_incluido = false (antes quedaba en true y el PDF del regalo podía sumarse dos veces).
+// Versión 2.4 · 27/10/2026 · Euskera (EU) como idioma del libro: colofón, fecha y partición silábica (hyphen/eu).
 // ARCHIVO IMPRIMIBLE (PDF) del libro PUBLICADO del Autor (tabla `publicaciones`, nunca el borrador).
 // Estrategia: Continuidad, sesión "19/10/2026 (conversación 11: PDF, estrategia)"; formato:
 // LOCUS_MUNDI_FORMATO_IMPRESION.md v2. Chrome sin pantalla (@sparticuz/chromium), en
@@ -99,13 +100,14 @@ const LEYENDA = { // colofón, en el idioma del libro (traducido por Claude, sin
   'PT-PT': 'Publicado no Locus Mundi · locusmundi.com · Arquivo vivo da humanidade',
   'PT-BR': 'Publicado no Locus Mundi · locusmundi.com · Arquivo vivo da humanidade',
   PT: 'Publicado no Locus Mundi · locusmundi.com · Arquivo vivo da humanidade',
+  EU: 'Locus Mundi-n argitaratua · locusmundi.com · Gizateriaren artxibo bizia', // 27/10/2026 (revisa Imanol)
   RU: 'Опубликовано в Locus Mundi · locusmundi.com · Живой архив человечества',
   AR: 'نُشر في Locus Mundi · locusmundi.com · الأرشيف الحي للإنسانية',
   ZH: '发表于 Locus Mundi · locusmundi.com · 人类的活档案',
   JA: 'Locus Mundi にて公開 · locusmundi.com · 人類の生きたアーカイブ',
   HI: 'Locus Mundi पर प्रकाशित · locusmundi.com · मानवता का जीवित संग्रह',
 };
-const ETIQUETA_IDIOMA = { ES: 'es', CA: 'ca', GL: 'gl', EN: 'en', FR: 'fr', DE: 'de', IT: 'it', 'PT-PT': 'pt-PT', 'PT-BR': 'pt-BR', PT: 'pt', RU: 'ru' };
+const ETIQUETA_IDIOMA = { ES: 'es', CA: 'ca', GL: 'gl', EN: 'en', FR: 'fr', DE: 'de', IT: 'it', 'PT-PT': 'pt-PT', 'PT-BR': 'pt-BR', PT: 'pt', RU: 'ru', EU: 'eu' };
 
 // Partición silábica (Chrome sin pantalla no trae diccionarios). Requires literales: así Vercel los empaqueta.
 const SILABAS = {
@@ -113,6 +115,7 @@ const SILABAS = {
   EN: () => require('hyphen/en-us'), FR: () => require('hyphen/fr'), DE: () => require('hyphen/de-1996'),
   IT: () => require('hyphen/it'), 'PT-PT': () => require('hyphen/pt'), 'PT-BR': () => require('hyphen/pt'),
   PT: () => require('hyphen/pt'), RU: () => require('hyphen/ru'),
+  EU: () => require('hyphen/eu'), // 27/10/2026
 };
 const SHY = '­';
 function partidor(lang) {

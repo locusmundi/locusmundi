@@ -1,4 +1,5 @@
 // api/traducir.js — Locus Mundi
+// Versión 3.4 · 27/10/2026 · Euskera (EU): idioma de origen y de destino.
 // Versión 3.3 · 26/10/2026 · TEST de los pendientes de index.html: Flash-Lite devolvió en gallego, sin
 //   traducir, los tramos del libro de Olegario pedidos en español, y se guardaron en la caché.
 //   (1) La instrucción dice también el idioma de origen («del gallego al español»).
@@ -81,7 +82,8 @@ const IDIOMAS = {
   'RU':    'ruso',
   'HI':    'hindi',
   'GL':    'gallego',
-  'CA':    'catalán'
+  'CA':    'catalán',
+  'EU':    'euskera'   // 27/10/2026
 };
 
 const crypto = require('crypto'); // v3.2
