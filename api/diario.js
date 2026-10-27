@@ -25,9 +25,11 @@
 // 40 días (más que los 35 de las copias: mientras exista una copia con el libro, se sabe que hay que volver a
 // borrarlo al restaurarla). (b) El vigía cuenta los fallos del navegador de las últimas 24 h (tabla `errores`,
 // api/contador-historias.js v8) y da los 3 más repetidos; 10 o más cuentan como fallo.
+// Versión 1.7 · 27/10/2026 · E3: copia diaria de la tabla `supresiones` en R2 (supresiones.json). Si se pierde
+// Supabase entero, la lista de lo borrado sigue fuera y se puede volver a borrar tras restaurar (Mapa, §7).
 
 const purgar = require('./_purgar-borrados'); // v1.2
-const { leerTexto } = require('./_r2');
+const { leerTexto, subir } = require('./_r2'); // subir: v1.7
 const { avisar } = require('./_aviso');
 const { limpiarPdf } = require('./pdf'); // v1.3
 const pago = require('./pago'); // v1.4
@@ -137,6 +139,15 @@ module.exports = async function handler(req, res) {
       return texto;
     });
   }
+
+  // 1 septies. Lista de borrados, también fuera de Supabase (v1.7).
+  await comprobar('Lista de borrados en R2', async () => {
+    const r = await supa('supresiones?select=historia_id,autor_id,purgado_en&order=purgado_en.asc');
+    if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
+    const filas = await r.json();
+    await subir('supresiones.json', JSON.stringify({ fecha: new Date().toISOString(), filas }), 'application/json');
+    return `${filas.length}`;
+  });
 
   // 1 sexies. Fallos del navegador en las últimas 24 h (v1.6).
   await comprobar('Errores en 24 h', async () => {
