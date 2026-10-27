@@ -961,7 +961,7 @@ const T = {
     btn_write:"Escribe tu historia",btn_explore:"Explorar la Biblioteca",
     recent_lbl:"Historias recientes",recent_h:"Voces del mundo",see_all:"Ver toda la Biblioteca",
     lib_incentive:"Tu historia importa y no está en venta. Escribe y lee gratis en cualquier idioma del mundo.",
-    lib_total_suffix:"historias publicadas",lib_archive_lbl:"Archivo global",
+    lib_total_suffix:"historias publicadas",lib_total_suffix_one:"historia publicada",lib_archive_lbl:"Archivo global",
     cta_h1:"No hace falta ser escritor.",cta_h2:"Solo tener una vida que contar.",
     cta_body:"¿A quién no le gustaría mantener una última conversación con sus abuelos sobre el mundo que conocieron? Locus Mundi te invita a mantener esa conversación en el futuro con tus nietos.",
     cta_btn:"Empezar ahora — es gratis",
@@ -1011,7 +1011,7 @@ const T = {
     read_lang_error:"No se ha podido traducir el texto. Inténtalo de nuevo o léelo en el idioma original.",
     tr_wait:"Traduciendo…",tr_more:"Traduciendo la continuación…",
     tr_part_error:"No se ha podido traducir esta parte. Inténtalo de nuevo.",
-    tr_machine:"Traducción automática con inteligencia artificial; puede contener errores. El texto del Autor es el original ({lang}).", // C3 (25/10/2026),tr_retry:"Reintentar",
+    tr_machine:"Traducción automática con inteligencia artificial; puede contener errores. El texto del Autor es el original ({lang}).", tr_retry:"Reintentar", // C3 (25/10/2026); 27/10/2026: sacado del comentario
     tr_fuse:"Por hoy se ha alcanzado el límite de traducciones nuevas. Mañana podrás seguir leyendo en este idioma. Mientras tanto, puedes usar la traducción de tu navegador o leer el original.",
     translate:"Traducir",
     report_link:"Denunciar contenido inapropiado",
@@ -1439,7 +1439,7 @@ const T = {
     btn_write:"Write your story",btn_explore:"Explore the Library",
     recent_lbl:"Recent stories",recent_h:"Voices of the world",see_all:"See the whole Library",
     lib_incentive:"Your story matters, and it's not for sale. Write and read for free, in any language of the world.",
-    lib_total_suffix:"stories published",lib_archive_lbl:"Global archive",
+    lib_total_suffix:"stories published",lib_total_suffix_one:"story published",lib_archive_lbl:"Global archive",
     cta_h1:"You don't need to be a writer.",cta_h2:"Just have a life to tell.",
     cta_body:"Who wouldn't want one last conversation with their grandparents about the world they knew? Locus Mundi invites you to have that conversation in the future with your grandchildren.",
     cta_btn:"Start now — it's free",
@@ -1489,7 +1489,7 @@ const T = {
     read_lang_error:"Couldn't translate the text. Try again, or read it in the original language.",
     tr_wait:"Translating…",tr_more:"Translating the next part…",
     tr_part_error:"This part could not be translated. Please try again.",
-    tr_machine:"Machine translation by artificial intelligence; it may contain errors. The Author's own text is the original ({lang}).", // C3 (25/10/2026),tr_retry:"Try again",
+    tr_machine:"Machine translation by artificial intelligence; it may contain errors. The Author's own text is the original ({lang}).", tr_retry:"Try again", // C3 (25/10/2026); 27/10/2026: out of the comment
     tr_fuse:"Today's limit for new translations has been reached. You can continue reading in this language tomorrow. In the meantime, you can use your browser's translation or read the original.",
     report_link:"Report inappropriate content",
     report_h:"Report inappropriate content",
@@ -2214,7 +2214,7 @@ function Library({cifras,openAuto,t,lang}) {
     <section className="sec">
       <div className="sec-lbl">{t.lib_archive_lbl}</div>
       <div className="sec-h">{t.recent_h}</div>
-      {totalPub!==null&&<p style={{fontFamily:"var(--body)",fontWeight:600,color:"var(--navy)",marginTop:"-0.4rem",marginBottom:"0.6rem"}}>{totalPub} {t.lib_total_suffix}</p>}
+      {totalPub!==null&&<p style={{fontFamily:"var(--body)",fontWeight:600,color:"var(--navy)",marginTop:"-0.4rem",marginBottom:"0.6rem"}}>{totalPub} {totalPub===1?t.lib_total_suffix_one:t.lib_total_suffix}</p>}
       <p style={{fontFamily:"var(--body)",fontStyle:"italic",fontSize:"0.92rem",color:"var(--muted)",marginTop:"-0.5rem",marginBottom:"1.2rem"}}>{t.lib_incentive}</p>
       <div className="sw"><span className="sico">🔍</span><input className="si" placeholder={t.search_ph} value={q} onChange={e=>setQ(e.target.value)} maxLength={200}/></div>
       <div style={{margin:"-0.4rem 0 1.2rem"}}>
@@ -7129,37 +7129,7 @@ function AssistantPanel({open,onClose,t,speak,speaking,setSpeaking,aiUsage,recha
 }
 
 // [C2-2] 24/10/2026: Plan Familiar real. Puede regalar cualquiera, sin cuenta; paga por api/pago.js y la
-// página de Stripe. Textos legales PROVISIONALES (C3-III). Original (eb40399), solo «reservaba»:
-/*
-function GiftModal({onClose,t}) {
-  const [f,setF]=useState({name:"",msg:"",email:""});
-  const [reserved,setReserved]=useState(false);
-  const up=(k,v)=>setF(p=>({...p,[k]:v}));
-  return (
-    <div className="ov" onClick={onClose}>
-      <div className="modal" style={{maxWidth:"460px"}} onClick={e=>e.stopPropagation()}>
-        <button className="modal-x" onClick={onClose}>✕</button>
-        <div className="modal-h">{t.gift_h}</div>
-        <p className="modal-sub">{t.gift_sub}</p>
-        <ul style={{fontFamily:"var(--body)",fontSize:"0.88rem",lineHeight:1.9,paddingLeft:"1.1rem",marginBottom:"0.8rem"}}>
-          <li>✦ {t.gift_item1}</li>
-          <li>📷 {t.gift_item2}</li>
-          <li>📄 {t.gift_item3}</li>
-        </ul>
-        <div style={{fontFamily:"var(--serif)",fontSize:"1.7rem",color:"var(--navy)",textAlign:"center",margin:"0.6rem 0 0.9rem"}}>{t.gift_price}</div>
-        <p style={{fontFamily:"var(--body)",fontSize:"0.78rem",fontStyle:"italic",color:"var(--muted)",marginBottom:"1.1rem"}}>{t.gift_note}</p>
-        {!reserved&&(<>
-          <div className="fld"><label className="lbl">{t.gift_your_name}</label><input className="inp" value={f.name} onChange={e=>up("name",e.target.value)}/></div>
-          <div className="fld"><label className="lbl">{t.gift_message}</label><textarea className="ta" style={{minHeight:"70px"}} value={f.msg} onChange={e=>up("msg",e.target.value)}/></div>
-          <div className="fld"><label className="lbl">{t.gift_recipient_email}</label><input className="inp" type="email" value={f.email} onChange={e=>up("email",e.target.value)}/></div>
-          <button className="btn-pub" disabled={!f.name||!f.email} onClick={()=>setReserved(true)}>{t.gift_reserve_btn}</button>
-        </>)}
-        {reserved&&<p className="ai-usage-notice" style={{marginTop:"0.5rem"}}>{t.gift_notice}</p>}
-      </div>
-    </div>
-  );
-}
-*/
+// página de Stripe. Textos legales PROVISIONALES (C3-III). (27/10/2026: quitada la versión antigua comentada, que solo «reservaba»; está en eb40399.)
 async function irAPagoRegalo(t,f){
   const d=await pagoApi({accion:"abrir", producto:"plan_familiar", idioma:t.pago_idioma, edad:true, desistimiento:true,
     regala_nombre:f.name, destinatario_nombre:f.rname, destinatario_email:f.email, mensaje:f.msg});
