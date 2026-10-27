@@ -1,4 +1,5 @@
 // lectura.js — Locus Mundi
+// Versión 1.2 · 27/10/2026 · Euskera (EU): comillas « ».
 // Versión 1.1 · 21/10/2026 · Fase B2, punto 22 (conversación 12 bis): en chino y japonés, los dos
 // puntos «：» separan también la etiqueta del capítulo, y la raya (—) se respeta, como en inglés.
 // Sin cambios para los idiomas latinos y el ruso (los del PDF).
@@ -70,7 +71,7 @@
   // de comillas rectas o curvas de un párrafo se muestra con las del idioma. No se toca un párrafo
   // que ya tiene « o „, ni uno con comillas desparejadas. Chino, japonés, árabe e hindi, tal cual.
   var QUOTE_STYLES = {
-    ES:["«","»"], CA:["«","»"], GL:["«","»"], "PT-PT":["«","»"], IT:["«","»"], RU:["«","»"],
+    ES:["«","»"], CA:["«","»"], GL:["«","»"], EU:["«","»"], "PT-PT":["«","»"], IT:["«","»"], RU:["«","»"],
     FR:["« "," »"],          // francés: espacio fino inseparable por dentro
     EN:["“","”"], "PT-BR":["“","”"],
     DE:["„","“"]
