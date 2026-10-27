@@ -1,4 +1,11 @@
 // api/contador-historias.js — Locus Mundi
+// Versión 8 · 27/10/2026 · Fase C, endurecimiento parte 3 (E3, registro de errores). Continuidad, sesión
+// "27/10/2026 (endurecimiento, parte 3)".
+//  POST { error: { mensaje, pagina } } guarda un fallo del navegador en la tabla cerrada `errores`
+//  (solo el servidor la lee; se borra a los 30 días, api/diario.js v1.6). Sin IP, cuenta ni cookie.
+//  Frenos: el navegador manda como mucho 5 por visita; aquí se recorta el texto (500 caracteres) y,
+//  si ya hay 200 en la última hora, se descarta (que nadie llene la tabla). Siempre responde 204.
+//  Va en esta función porque el plan Hobby de Vercel no admite una 13.ª.
 // Versión 7 · 18/10/2026 · Fase B2, punto 12 (Biblioteca escalable), conversación 8.
 // Cambios respecto a la v6:
 //  (1) GET devuelve las cifras del Inicio contadas en el servidor: { total, paises, idiomas }
@@ -34,6 +41,7 @@ module.exports = async function handler(req, res) {
     try {
       let body = req.body;
       if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
+      if (body && body.error) return await guardarError(body.error, SUPABASE_URL, SERVICE_KEY, res); // v8
       const id = String((body && body.historia_id) || '');
       if (!UUID_RE.test(id)) return res.status(400).json({ error: 'historia_id' });
       const r = await rpc('sumar_lectura', { p_historia_id: id.toLowerCase() });
@@ -65,3 +73,28 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Error al contar historias' });
   }
 };
+
+// ---- v8: fallos del navegador ------------------------------------------------------------
+const LIMITE_POR_HORA = 200;
+async function guardarError(e, url, llave, res) {
+  try {
+    const cabeceras = { apikey: llave, Authorization: `Bearer ${llave}` };
+    const hace1h = new Date(Date.now() - 3600000).toISOString();
+    const c = await fetch(`${url}/rest/v1/errores?fecha=gt.${encodeURIComponent(hace1h)}&select=id`, {
+      method: 'HEAD', headers: { ...cabeceras, Prefer: 'count=exact' }
+    });
+    const total = Number(((c.headers.get('content-range') || '').split('/')[1]) || 0);
+    if (c.ok && total < LIMITE_POR_HORA) {
+      const texto = (v, n) => String(v == null ? '' : v).slice(0, n);
+      const r = await fetch(`${url}/rest/v1/errores`, {
+        method: 'POST',
+        headers: { ...cabeceras, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ origen: 'navegador', mensaje: texto(e.mensaje, 500) || '(sin texto)', pagina: texto(e.pagina, 200) })
+      });
+      if (!r.ok) console.error('contador-historias (error):', r.status);
+    }
+  } catch (err) {
+    console.error('contador-historias (error):', err.message);
+  }
+  return res.status(204).end();
+}

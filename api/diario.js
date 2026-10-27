@@ -21,6 +21,10 @@
 // actividades): IP de registro_lssi, un año tras la baja; alegaciones (avisos_moderacion) y denuncias, dos
 // años; compras (ventas) y regalos, seis años. (b) El vigía cuenta los avisos de «Creo que es un error» y las
 // denuncias sin resolver; si alguno lleva más de 7 días, cuenta como fallo (correo diario hasta resolverlo).
+// Versión 1.6 · 27/10/2026 · Fase C, endurecimiento parte 3 (E3). (a) Plazos: errores, 30 días; supresiones,
+// 40 días (más que los 35 de las copias: mientras exista una copia con el libro, se sabe que hay que volver a
+// borrarlo al restaurarla). (b) El vigía cuenta los fallos del navegador de las últimas 24 h (tabla `errores`,
+// api/contador-historias.js v8) y da los 3 más repetidos; 10 o más cuentan como fallo.
 
 const purgar = require('./_purgar-borrados'); // v1.2
 const { leerTexto } = require('./_r2');
@@ -42,7 +46,10 @@ const PLAZOS = [
   ['denuncias', 'recibida_en', 730],
   ['ventas', 'creado_en', 2192],
   ['regalos', 'creado_en', 2192],
+  ['errores', 'fecha', 30], // v1.6
+  ['supresiones', 'purgado_en', 40], // v1.6
 ];
+const ERRORES_MAXIMOS_24H = 10; // v1.6
 
 function supa(ruta, opciones = {}) {
   const llave = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -130,6 +137,22 @@ module.exports = async function handler(req, res) {
       return texto;
     });
   }
+
+  // 1 sexies. Fallos del navegador en las últimas 24 h (v1.6).
+  await comprobar('Errores en 24 h', async () => {
+    const desde = new Date(Date.now() - DIA).toISOString();
+    const r = await supa(`errores?fecha=gt.${encodeURIComponent(desde)}&select=mensaje&limit=1000`);
+    if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
+    const filas = await r.json();
+    if (!filas.length) return '0';
+    const veces = {};
+    for (const f of filas) veces[f.mensaje] = (veces[f.mensaje] || 0) + 1;
+    const top = Object.entries(veces).sort((a, b) => b[1] - a[1]).slice(0, 3)
+      .map(([m, n]) => `${n}× ${m.slice(0, 150)}`).join(' | ');
+    const texto = `${filas.length} (${top})`;
+    if (filas.length >= ERRORES_MAXIMOS_24H) throw new Error(`${texto} (ver tabla errores en Supabase)`);
+    return texto;
+  });
 
   // 2. Modelos de Google (solo consulta si existen; no genera nada ni cuesta).
   for (const modelo of MODELOS) {
