@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Locus Mundi — Admin</title>
+<!-- v5.2 · 28/10/2026: «Retirar» deja el libro bloqueado (el Autor no puede volver a subirlo) y nueva acción «Levantar la retirada» (api/admin.js v5.2; Lista 8.3, opción A). Marcas [R8.3]. -->
 <!-- v5.1 · 28/10/2026: la referencia de la denuncia se acepta también copiada con la palabra «Referencia» delante (Lista 8.3). -->
 <!-- v5 · 25/10/2026: "Suprimir un pasaje", aviso al Autor (DSA art. 17) y "Resolver una denuncia" (api/admin.js v5). -->
 <style>
@@ -37,7 +38,8 @@
 
 <label>Acción</label>
 <select id="accion">
-  <option value="retirar">Retirar publicación (ocultar de la Biblioteca)</option>
+  <option value="retirar">Retirar publicación (ocultar de la Biblioteca; el Autor no podrá volver a subirlo)</option>
+  <option value="levantar">Levantar la retirada (el Autor podrá volver a subirlo; no se publica solo)</option><!-- [R8.3] -->
   <option value="suprimir">Suprimir un pasaje</option>
   <option value="modificar">Modificar el texto completo</option>
 </select>
@@ -57,9 +59,11 @@
 <textarea id="motivo"></textarea>
 
 <div id="campoAviso">
-  <label class="check"><input type="checkbox" id="aviso_autor"> Avisar al Autor por correo, con el motivo (DSA, art. 17). Solo si no viene de una denuncia: entonces avisa la sección 2.</label>
+  <label class="check"><input type="checkbox" id="aviso_autor"> <span id="textoAviso">Avisar al Autor por correo, con el motivo (DSA, art. 17). Solo si no viene de una denuncia: entonces avisa la sección 2.</span></label>
+  <div id="campoBase"><!-- [R8.3] -->
   <label>Base (lo que incumple)</label>
   <input type="text" id="base" value="apartado 4 de las Condiciones de Publicación">
+  </div>
 </div>
 
 <button onclick="enviar()">Aplicar acción</button>
@@ -101,6 +105,11 @@ $('accion').addEventListener('change', function() {
   $('campoTexto').style.display = this.value === 'modificar' ? 'block' : 'none';
   $('campoCita').style.display = this.value === 'suprimir' ? 'block' : 'none';
   $('campoAviso').style.display = this.value === 'modificar' ? 'none' : 'block';
+  // [R8.3] al levantar, el correo solo dice que ya puede volver a subirlo (sin motivo ni base).
+  $('campoBase').style.display = this.value === 'levantar' ? 'none' : 'block';
+  $('textoAviso').textContent = this.value === 'levantar'
+    ? 'Avisar al Autor por correo de que ya puede volver a subir su libro.'
+    : 'Avisar al Autor por correo, con el motivo (DSA, art. 17). Solo si no viene de una denuncia: entonces avisa la sección 2.';
 });
 $('decision').addEventListener('change', function() {
   $('campoCitaD').style.display = this.value === 'pasaje_suprimido' ? 'block' : 'none';

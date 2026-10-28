@@ -1095,6 +1095,7 @@ const T = {
     up_err_session:"Tu sesión ha caducado. Vuelve a entrar y súbelo de nuevo: tus cambios están guardados.",
     up_err_missing:"Para subirlo a la Biblioteca faltan el nombre de Autor, el texto o el país.",
     up_err_notfound:"No encontramos tu libro. Recarga la página e inténtalo de nuevo.",
+    up_err_retired:"Locus Mundi ha retirado este libro de la Biblioteca. Puedes seguir trabajando en él, pero no podrás volver a subirlo mientras siga retirado. Si quieres saber el motivo o pedir que se revise, escríbenos a contactlocusmundi@gmail.com.", // [R8.3]
     up_err_save:"No se han podido guardar tus últimos cambios. Comprueba tu conexión e inténtalo de nuevo.",
     up_err_photo_busy:"Espera a que termine de cargarse la foto y vuelve a intentarlo.",
     up_err_photo:"No hemos podido comprobar la foto {n}. Escríbenos desde «Contacto» y lo revisamos.",
@@ -1572,6 +1573,7 @@ const T = {
     up_err_session:"Your session has expired. Sign in again and upload it once more: your changes are saved.",
     up_err_missing:"To upload it to the Library, your Author name, the text or the country is missing.",
     up_err_notfound:"We can't find your book. Reload the page and try again.",
+    up_err_retired:"Locus Mundi has withdrawn this book from the Library. You can keep working on it, but you won't be able to upload it again while it remains withdrawn. To find out why or to ask for a review, write to us at contactlocusmundi@gmail.com.", // [R8.3]
     up_err_save:"Your latest changes couldn't be saved. Check your connection and try again.",
     up_err_photo_busy:"Wait until the photo has finished uploading and try again.",
     up_err_photo:"We couldn't check photo {n}. Write to us from \u201cContact\u201d and we'll look into it.",
@@ -4148,6 +4150,9 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
   // api/admin.js, el editor lo ve. pubRow es esa fila (null = no publicado).
   const [pubRow,setPubRow]=useState(null);
   const publicado=!!pubRow;
+  // [R8.3] 28/10/2026, opción A de la retirada: libro retirado por Locus Mundi (historias.retirada_en,
+  // que pone api/admin.js). Mientras lo esté, no se puede subir (lo impide publicar_historia en Supabase).
+  const [retirada,setRetirada]=useState(false);
   // Guardados en fila (07/10/2026): uno detrás de otro, para que un guardado antiguo que aún
   // está en camino no pise a uno más nuevo (importa antes de "Subir a la Biblioteca").
   const saveChainRef=useRef(Promise.resolve(true));
@@ -4207,10 +4212,11 @@ function AuthoredWrite({setView,onPublish,onUnpublish,t,lang,onLegal,email,onLog
         .then(({data:a})=>{ if(a){ setTinta({tinta:Number(a.tinta_euros)||0, ultimaCarga:Number(a.tinta_ultima_carga)||0}); setNumAutor(a.numero_autor ?? null);
           regaloPendienteRef.current=(Number(a.fotos_incluidas_restantes)||0)>0||a.pdf_incluido===true; aplicarRegalo(); } });
       const { data, error } = await supa.from("historias")
-        .select("id, titulo, contenido, portada_url, revision")
+        .select("id, titulo, contenido, portada_url, revision, retirada_en") // [R8.3] retirada_en
         .eq("autor_id", user.id).eq("marcado_borrado", false).limit(1).maybeSingle();
       if(!error && data){
         historiaIdRef.current = data.id;
+        setRetirada(!!data.retirada_en); // [R8.3]
         revisionRef.current = Number(data.revision)||0; // segunda subida: "Modificar" con el editor abierto
         const c = data.contenido || {};
         const blocks = (c.blocks&&c.blocks.length?c.blocks:[{type:"chapter",title:"",num:1}])
@@ -5441,6 +5447,7 @@ ${capituloActual}
     if(code==="SIN_SESION") return t.up_err_session;
     if(code==="FALTAN_DATOS") return t.up_err_missing;
     if(code==="NO_ENCONTRADA") return t.up_err_notfound;
+    if(code==="LIBRO_RETIRADO") return t.up_err_retired; // [R8.3]
     if(code==="GUARDADO") return t.up_err_save;
     if(code==="FOTO_SUBIENDO") return t.up_err_photo_busy;
     if(code==="DIRECCION_NO_VALIDA") return d&&d.que==="foto"
@@ -5526,6 +5533,8 @@ ${capituloActual}
       }
       return true;
     }catch(e){
+      // [R8.3] retirado con el editor abierto: ya no está en la Biblioteca; el aviso fijo sustituye al botón.
+      if(e.code==="LIBRO_RETIRADO"){ setRetirada(true); setPubRow(null); setShowSaveExit(false); setSaveExitStep("choose"); return 0; }
       console.error("Subir a la Biblioteca:", e);
       setSubirError(mensajeSubir(e.code, e.datos));
       return 0; // [P16-F7] error (falso, como antes): la ventana de la ficha se queda abierta con el mensaje
@@ -5814,6 +5823,7 @@ ${capituloActual}
   const pideFicha=(fv)=>!tienePais(fv) || (!fv.publishedId && !fv.fichaConfirmada); // [P10] país de la lista
   // "Subir a la Biblioteca": la primera vez (o si falta el país) pide la ficha; después, directo.
   const startUpload=(desde)=>{
+    if(retirada) return; // [R8.3] el aviso fijo ya lo explica
     if(!pideFicha(f)) publish(desde);
     else abrirFicha("publicar",desde);
   };
@@ -6525,6 +6535,8 @@ ${capituloActual}
               subida ("Tienes cambios sin subir · Subir ahora", el aviso de subido y el error), donde el Autor lo
               ve mientras escribe, sin empujar la caja de texto. Abajo, junto a "Guardar y salir", sigue igual.
               Original: <div style={{margin:"0 0 0.7rem"}}> y el estado solo abajo. */}
+          {/* [R8.3] libro retirado por Locus Mundi: aviso fijo en lugar del botón "Subir a la Biblioteca" */}
+          {retirada&&<div id="lm-retirada" role="status" style={{margin:"0 0 0.8rem",padding:"0.7rem 0.9rem",border:"1px solid #b23b3b",borderRadius:"4px",background:"#fbf1f1",fontFamily:"var(--body)",fontSize:"0.86rem",lineHeight:1.5,color:"var(--ink)"}}>{t.up_err_retired}</div>}
           {/* [P14] dos columnas, como las filas de arriba: Esquema a la izquierda; Idioma (bajo "Tu ficha") y estado a la derecha */}
           <div className="frow frow-mob1" style={{margin:"0 0 0.7rem",alignItems:"baseline"}}>
             <div>
@@ -6542,7 +6554,7 @@ ${capituloActual}
                 </div>}
           </div>
             {/* [P16-F7] sin publicar: "Subir a la Biblioteca" (antes solo se podía publicar pasando por "Guardar y salir") */}
-            {!publicado&&<button type="button" id="lm-subir-primera" className="toolbar-btn" disabled={!f.name||!f.text||subiendo} onClick={()=>startUpload("ahora")}>{subiendo?subiendoTexto():t.ed_save_upload}</button>}
+            {!publicado&&!retirada&&<button type="button" id="lm-subir-primera" className="toolbar-btn" disabled={!f.name||!f.text||subiendo} onClick={()=>startUpload("ahora")}>{subiendo?subiendoTexto():t.ed_save_upload}</button>}
             {/* [P16-F4] estado de la subida, mismas condiciones y textos que abajo */}
             {publicado&&hayCambios&&<span id="lm-subir-arriba" style={{fontFamily:"var(--body)",fontSize:"0.8rem",color:"var(--gold)"}}>
               {t.ed_unsent}{" "}
