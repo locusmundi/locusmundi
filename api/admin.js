@@ -1,4 +1,6 @@
 // api/admin.js — Locus Mundi
+// Versión 5.1 · 28/10/2026 · Endurecimiento, pasada de la Lista (parte II), 8.3: al suprimir un pasaje,
+//   un párrafo que queda con solo puntuación (la cita copiada sin su punto final) se borra también.
 // Versión 5 · 25/10/2026 · Fase C, pendientes de index.html (II): denuncias (DSA, arts. 16 y 17;
 // Locus_Mundi_Denuncias_DSA_v1.md, §2 y §3, de tú). Nuevas acciones, con la misma ADMIN_CLAVE:
 //  - "suprimir": quita del texto, en las dos versiones, una cita exacta que aparezca una sola vez
@@ -35,8 +37,12 @@
 const { huellasVigentes } = require("./_tramos"); // compartido con traducir.js y moderar.js
 
 // v5: quita una cita del texto y arregla los espacios que deja.
+// v5.1: si la cita deja un párrafo con solo puntuación (p. ej. el punto final no copiado), se quita también.
+// Original: sin la línea de los párrafos de solo puntuación.
 function quitarCita(texto, cita) {
-  return texto.replace(cita, "").replace(/[ \t]{2,}/g, " ").replace(/ +([.,;:!?»”)])/g, "$1").replace(/\n{3,}/g, "\n\n");
+  return texto.replace(cita, "").replace(/[ \t]{2,}/g, " ").replace(/ +([.,;:!?»”)])/g, "$1")
+    .replace(/(^|\n)[ \t]*[.,;:!?…»”"')\]]+[ \t]*(?=\n|$)/g, "$1")
+    .replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "");
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -1,4 +1,6 @@
 // api/_regalo.js — Locus Mundi
+// Versión 1.5 · 28/10/2026 · El botón del correo de invitación dice «Ver mi regalo» / «See your gift»
+//   (antes «Aceptar el regalo» / «Accept the gift»): aceptarlo se hace en la web (Lista 7.4).
 // Versión 1.4 · 25/10/2026 · Pendientes de index.html, III: el regalo no aceptado se devuelve SIEMPRE íntegro
 //   (descontar la comisión podría ser un recargo prohibido, TRLGDCU art. 60 ter). Decisión de Javier, opción B.
 //   Correos ajustados. Sin cambios en la lógica de aceptar, recordatorios ni plazos.
@@ -98,7 +100,7 @@ function correoInvitacion(r, tipo) {
     b.push(h('Qué es Locus Mundi'), p('Una biblioteca de autobiografías escritas por toda clase de personas, para que amigos, familiares y quienes vengan después puedan conocerte a través de tus recuerdos y con tus propias palabras.'),
       h('Qué incluye tu regalo'), p('Crédito para el Asistente editorial de IA.<br>10 fotos para ilustrar tu libro.<br>El PDF de tu libro publicado, para imprimirlo o guardarlo.'),
       h('Qué supone aceptarlo'), p('Tener una cuenta gratuita, ser mayor de edad y aceptar las Condiciones de Publicación. Tu libro solo se publica si tú quieres y cuando quieras. No hay compromisos ni cuotas.'),
-      boton('Aceptar el regalo', aceptar),
+      boton('Ver mi regalo', aceptar),
       p(`Si el botón no funciona, entra en <b>locusmundi.com/regalo</b> e introduce este código: <b>${cod}</b>`),
       p(`¿No te interesa? <a href="${noInteresa}" style="color:#1B3A6B;">No me interesa</a>. Devolveremos el importe a ${R} y borraremos tus datos.`),
       p(`Tienes hasta el <b>${plazo}</b> (3 meses) para aceptarlo. Pasado ese plazo, haremos lo mismo.`));
@@ -106,7 +108,7 @@ function correoInvitacion(r, tipo) {
     t = texto([`Hola, ${r.destinatario_nombre}:`, `${r.regala_nombre} te ha regalado el Plan Familiar de Locus Mundi para que escribas la historia de tu vida.`,
       r.mensaje ? `${r.regala_nombre} te escribe: «${r.mensaje}»` : null,
       'Qué incluye tu regalo: crédito para el Asistente editorial de IA, 10 fotos para ilustrar tu libro y el PDF de tu libro publicado.',
-      `Aceptar el regalo: ${aceptar}`, `O entra en locusmundi.com/regalo e introduce este código: ${cod}`,
+      `Ver mi regalo: ${aceptar}`, `O entra en locusmundi.com/regalo e introduce este código: ${cod}`,
       `¿No te interesa? ${noInteresa} — Devolveremos el importe a ${r.regala_nombre} y borraremos tus datos.`,
       `Tienes hasta el ${plazo} (3 meses) para aceptarlo. Pasado ese plazo, haremos lo mismo.`,
       `Política de privacidad: ${privacidad}`].filter(Boolean));
@@ -119,7 +121,7 @@ function correoInvitacion(r, tipo) {
   b.push(h('What Locus Mundi is'), p('A library of autobiographies written by all kinds of people, so that friends, family and those who come after can know you through your memories, in your own words.'),
     h('What your gift includes'), p('Credit for the AI editorial Assistant.<br>10 photos to illustrate your book.<br>The PDF of your published book, to print or keep.'),
     h('What accepting it means'), p('Having a free account, being of legal age and accepting the Publication Terms. Your book is published only if and when you choose. No commitments, no fees.'),
-    boton('Accept the gift', aceptar),
+    boton('See your gift', aceptar),
     p(`If the button doesn't work, go to <b>locusmundi.com/regalo</b> and enter this code: <b>${cod}</b>`),
     p(`Not interested? <a href="${noInteresa}" style="color:#1B3A6B;">No, thanks</a>. We'll refund ${R} and delete your details.`),
     p(`You have until <b>${plazo}</b> (3 months) to accept it. After that date, we'll do the same.`));
@@ -127,7 +129,7 @@ function correoInvitacion(r, tipo) {
   t = texto([`Hello ${r.destinatario_nombre},`, `${r.regala_nombre} has given you the Locus Mundi Family Plan so you can write the story of your life.`,
     r.mensaje ? `${r.regala_nombre} writes: “${r.mensaje}”` : null,
     'Your gift includes credit for the AI editorial Assistant, 10 photos to illustrate your book and the PDF of your published book.',
-    `Accept the gift: ${aceptar}`, `Or go to locusmundi.com/regalo and enter this code: ${cod}`,
+    `See your gift: ${aceptar}`, `Or go to locusmundi.com/regalo and enter this code: ${cod}`,
     `Not interested? ${noInteresa} — We'll refund ${r.regala_nombre} and delete your details.`,
     `You have until ${plazo} (3 months) to accept it. After that date, we'll do the same.`,
     `Privacy Policy: ${privacidad}`].filter(Boolean));

@@ -1,4 +1,11 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.14 · 28/10/2026 · Endurecimiento, primera pasada de la Lista (parte II). Dos arreglos leves:
+//   - El euskera (EU) entra en IDIOMAS_WEB (lo añadió la parte 5 en todo lo demás): la tarjeta de la
+//     Biblioteca se traduce también al euskera. VERSION_TARJETA pasa a 'tarjeta-2026-10-28', así que
+//     cada tarjeta se retraduce en su siguiente subida. Original: 14 idiomas y 'tarjeta-2026-10-18'.
+//   - Frase aceptada («Creo que es un error» con la razón dada): se compara sin las comillas ni la
+//     puntuación de cierre (. … , ; :) de los extremos (normalizarCita). Antes, exacta: la frase volvía a
+//     señalarse si el Autor añadía o quitaba el punto final (Lista, 4b.2). index.html hace lo mismo.
 // Versión 3.13 · 26/10/2026 · Número de Autor al publicar por primera vez (Continuidad, sesión
 //   «26/10/2026 (limpieza)», punto 3). publicar_historia lo asigna en Supabase; aquí solo se devuelve
 //   al editor: numero_autor y numero_nuevo (true la primera vez). Nada más cambia.
@@ -199,8 +206,8 @@ const IDIOMAS = {
 
 // v3.7: los 14 idiomas de la web (LANGS_UI de index.html). Si un día hay más, se amplía aquí y
 // se cambia VERSION_TARJETA: cada tarjeta se retraduce en su siguiente subida.
-const IDIOMAS_WEB = ['ES', 'EN', 'FR', 'DE', 'IT', 'PT-PT', 'PT-BR', 'ZH', 'AR', 'JA', 'RU', 'HI', 'GL', 'CA'];
-const VERSION_TARJETA = 'tarjeta-2026-10-18';
+const IDIOMAS_WEB = ['ES', 'EN', 'FR', 'DE', 'IT', 'PT-PT', 'PT-BR', 'ZH', 'AR', 'JA', 'RU', 'HI', 'GL', 'CA', 'EU']; // v3.14: + EU
+const VERSION_TARJETA = 'tarjeta-2026-10-28'; // v3.14 (antes 'tarjeta-2026-10-18')
 const CAMPOS_TARJETA = ['title', 'subtitle', 'country', 'pubCity', 'pubProfession', 'pubConcept'];
 const MODELO_TARJETA = M.MODELOS.traduccion;
 const MAX_CAMPO_TARJETA = 400;
@@ -381,6 +388,8 @@ function unidadesDe(contenido, fotosPub) {
 }
 
 const normalizar = s => String(s || '').replace(/\s+/g, ' ').trim();
+// v3.14: para comparar una cita con una frase aceptada, sin comillas ni puntuación de cierre en los extremos.
+const normalizarCita = s => normalizar(s).replace(/^[«"“‘'\s]+/u, '').replace(/[.…,;:»"”’'\s]+$/u, '');
 
 // ─── v3.5: memoria de frases aprobadas ──────────────────────────────────
 
@@ -839,11 +848,11 @@ async function subir(body, autorId, ip, res) {
   // 8. Pasajes de todo el libro, menos las frases a las que Javier ha dado la razón.
   const aceptadas = new Set((await leer(
     `avisos_moderacion?historia_id=eq.${h.id}&tipo=eq.error_texto&estado=eq.aceptado&select=cita`
-  )).map(a => normalizar(a.cita)));
+  )).map(a => normalizarCita(a.cita))); // v3.14 (antes normalizar)
   const pasajes = [];
   for (const u of unidades) {
     for (const p of guardados.get(u.huella) || []) {
-      if (p.cita && aceptadas.has(normalizar(p.cita))) continue;
+      if (p.cita && aceptadas.has(normalizarCita(p.cita))) continue; // v3.14
       if (yaAprobada(p, u, aprobadas)) continue; // v3.5: ya pasó en una revisión anterior
       const pasaje = {
         id: crypto.createHash('sha256').update(u.huella + '|' + (p.cita || '*')).digest('hex').slice(0, 16),
