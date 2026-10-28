@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Locus Mundi — Admin</title>
+<!-- v5.1 · 28/10/2026: la referencia de la denuncia se acepta también copiada con la palabra «Referencia» delante (Lista 8.3). -->
 <!-- v5 · 25/10/2026: "Suprimir un pasaje", aviso al Autor (DSA art. 17) y "Resolver una denuncia" (api/admin.js v5). -->
 <style>
   body { font-family: sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; }
@@ -137,7 +138,7 @@ async function resolver() {
   const caja = $('resultadoD');
   const body = {
     clave: $('clave').value, realizado_por: $('realizado_por').value, accion: 'resolver_denuncia',
-    denuncia: $('denuncia').value, decision: $('decision').value,
+    denuncia: $('denuncia').value.replace(/^\s*(referencia|reference)\s*:?\s*/i, '').trim(), decision: $('decision').value,
     motivo_decision: $('motivo_decision').value, cita: $('citaD').value, base: $('baseD').value,
   };
   if (!body.denuncia.trim() || !body.motivo_decision.trim()) { caja.className = 'res error'; caja.textContent = 'Faltan la referencia o el motivo.'; return; }
