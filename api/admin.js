@@ -1,4 +1,12 @@
 // api/admin.js — Locus Mundi
+// Versión 5.2 · 28/10/2026 · Opción A de la retirada (Lista, 8.3). Marcas [R8.3].
+//  - "retirar" pone además historias.retirada_en: el Autor ya no puede volver a subir el libro
+//    (publicar_historia lo rechaza con LIBRO_RETIRADO; el editor muestra el aviso).
+//    Original: solo estado_publicacion = "despublicado".
+//  - Nueva acción "levantar": quita la marca (el libro NO se vuelve a publicar solo: el Autor lo sube
+//    y pasa la revisión). Motivo obligatorio y admin_log, como las demás; con aviso_autor = true,
+//    correo al Autor. Solo si el libro está retirado.
+//  - El correo 3.3 de la retirada añade que no podrá volver a subirlo mientras siga retirado.
 // Versión 5.1 · 28/10/2026 · Endurecimiento, pasada de la Lista (parte II), 8.3: al suprimir un pasaje,
 //   un párrafo que queda con solo puntuación (la cita copiada sin su punto final) se borra también.
 // Versión 5 · 25/10/2026 · Fase C, pendientes de index.html (II): denuncias (DSA, arts. 16 y 17;
@@ -98,7 +106,7 @@ module.exports = async function handler(req, res) {
     res.status(400).json({ error: "El id de la historia no es válido" });
     return;
   }
-  if (!["retirar", "modificar", "suprimir"].includes(accion)) {
+  if (!["retirar", "modificar", "suprimir", "levantar"].includes(accion)) { // [R8.3] "levantar"
     res.status(400).json({ error: "Acción no reconocida" });
     return;
   }
@@ -118,7 +126,7 @@ module.exports = async function handler(req, res) {
   try {
     // Las dos versiones actuales.
     const getRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/historias?id=eq.${id}&select=id,contenido,estado_publicacion,revision`,
+      `${SUPABASE_URL}/rest/v1/historias?id=eq.${id}&select=id,contenido,estado_publicacion,revision,retirada_en`,
       { headers }
     );
     if (!getRes.ok) throw new Error("Error al leer la historia: " + (await getRes.text()));
@@ -128,6 +136,11 @@ module.exports = async function handler(req, res) {
       return;
     }
     const historiaActual = rows[0];
+    // [R8.3] "levantar" solo tiene sentido con la marca puesta.
+    if (accion === "levantar" && !historiaActual.retirada_en) {
+      res.status(409).json({ error: "Este libro no está retirado: no hay nada que levantar." });
+      return;
+    }
 
     // v5: "suprimir" = "modificar" con el texto sin la cita (que debe aparecer una sola vez).
     let accionReal = accion;
@@ -155,9 +168,17 @@ module.exports = async function handler(req, res) {
       const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/historias?id=eq.${id}`, {
         method: "PATCH",
         headers: { ...headers, Prefer: "return=minimal" },
-        body: JSON.stringify({ estado_publicacion: "despublicado" }),
+        // [R8.3] con la marca (original: solo estado_publicacion).
+        body: JSON.stringify({ estado_publicacion: "despublicado", retirada_en: new Date().toISOString() }),
       });
       if (!patchRes.ok) throw new Error("Error al retirar la historia: " + (await patchRes.text()));
+    } else if (accionReal === "levantar") { // [R8.3]
+      const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/historias?id=eq.${id}`, {
+        method: "PATCH",
+        headers: { ...headers, Prefer: "return=minimal" },
+        body: JSON.stringify({ retirada_en: null }),
+      });
+      if (!patchRes.ok) throw new Error("Error al levantar la retirada: " + (await patchRes.text()));
     } else {
       // 1. Lo que se escribe.
       const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/historias?id=eq.${id}`, {
@@ -214,6 +235,7 @@ module.exports = async function handler(req, res) {
         motivo,
         realizado_por,
         contenido_anterior: {
+          retirada_en: historiaActual.retirada_en || null, // [R8.3]
           escrito: historiaActual.contenido,
           publicado: publicada ? publicada.contenido : null,
         },
@@ -234,8 +256,15 @@ module.exports = async function handler(req, res) {
         avisoAutor = " Aviso enviado al Autor.";
       } catch (e) { avisoAutor = " OJO: no se pudo avisar al Autor (" + e.message + ")."; }
     }
+    // [R8.3] aviso de que se levanta la retirada, si se pide.
+    if (req.body.aviso_autor === true && accion === "levantar") {
+      try { await avisarLevantada(id); avisoAutor = " Aviso enviado al Autor."; }
+      catch (e) { avisoAutor = " OJO: no se pudo avisar al Autor (" + e.message + ")."; }
+    }
 
-    const alcance = accion !== "retirar"
+    const alcance = accion === "levantar" // [R8.3]
+      ? " (el Autor ya puede volver a subirlo; no se ha publicado)"
+      : accion !== "retirar"
       ? (publicada ? " (texto cambiado en lo escrito y en lo publicado)" : " (el libro no está publicado: cambiado solo lo escrito)")
       : "";
     res.status(200).json({ ok: true, mensaje: `Acción "${accion}" aplicada y registrada${alcance}.${avisoTraducciones}${avisoAutor}` });
@@ -272,7 +301,8 @@ async function correo(to, subject, text) {
 }
 
 // Correo 3.3 al Autor. medida: "pasaje_suprimido" | "libro_retirado"; origen: "denuncia" | "iniciativa".
-async function avisarAutor(historiaId, { medida, cita, motivo_decision, base, origen }) {
+// [R8.3] Libro y Autor para los correos (antes, dentro de avisarAutor).
+async function libroYAutor(historiaId) {
   const h = await fetch(`${SBU()}/rest/v1/historias?id=eq.${historiaId}&select=titulo,contenido,autor_id`, { headers: sbH() });
   const libro = h.ok ? (await h.json())[0] : null;
   if (!libro || !libro.autor_id) throw new Error("libro o Autor no encontrado");
@@ -281,6 +311,19 @@ async function avisarAutor(historiaId, { medida, cita, motivo_decision, base, or
   if (!autor || !autor.email) throw new Error("el Autor no tiene correo");
   const titulo = libro.titulo || (libro.contenido && libro.contenido.title) || "sin título";
   const nombre = String(autor.nombre || "").trim().split(/\s+/)[0];
+  return { email: autor.email, titulo, nombre };
+}
+
+// [R8.3] Correo al Autor cuando se levanta la retirada.
+async function avisarLevantada(historiaId) {
+  const { email, titulo, nombre } = await libroYAutor(historiaId);
+  await correo(email, `Tu libro «${titulo}» ya puede volver a la Biblioteca`,
+    `Hola${nombre ? ", " + nombre : ""}. Locus Mundi ha levantado la retirada de tu libro «${titulo}». ` +
+    `Ya puedes volver a subirlo a la Biblioteca; antes de publicarse pasará la revisión habitual.\n\nLocus Mundi`);
+}
+
+async function avisarAutor(historiaId, { medida, cita, motivo_decision, base, origen }) {
+  const { email, titulo, nombre } = await libroYAutor(historiaId); // [R8.3]
   const pasaje = medida === "pasaje_suprimido";
   const text =
     `Hola${nombre ? ", " + nombre : ""}. Te informamos de que Locus Mundi ha ${pasaje ? "suprimido un pasaje de" : "retirado de la Biblioteca"} tu libro «${titulo}» el ${fechaES(new Date())}.` +
@@ -288,8 +331,9 @@ async function avisarAutor(historiaId, { medida, cita, motivo_decision, base, or
     `\n\nMotivo: ${motivo_decision}. Base: ${base || "apartado 4 de las Condiciones de Publicación"}. ` +
     `La decisión se ha tomado ${origen === "denuncia" ? "a raíz de una denuncia" : "por iniciativa de Locus Mundi"}, y la ha tomado una persona, sin medios automatizados.` +
     `\n\nSi no estás de acuerdo, responde a este correo con tus razones y la revisaremos. También puedes acudir a los tribunales. ` +
-    (pasaje ? "Tu libro sigue publicado sin ese pasaje. " : "") + `Lo demás de tu cuenta sigue igual.\n\nLocus Mundi`;
-  await correo(autor.email, `Cambio en tu libro «${titulo}»`, text);
+    (pasaje ? "Tu libro sigue publicado sin ese pasaje. " : "Puedes seguir trabajando en él, pero no podrás volver a subirlo mientras siga retirado. ") + // [R8.3]
+    `Lo demás de tu cuenta sigue igual.\n\nLocus Mundi`;
+  await correo(email, `Cambio en tu libro «${titulo}»`, text);
 }
 
 async function resolverDenuncia(b, res) {

@@ -1,4 +1,8 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.15 · 28/10/2026 · Opción A de la retirada (Lista, 8.3). Un libro retirado por Locus Mundi
+//   (historias.retirada_en, que pone api/admin.js) no se sube: «subir» responde LIBRO_RETIRADO antes de
+//   la revisión (no gasta crédito de Google). Si la marca llega durante la revisión, publicar_historia
+//   lo rechaza igual (LIBRO_RETIRADO). Marcas [R8.3]. Original: sin esas dos comprobaciones.
 // Versión 3.14 · 28/10/2026 · Endurecimiento, primera pasada de la Lista (parte II). Dos arreglos leves:
 //   - El euskera (EU) entra en IDIOMAS_WEB (lo añadió la parte 5 en todo lo demás): la tarjeta de la
 //     Biblioteca se traduce también al euskera. VERSION_TARJETA pasa a 'tarjeta-2026-10-28', así que
@@ -701,8 +705,9 @@ async function subir(body, autorId, ip, res) {
 
   // 1 y 2. Lo que el Autor escribe, leído aquí (nunca lo que envíe el navegador).
   const h = await historiaDelAutor(body.historia_id, autorId,
-    'titulo,contenido,portada_url,portada_revisada,idioma_original');
+    'titulo,contenido,portada_url,portada_revisada,idioma_original,retirada_en');
   if (!h) return res.status(404).json({ error: 'NO_ENCONTRADA' });
+  if (h.retirada_en) return res.status(403).json({ error: 'LIBRO_RETIRADO' }); // [R8.3]
   const c = h.contenido || {};
   if (!String(c.name || '').trim() || !String(c.text || '').trim() || !String(c.country || '').trim()) {
     return res.status(400).json({ error: 'FALTAN_DATOS' });
@@ -906,6 +911,7 @@ async function subir(body, autorId, ip, res) {
   if (!r.ok) {
     const texto = await r.text();
     console.error('moderar: publicar_historia', r.status, texto);
+    if (/LIBRO_RETIRADO/.test(texto)) return res.status(403).json({ error: 'LIBRO_RETIRADO' }); // [R8.3]
     if (/HISTORIA_NO_ENCONTRADA|NO_ES_DEL_AUTOR|HISTORIA_ELIMINADA/.test(texto)) {
       return res.status(404).json({ error: 'NO_ENCONTRADA' });
     }
