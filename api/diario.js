@@ -27,6 +27,8 @@
 // api/contador-historias.js v8) y da los 3 más repetidos; 10 o más cuentan como fallo.
 // Versión 1.7 · 27/10/2026 · E3: copia diaria de la tabla `supresiones` en R2 (supresiones.json). Si se pierde
 // Supabase entero, la lista de lo borrado sigue fuera y se puede volver a borrar tras restaurar (Mapa, §7).
+// Versión 1.8 · 28/10/2026 · Endurecimiento, parte 6: resúmenes de ventas por correo (api/_ventas.js), cada
+// lunes (semana anterior) y cada día 1 (mes anterior, con CSV). Decisión de Javier, 28/10.
 
 const purgar = require('./_purgar-borrados'); // v1.2
 const { leerTexto, subir } = require('./_r2'); // subir: v1.7
@@ -34,6 +36,7 @@ const { avisar } = require('./_aviso');
 const { limpiarPdf } = require('./pdf'); // v1.3
 const pago = require('./pago'); // v1.4
 const crearRegalos = require('./_regalo'); // v1.4
+const { resumenesDeHoy } = require('./_ventas'); // v1.8
 
 const { modelosEnUso, modelosSinPrecio } = require('./_modelos'); // v1.1
 const MODELOS = modelosEnUso();
@@ -204,6 +207,14 @@ module.exports = async function handler(req, res) {
     const dias = (Date.now() - new Date(copia.fecha).getTime()) / 86400000;
     if (dias > DIAS_MAXIMOS_COPIA) throw new Error(`la última copia completa es del ${copia.fecha}`);
     return `${copia.fecha}, ${copia.fotos} fotos`;
+  });
+
+  // 5 bis. Resúmenes de ventas (v1.8): los lunes, la semana anterior; el día 1, el mes anterior (con CSV).
+  // Correos aparte del vigía: llegan aunque haya fallos. Si no se pueden preparar o enviar, cuenta como fallo.
+  await comprobar('Resumen de ventas', async () => {
+    const correos = await resumenesDeHoy();
+    for (const c of correos) await avisar(c.asunto, c.texto, c.adjunto);
+    return correos.length ? `${correos.length} enviado(s)` : 'hoy no toca';
   });
 
   // 6. Aviso.

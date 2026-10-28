@@ -1,4 +1,6 @@
 // api/_aviso.js — Locus Mundi
+// Versión 5 · 28/10/2026 · Endurecimiento, parte 6: avisar() admite un adjunto (CSV del resumen mensual de
+// ventas, api/_ventas.js). Sin adjunto, como antes.
 // Versión 4 · 24/10/2026 · Fase C, conversación C3-III: enviarCorreo() admite `de` (remitente), para las
 // confirmaciones de compra (compras@locusmundi.com). Sin `de`, como antes: regalos@locusmundi.com.
 // Versión 3 · 24/10/2026 · Fase C, conversación C2-2 (Plan Familiar): añade enviarCorreo(), para los
@@ -19,8 +21,11 @@ async function resend(cuerpo) {
   if (!r.ok) throw new Error(`Resend: ${r.status} ${await r.text()}`);
 }
 
-async function avisar(asunto, texto) {
-  return resend({ from: 'Locus Mundi <avisos@locusmundi.com>', to: 'contactlocusmundi@gmail.com', subject: asunto, text: texto });
+// v5: `adjunto` opcional { nombre, contenido } (texto), para el CSV del resumen mensual de ventas.
+async function avisar(asunto, texto, adjunto) {
+  const cuerpo = { from: 'Locus Mundi <avisos@locusmundi.com>', to: 'contactlocusmundi@gmail.com', subject: asunto, text: texto };
+  if (adjunto) cuerpo.attachments = [{ filename: adjunto.nombre, content: Buffer.from(adjunto.contenido, 'utf8').toString('base64') }];
+  return resend(cuerpo);
 }
 
 // v3: correo a una persona (HTML y texto). `para`: una dirección.
