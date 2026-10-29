@@ -1,4 +1,6 @@
 // api/registro-lssi.js — Locus Mundi
+// Versión 2.1 · 29/10/2026 · Sin la dirección de producción de reserva: sin SUPABASE_URL, error
+//   CONFIGURACION_INCOMPLETA en vez de ir a producción (Lista, pendiente h).
 // Versión 2 · 25/10/2026 · Fase C, pendientes de index.html (II).
 //  - Con sesión: "publicacion" y "despublicacion" solo con la sesión del Autor (cabecera
 //    Authorization: Bearer …); el autor_id sale de la sesión, no del cuerpo (endurecimiento:
@@ -9,7 +11,7 @@
 //    Javier, 25/10/2026). El libro se comprueba en el servidor (suyo y marcado como borrado).
 // Versión 1: anota alta, publicación y despublicación con la IP (LSSI), sin comprobar quién llama.
 
-const SB = process.env.SUPABASE_URL || "https://olpfybpykuascwltnqtv.supabase.co";
+const SB = process.env.SUPABASE_URL; // v2.1: sin dirección de reserva
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function sbHeaders(extra) {
@@ -43,6 +45,7 @@ async function anotar(autor_id, accion, ip) {
 }
 
 module.exports = async function handler(req, res) {
+  if (!process.env.SUPABASE_URL) return res.status(500).json({ error: "CONFIGURACION_INCOMPLETA" }); // v2.1: sin dirección de reserva
   if (req.method !== "POST") {
     res.status(405).json({ error: "Método no permitido" });
     return;

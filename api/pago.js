@@ -1,4 +1,6 @@
 // api/pago.js — Locus Mundi
+// Versión 2.4 · 29/10/2026 · Sin la dirección de producción de reserva: sin SUPABASE_URL, error
+//   CONFIGURACION_INCOMPLETA en vez de ir a producción (Lista, pendiente h).
 // Versión 2.3 · 24/10/2026 · C3-III (textos legales): correo de confirmación de cada compra de fotos, Asistente y PDF
 //   (TRLGDCU art. 98.7: confirmación en soporte duradero, con la petición de uso inmediato y la renuncia al desistimiento),
 //   desde compras@locusmundi.com; si falla, no impide la entrega (aviso interno). Versiones de las casillas actualizadas.
@@ -62,7 +64,10 @@ const NOMBRE = {
 };
 
 // --- Supabase -------------------------------------------------------------------------------------
-const SB = () => process.env.SUPABASE_URL || 'https://olpfybpykuascwltnqtv.supabase.co';
+const SB = () => { // v2.4: sin dirección de reserva; sin la variable, error (también para diario y _regalo)
+  if (!process.env.SUPABASE_URL) throw new Error('CONFIGURACION_INCOMPLETA: falta SUPABASE_URL');
+  return process.env.SUPABASE_URL;
+};
 const LLAVE = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
 async function rest(ruta, opciones) {
   const o = opciones || {};
@@ -465,6 +470,7 @@ async function aviso(evento) {
 // ====================================================================================================
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'METODO' });
+  if (!process.env.SUPABASE_URL) return res.status(500).json({ error: 'CONFIGURACION_INCOMPLETA' }); // v2.4
   if (!process.env.STRIPE_SECRET_KEY) return res.status(503).json({ error: 'SIN_STRIPE' });
   let crudo;
   try { crudo = await cuerpoCrudo(req); } catch (_) { crudo = ''; }

@@ -1,4 +1,6 @@
 // api/enviar-formulario.js — Locus Mundi
+// Versión 3.1 · 29/10/2026 · Sin la dirección de producción de reserva: sin SUPABASE_URL, error
+//   CONFIGURACION_INCOMPLETA en vez de ir a producción (Lista, pendiente h).
 // Versión 3 · 25/10/2026 · Fase C, pendientes de index.html (II): denuncias según el DSA, arts. 16 y 17
 // (Locus_Mundi_Denuncias_DSA_v1.md, §1–§3, de tú; Consulta para Alex v2, pregunta 10). La denuncia
 // se guarda en la tabla cerrada `denuncias` (sin IP), avisa a Locus Mundi y envía el acuse de recibo
@@ -6,7 +8,7 @@
 // Versión 2 · 21/10/2026 · Fase C, punto 2 (C5a): remitente del dominio, contacto@locusmundi.com
 // (antes onboarding@resend.dev). Continuidad, sesión "21/10/2026 (conversación C5a)".
 
-const SB = process.env.SUPABASE_URL || "https://olpfybpykuascwltnqtv.supabase.co";
+const SB = process.env.SUPABASE_URL; // v3.1: sin dirección de reserva
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INTERNO = "contactlocusmundi@gmail.com";
@@ -141,6 +143,7 @@ async function denuncia(req, res) {
 }
 
 module.exports = async function handler(req, res) {
+  if (!process.env.SUPABASE_URL) return res.status(500).json({ error: "CONFIGURACION_INCOMPLETA" }); // v3.1: sin dirección de reserva
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Método no permitido" });
   }

@@ -1,4 +1,5 @@
 // api/_regalo.js — Locus Mundi
+// Versión 1.6 · 29/10/2026 · «(3 meses)» / «(3 months)» solo en el correo inicial, no en los recordatorios (Lista 7.5, pendiente j).
 // Versión 1.5 · 28/10/2026 · El botón del correo de invitación dice «Ver mi regalo» / «See your gift»
 //   (antes «Aceptar el regalo» / «Accept the gift»): aceptarlo se hace en la web (Lista 7.4).
 // Versión 1.4 · 25/10/2026 · Pendientes de index.html, III: el regalo no aceptado se devuelve SIEMPRE íntegro
@@ -90,6 +91,7 @@ function correoInvitacion(r, tipo) {
   const aceptar = `${WEB}/regalo?c=${encodeURIComponent(cod)}`;
   const noInteresa = `${aceptar}&no=1`;
   const plazo = fechaLarga(r.plazo, r.idioma);
+  const meses = tipo === 'inicial' ? (EN ? ' (3 months)' : ' (3 meses)') : ''; // v1.6: solo en el correo inicial
   const privacidad = `${WEB}/?legal=privacidad`;
   let asunto; let b; let t;
   if (!EN) {
@@ -103,14 +105,14 @@ function correoInvitacion(r, tipo) {
       boton('Ver mi regalo', aceptar),
       p(`Si el botón no funciona, entra en <b>locusmundi.com/regalo</b> e introduce este código: <b>${cod}</b>`),
       p(`¿No te interesa? <a href="${noInteresa}" style="color:#1B3A6B;">No me interesa</a>. Devolveremos el importe a ${R} y borraremos tus datos.`),
-      p(`Tienes hasta el <b>${plazo}</b> (3 meses) para aceptarlo. Pasado ese plazo, haremos lo mismo.`));
+      p(`Tienes hasta el <b>${plazo}</b>${meses} para aceptarlo. Pasado ese plazo, haremos lo mismo.`));
     const pie = `Recibes este correo porque ${R} te ha regalado el Plan Familiar con esta dirección. Usamos tus datos solo para hacerte llegar el regalo. Consulta la <a href="${privacidad}" style="color:#6b5a45;">Política de privacidad</a>.`;
     t = texto([`Hola, ${r.destinatario_nombre}:`, `${r.regala_nombre} te ha regalado el Plan Familiar de Locus Mundi para que escribas la historia de tu vida.`,
       r.mensaje ? `${r.regala_nombre} te escribe: «${r.mensaje}»` : null,
       'Qué incluye tu regalo: crédito para el Asistente editorial de IA, 10 fotos para ilustrar tu libro y el PDF de tu libro publicado.',
       `Ver mi regalo: ${aceptar}`, `O entra en locusmundi.com/regalo e introduce este código: ${cod}`,
       `¿No te interesa? ${noInteresa} — Devolveremos el importe a ${r.regala_nombre} y borraremos tus datos.`,
-      `Tienes hasta el ${plazo} (3 meses) para aceptarlo. Pasado ese plazo, haremos lo mismo.`,
+      `Tienes hasta el ${plazo}${meses} para aceptarlo. Pasado ese plazo, haremos lo mismo.`,
       `Política de privacidad: ${privacidad}`].filter(Boolean));
     return { asunto, html: plantilla('ES', b, pie), texto: t };
   }
@@ -124,14 +126,14 @@ function correoInvitacion(r, tipo) {
     boton('See your gift', aceptar),
     p(`If the button doesn't work, go to <b>locusmundi.com/regalo</b> and enter this code: <b>${cod}</b>`),
     p(`Not interested? <a href="${noInteresa}" style="color:#1B3A6B;">No, thanks</a>. We'll refund ${R} and delete your details.`),
-    p(`You have until <b>${plazo}</b> (3 months) to accept it. After that date, we'll do the same.`));
+    p(`You have until <b>${plazo}</b>${meses} to accept it. After that date, we'll do the same.`));
   const pie = `You're receiving this email because ${R} gave you the Family Plan at this address. We use your details only to deliver the gift. See our <a href="${privacidad}" style="color:#6b5a45;">Privacy Policy</a>.`;
   t = texto([`Hello ${r.destinatario_nombre},`, `${r.regala_nombre} has given you the Locus Mundi Family Plan so you can write the story of your life.`,
     r.mensaje ? `${r.regala_nombre} writes: “${r.mensaje}”` : null,
     'Your gift includes credit for the AI editorial Assistant, 10 photos to illustrate your book and the PDF of your published book.',
     `See your gift: ${aceptar}`, `Or go to locusmundi.com/regalo and enter this code: ${cod}`,
     `Not interested? ${noInteresa} — We'll refund ${r.regala_nombre} and delete your details.`,
-    `You have until ${plazo} (3 months) to accept it. After that date, we'll do the same.`,
+    `You have until ${plazo}${meses} to accept it. After that date, we'll do the same.`,
     `Privacy Policy: ${privacidad}`].filter(Boolean));
   return { asunto, html: plantilla('EN', b, pie), texto: t };
 }

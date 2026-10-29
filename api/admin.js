@@ -1,4 +1,6 @@
 // api/admin.js — Locus Mundi
+// Versión 5.3 · 29/10/2026 · Sin la dirección de producción de reserva (3 sitios): sin SUPABASE_URL, error
+//   CONFIGURACION_INCOMPLETA en vez de ir a producción (Lista, pendiente h).
 // Versión 5.2 · 28/10/2026 · Opción A de la retirada (Lista, 8.3). Marcas [R8.3].
 //  - "retirar" pone además historias.retirada_en: el Autor ya no puede volver a subir el libro
 //    (publicar_historia lo rechaza con LIBRO_RETIRADO; el editor muestra el aviso).
@@ -56,6 +58,7 @@ function quitarCita(texto, cita) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 module.exports = async function handler(req, res) {
+  if (!process.env.SUPABASE_URL) return res.status(500).json({ error: "CONFIGURACION_INCOMPLETA" }); // v5.3: sin dirección de reserva
   // v4: recuento de Autores (antes api/contador-autores.js, con su misma clave CONTADOR_CLAVE).
   if (req.method === "GET") {
     if (!process.env.CONTADOR_CLAVE || req.query.clave !== process.env.CONTADOR_CLAVE) {
@@ -63,7 +66,7 @@ module.exports = async function handler(req, res) {
       return;
     }
     try {
-      const SB = process.env.SUPABASE_URL || "https://olpfybpykuascwltnqtv.supabase.co";
+      const SB = process.env.SUPABASE_URL;
       const r = await fetch(`${SB}/rest/v1/autores?select=id`, {
         headers: {
           apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -116,7 +119,7 @@ module.exports = async function handler(req, res) {
   }
 
   const id = String(historia_id).trim().toLowerCase();
-  const SUPABASE_URL = process.env.SUPABASE_URL || "https://olpfybpykuascwltnqtv.supabase.co";
+  const SUPABASE_URL = process.env.SUPABASE_URL;
   const headers = {
     "Content-Type": "application/json",
     apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -276,7 +279,7 @@ module.exports = async function handler(req, res) {
 // ---------------------------------------------------------------------------------------------
 // v5: denuncias y avisos (Locus_Mundi_Denuncias_DSA_v1.md, §3; de tú).
 
-const SBU = () => process.env.SUPABASE_URL || "https://olpfybpykuascwltnqtv.supabase.co";
+const SBU = () => process.env.SUPABASE_URL;
 const sbH = (extra) => ({
   "Content-Type": "application/json",
   apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,

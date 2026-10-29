@@ -1,4 +1,6 @@
-// api/purgar-borrados.js — v2 · 02/10/2026
+// api/purgar-borrados.js — v3 · 29/10/2026 · Sin la dirección de producción de reserva: sin SUPABASE_URL, error
+//   CONFIGURACION_INCOMPLETA en vez de ir a producción (Lista, pendiente h).
+// v2 · 02/10/2026
 // Purga semanal (cron de vercel.json, domingos 03:00 UTC).
 // Borra de verdad las historias marcadas como borradas hace más de 30 días.
 // Para cada historia, por este orden:
@@ -23,10 +25,10 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL || "https://olpfybpykuascwltnqtv.supabase.co";
+  const supabaseUrl = process.env.SUPABASE_URL; // v3: sin dirección de reserva (Lista, pendiente h)
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) {
-    res.status(500).json({ error: "CONFIGURACION" });
+  if (!serviceKey || !supabaseUrl) {
+    res.status(500).json({ error: "CONFIGURACION_INCOMPLETA" });
     return;
   }
   const cabeceras = {
