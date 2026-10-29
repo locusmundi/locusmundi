@@ -1,4 +1,5 @@
 // api/backup-semanal.js — Locus Mundi
+// Versión 3.4 (cambios al final de esta cabecera).
 // Versión 3 · 17/10/2026 · Fase B2, punto 6. Continuidad, sesión "17/10/2026 (conversación 5)".
 // Cambios respecto a la v2:
 //  - La copia va a Cloudflare R2 (locusmundi-copias, UE), no a GitHub: allí una regla borra cada
@@ -14,6 +15,14 @@
 // también pdf_compras y pdf_descargas (quién pagó el PDF y cuántas descargas le quedan), contadores
 // (sin él, una restauración repetiría números de Autor), paises y regiones (sin ellas falla la
 // búsqueda al publicar) y lecturas. Las tablas de IA (regenerables) siguen fuera.
+// Versión 3.4 · 29/10/2026 · Fase C, endurecimiento (Lista 9.1, opción A). Continuidad, sesión
+// "29/10/2026 (endurecimiento, parte 10)". Sin esto la copia no se podía restaurar:
+//  - cuentas.json: las cuentas (vía oficial de usuarios de Supabase), SIN contraseña: id, correo,
+//    confirmación, fechas y datos del alta. Al restaurar, cada cuenta vuelve con su id y cada Autor
+//    pone contraseña nueva con «Recuperar contraseña».
+//  - estructura.sql: tablas, funciones, disparadores, reglas, permisos y almacenes, generada cada vez
+//    por public.estructura_copia() (solo la puede usar el servidor).
+//  - Comprobación: cada fila de autores tiene su cuenta en la copia; si no, la copia no vale y avisa.
 // Límite conocido: con el tiempo máximo de 60 s, unas 1.500 fotos por pasada. Si no le da tiempo,
 // la copia queda incompleta y avisa (revisar con Vercel Pro o copia incremental).
 
@@ -54,12 +63,13 @@ module.exports = async function handler(req, res) {
   const cab = { apikey: llave, Authorization: `Bearer ${llave}`, 'Content-Type': 'application/json' };
   const hoy = new Date().toISOString().slice(0, 10);
   const carpeta = `copia-${hoy}`;
-  const resumen = { fecha: hoy, tablas: {}, fotos: 0, mb_fotos: 0, completa: false };
+  const resumen = { fecha: hoy, tablas: {}, cuentas: 0, estructura_kb: 0, fotos: 0, mb_fotos: 0, completa: false };
 
   try {
     if (!url || !llave) throw new Error('faltan las variables de Supabase');
 
     // 1. Tablas, por páginas.
+    let autoresCopiados = [];
     for (const [tabla, orden] of Object.entries(TABLAS)) {
       const filas = [];
       for (let desde = 0; ; desde += 1000) {
@@ -70,8 +80,45 @@ module.exports = async function handler(req, res) {
         if (pagina.length < 1000) break;
       }
       await subir(`${carpeta}/tablas/${tabla}.json`, JSON.stringify(filas), 'application/json');
+      if (tabla === 'autores') autoresCopiados = filas.map((f) => f.id); // v3.4
       resumen.tablas[tabla] = filas.length;
     }
+
+    // 1 bis. Cuentas (v3.4), después de las tablas: así toda fila de autores copiada tiene ya su cuenta.
+    const cuentas = [];
+    for (let pagina = 1; ; pagina++) {
+      const r = await fetch(`${url}/auth/v1/admin/users?page=${pagina}&per_page=1000`, { headers: cab });
+      if (!r.ok) throw new Error(`leer cuentas: ${r.status} ${await r.text()}`);
+      const lote = (await r.json()).users || [];
+      for (const u of lote) {
+        cuentas.push({
+          id: u.id,
+          email: u.email,
+          email_confirmed_at: u.email_confirmed_at || null,
+          created_at: u.created_at || null,
+          last_sign_in_at: u.last_sign_in_at || null,
+          user_metadata: u.user_metadata || {},
+        });
+      }
+      if (lote.length < 1000) break;
+    }
+    const conCuenta = new Set(cuentas.map((c) => c.id));
+    const autoresSinCuenta = autoresCopiados.filter((id) => !conCuenta.has(id));
+    if (autoresSinCuenta.length) {
+      throw new Error(`${autoresSinCuenta.length} Autor(es) sin cuenta en la copia (p. ej. ${autoresSinCuenta[0]}); ¿alguien se dio de baja durante la copia? Repetirla.`);
+    }
+    await subir(`${carpeta}/cuentas.json`, JSON.stringify(cuentas), 'application/json');
+    resumen.cuentas = cuentas.length;
+
+    // 1 ter. Estructura de la base (v3.4).
+    const re = await fetch(`${url}/rest/v1/rpc/estructura_copia`, { method: 'POST', headers: cab, body: '{}' });
+    if (!re.ok) throw new Error(`leer estructura: ${re.status} ${await re.text()}`);
+    const estructura = await re.json();
+    if (typeof estructura !== 'string' || !estructura.includes('create table public.autores')) {
+      throw new Error('leer estructura: respuesta sin la tabla autores');
+    }
+    await subir(`${carpeta}/estructura.sql`, estructura, 'application/sql');
+    resumen.estructura_kb = Math.round(Buffer.byteLength(estructura) / 1024);
 
     // 2. Lista de todos los archivos del almacén de fotos (las carpetas tienen id nulo).
     async function listar(prefijo) {
