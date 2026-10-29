@@ -29,6 +29,9 @@
 // Supabase entero, la lista de lo borrado sigue fuera y se puede volver a borrar tras restaurar (Mapa, §7).
 // Versión 1.8 · 28/10/2026 · Endurecimiento, parte 6: resúmenes de ventas por correo (api/_ventas.js), cada
 // lunes (semana anterior) y cada día 1 (mes anterior, con CSV). Decisión de Javier, 28/10.
+// Versión 1.9 · 29/10/2026 · Seguimiento de la actividad (api/_actividad.js): correo diario «Locus Mundi: ayer»
+// (altas, libros empezados, primeras publicaciones, compras, devoluciones, bajas y acumulado), todos los días,
+// aunque esté todo a cero. Si no se puede preparar o enviar, cuenta como fallo del vigía.
 
 const purgar = require('./_purgar-borrados'); // v1.2
 const { leerTexto, subir } = require('./_r2'); // subir: v1.7
@@ -37,6 +40,7 @@ const { limpiarPdf } = require('./pdf'); // v1.3
 const pago = require('./pago'); // v1.4
 const crearRegalos = require('./_regalo'); // v1.4
 const { resumenesDeHoy } = require('./_ventas'); // v1.8
+const { resumenActividad } = require('./_actividad'); // v1.9
 
 const { modelosEnUso, modelosSinPrecio } = require('./_modelos'); // v1.1
 const MODELOS = modelosEnUso();
@@ -215,6 +219,13 @@ module.exports = async function handler(req, res) {
     const correos = await resumenesDeHoy();
     for (const c of correos) await avisar(c.asunto, c.texto, c.adjunto);
     return correos.length ? `${correos.length} enviado(s)` : 'hoy no toca';
+  });
+
+  // 5 ter. Actividad de ayer (v1.9): un correo cada día, aparte del vigía.
+  await comprobar('Actividad de ayer', async () => {
+    const c = await resumenActividad();
+    await avisar(c.asunto, c.texto);
+    return 'enviada';
   });
 
   // 6. Aviso.
