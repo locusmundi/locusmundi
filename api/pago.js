@@ -1,4 +1,8 @@
 // api/pago.js — Locus Mundi
+// Versión 2.5 · 30/10/2026 · E5 (Alex, pregunta 3): dos casillas al comprar, la aceptación de las condiciones
+//   y, aparte, la petición de empezar ya con la renuncia al desistimiento (texto propio para fotos y PDF, para el
+//   Asistente y para el regalo). abrir exige condiciones:true y desistimiento:true; versiones de las casillas nuevas;
+//   el correo de confirmación recoge las dos.
 // Versión 2.4 · 29/10/2026 · Sin la dirección de producción de reserva: sin SUPABASE_URL, error
 //   CONFIGURACION_INCOMPLETA en vez de ir a producción (Lista, pendiente h).
 // Versión 2.3 · 24/10/2026 · C3-III (textos legales): correo de confirmación de cada compra de fotos, Asistente y PDF
@@ -50,8 +54,8 @@ const SIN_PDF = ['AR', 'ZH', 'JA', 'HI']; // = api/pdf.js
 // v2: fuera IVA_TIPO (21 % provisional). Managed Payments: el IVA lo calcula Stripe por el código fiscal.
 const CODIGO_FISCAL = { fotos: 'txcd_10000000', asistente: 'txcd_10000000', pdf: 'txcd_10302000', plan_familiar: 'txcd_10000000' };
 const MANAGED = () => process.env.STRIPE_MANAGED_PAYMENTS !== 'no';
-const VERSION_DESISTIMIENTO = 'terms_consent 2026-10-24 C3-III'; // texto de la casilla (index.html, terms_consent); antes 'terms_consent 2026-09-29'
-const VERSION_REGALO = 'gift_consent 2026-10-24 C3-III (edad + condiciones del regalo y de compra)'; // antes 'gift_terms PROVISIONAL 2026-10-24'
+const VERSION_DESISTIMIENTO = { fotos: 'terms_consent + waiver_content 2026-10-30 E5', pdf: 'terms_consent + waiver_content 2026-10-30 E5', asistente: 'terms_consent + waiver_ai 2026-10-30 E5' }; // v2.5; antes 'terms_consent 2026-10-24 C3-III' (una casilla) // texto de la casilla (index.html, terms_consent); antes 'terms_consent 2026-09-29'
+const VERSION_REGALO = 'gift_age + gift_consent + gift_waiver 2026-10-30 E5'; // v2.5; antes 'gift_consent 2026-10-24 C3-III (edad + condiciones del regalo y de compra)' // antes 'gift_terms PROVISIONAL 2026-10-24'
 const MAX_NOMBRE = 80; const MAX_MENSAJE = 500;
 const MINUTOS_PAGO = 30;             // mínimo que admite Stripe
 const ORIGENES = ['https://www.locusmundi.com', 'https://locusmundi.com', 'https://locusmundi.vercel.app'];
@@ -164,7 +168,7 @@ async function abrir(b, req, res) {
   if (!u) return res.status(401).json({ error: 'SESION' });
   const producto = b.producto;
   if (!['fotos', 'asistente', 'pdf'].includes(producto)) return res.status(400).json({ error: 'PRODUCTO' });
-  if (b.desistimiento !== true) return res.status(400).json({ error: 'DESISTIMIENTO' });
+  if (b.condiciones !== true || b.desistimiento !== true) return res.status(400).json({ error: 'DESISTIMIENTO' }); // v2.5: las dos casillas
   const idioma = String(b.idioma || '').toUpperCase() === 'EN' ? 'EN' : 'ES';
   const cantidad = Number(b.cantidad);
 
@@ -204,7 +208,7 @@ async function abrir(b, req, res) {
     method: 'POST', headers: devolver,
     body: JSON.stringify(Object.assign({
       producto, cantidad: producto === 'asistente' ? cantidad : cant, historia_id: historia, autor_id: u.id, idioma,
-      comprador_email: u.email, desistimiento_en: new Date().toISOString(), desistimiento_version: VERSION_DESISTIMIENTO,
+      comprador_email: u.email, desistimiento_en: new Date().toISOString(), desistimiento_version: VERSION_DESISTIMIENTO[producto],
     }, desglose(total))),
   });
 
@@ -231,7 +235,7 @@ const limpio = (s, max) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u0
 const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 async function abrirRegalo(b, req, res) {
   if (!process.env.REGALO_SECRETO) return res.status(503).json({ error: 'SIN_STRIPE' });
-  if (b.edad !== true || b.desistimiento !== true) return res.status(400).json({ error: 'DESISTIMIENTO' });
+  if (b.edad !== true || b.condiciones !== true || b.desistimiento !== true) return res.status(400).json({ error: 'DESISTIMIENTO' }); // v2.5
   const idioma = String(b.idioma || '').toUpperCase() === 'EN' ? 'EN' : 'ES';
   const regala = limpio(b.regala_nombre, MAX_NOMBRE);
   const destinatario = limpio(b.destinatario_nombre, MAX_NOMBRE);
@@ -347,7 +351,9 @@ function correoCompra(v) {
     asunto = `Tu compra en Locus Mundi: ${nombre.replace('Locus Mundi · ', '')}`;
     lineas = ['Hola:',
       `Gracias por tu compra: <b>${U.esc(nombre)}</b>, ${importe} (impuestos incluidos), el ${fecha}. Ya la tienes en tu cuenta.`,
-      'Al comprar aceptaste sus condiciones y las ' + enlace('Condiciones de Compra') + ', y pediste usar el servicio desde ese momento, sabiendo que, cuando empieces a usarlo, pierdes el derecho de desistimiento de 14 días.',
+      'Al comprar aceptaste sus condiciones y las ' + enlace('Condiciones de Compra') + '. Además, ' + (v.producto === 'asistente' // v2.5: las dos casillas
+        ? 'pediste empezar a usarlo ya, sabiendo que, si desistes en los 14 días, solo se te devuelve el saldo no gastado.'
+        : 'pediste empezar a usarlo ya y aceptaste que, en cuanto uses algo de lo comprado, pierdes el derecho de desistimiento de 14 días.'),
       v.producto === 'asistente'
         ? 'En los 14 días siguientes a la compra puedes desistir respondiendo a este correo, y te devolveremos la parte del importe que corresponda al saldo que no hayas gastado.'
         : 'Si no has usado nada de lo comprado, puedes desistir en los 14 días siguientes a la compra respondiendo a este correo, y te devolveremos el importe íntegro.',
@@ -357,7 +363,9 @@ function correoCompra(v) {
     asunto = `Your Locus Mundi purchase: ${nombre.replace('Locus Mundi · ', '')}`;
     lineas = ['Hello,',
       `Thank you for your purchase: <b>${U.esc(nombre)}</b>, ${importe} (taxes included), on ${fecha}. It's already in your account.`,
-      'When buying, you accepted its terms and the ' + enlace('Purchase Terms') + ', and asked to use the service straight away, understanding that once you start using it you lose the 14-day right of withdrawal.',
+      'When buying, you accepted its terms and the ' + enlace('Purchase Terms') + '. You also ' + (v.producto === 'asistente' // v2.5
+        ? 'asked to start using it right away, understanding that, if you withdraw within 14 days, only the unspent balance will be refunded.'
+        : 'asked to start using it right away and accepted that, as soon as you use any of what you bought, you lose the 14-day right of withdrawal.'),
       v.producto === 'asistente'
         ? 'Within 14 days of the purchase you can withdraw by replying to this email, and we\'ll refund the part of the amount corresponding to the balance you haven\'t spent.'
         : 'If you haven\'t used anything you bought, you can withdraw within 14 days of the purchase by replying to this email, and we\'ll refund the full amount.',
