@@ -32,6 +32,8 @@
 // Versión 1.9 · 29/10/2026 · Seguimiento de la actividad (api/_actividad.js): correo diario «Locus Mundi: ayer»
 // (altas, libros empezados, primeras publicaciones, compras, devoluciones, bajas y acumulado), todos los días,
 // aunque esté todo a cero. Si no se puede preparar o enviar, cuenta como fallo del vigía.
+// Versión 1.12 · 31/10/2026 · «Más leídos» (Continuidad, sesión «31/10/2026 (gasto de IA, «más leídos» y Alex)», punto 3):
+// paso «Lecturas», avisa si un libro suma más de 200 lecturas en un día (función lecturas_del_dia, que guarda la foto del día).
 // Versión 1.11 · 31/10/2026 · Cuentas vacías: archivos borrados y carpetas sin Autor en el informe (_cuentas.js v1.1).
 // Versión 1.10 · 31/10/2026 · Condición de lanzamiento n.º 3 (Lista, pendiente q): cuentas vacías (api/_cuentas.js):
 // sin historia, aviso a los 6 meses y borrado de la cuenta 3 meses después. Si alguna falla, cuenta como fallo.
@@ -63,6 +65,7 @@ const PLAZOS = [
   ['supresiones', 'purgado_en', 40], // v1.6
 ];
 const ERRORES_MAXIMOS_24H = 10; // v1.6
+const LECTURAS_MAXIMAS_DIA = 200; // v1.12: más, en un libro y un día, es sospechoso (orden «Más leídos»)
 
 function supa(ruta, opciones = {}) {
   const llave = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -171,6 +174,15 @@ module.exports = async function handler(req, res) {
   });
 
   // 1 sexies. Fallos del navegador en las últimas 24 h (v1.6).
+  // 2 bis. Lecturas (v1.12): un libro con muchas lecturas en un día puede estar inflando «Más leídos».
+  await comprobar('Lecturas', async () => {
+    const r = await supa('rpc/lecturas_del_dia', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ p_umbral: LECTURAS_MAXIMAS_DIA }) });
+    if (!r.ok) throw new Error(`lecturas_del_dia: ${r.status} ${(await r.text()).slice(0, 200)}`);
+    const filas = await r.json();
+    if (filas.length) throw new Error(`más de ${LECTURAS_MAXIMAS_DIA} en un día (¿lecturas infladas en «Más leídos»?): ` + filas.map(f => `«${f.titulo || f.historia_id}» +${f.nuevas}`).join('; '));
+    return `ningún libro con más de ${LECTURAS_MAXIMAS_DIA} en un día`;
+  });
+
   await comprobar('Errores en 24 h', async () => {
     const desde = new Date(Date.now() - DIA).toISOString();
     const r = await supa(`errores?fecha=gt.${encodeURIComponent(desde)}&select=mensaje&limit=1000`);
