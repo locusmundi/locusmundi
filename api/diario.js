@@ -32,6 +32,7 @@
 // Versión 1.9 · 29/10/2026 · Seguimiento de la actividad (api/_actividad.js): correo diario «Locus Mundi: ayer»
 // (altas, libros empezados, primeras publicaciones, compras, devoluciones, bajas y acumulado), todos los días,
 // aunque esté todo a cero. Si no se puede preparar o enviar, cuenta como fallo del vigía.
+// Versión 1.11 · 31/10/2026 · Cuentas vacías: archivos borrados y carpetas sin Autor en el informe (_cuentas.js v1.1).
 // Versión 1.10 · 31/10/2026 · Condición de lanzamiento n.º 3 (Lista, pendiente q): cuentas vacías (api/_cuentas.js):
 // sin historia, aviso a los 6 meses y borrado de la cuenta 3 meses después. Si alguna falla, cuenta como fallo.
 
@@ -122,7 +123,8 @@ module.exports = async function handler(req, res) {
   await comprobar('Cuentas vacías', async () => {
     const c = await cuentasVacias();
     const texto = `${c.vacias} sin historia, ${c.avisadas} avisadas, ${c.borradas} borradas, ${c.reactivadas} con historia de nuevo`
-      + (c.con_tinta ? `, ${c.con_tinta} de ellas con tinta` : '') + (c.pendientes ? `, ${c.pendientes} para mañana` : '');
+      + (c.con_tinta ? `, ${c.con_tinta} de ellas con tinta` : '') + (c.pendientes ? `, ${c.pendientes} para mañana` : '')
+      + (c.huerfanas ? `, ${c.huerfanas} carpetas sin Autor vaciadas` : '') + (c.archivos ? `, ${c.archivos} archivos borrados` : ''); // v1.11
     if (c.fallos.length) throw new Error(`${texto}; fallidas: ${c.fallos.join('; ')}`);
     return texto;
   });

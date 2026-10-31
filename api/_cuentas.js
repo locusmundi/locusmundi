@@ -9,6 +9,10 @@
 // `autores_registro_lssi_baja` anota la baja; `ventas` no está unida a `autores` y se conserva.
 // Si queda tinta del Asistente, el aviso dice cuánta y que se pierde al borrar la cuenta (decisión de
 // Javier, 31/10: la tinta no caduca mientras haya una historia; va también a las Condiciones).
+// Versión 1.1 · 31/10/2026 · Lista 9.3 en real: al borrar la cuenta, sus archivos se quedaban en el almacén
+// `fotos` (la historia cae en cascada y la purga ya no la encuentra). Ahora: (1) antes de borrar la cuenta se
+// vacía su carpeta `<autor_id>/` (si falla, la cuenta no se borra y se reintenta mañana); (2) barrido diario de
+// carpetas cuyo Autor ya no existe (también las de cuentas borradas a mano), comprobando cada una otra vez.
 
 const { enviarCorreo } = require('./_aviso');
 
@@ -16,6 +20,9 @@ const MESES_AVISO = 6;
 const MESES_PRORROGA = 3;
 const MAXIMO_POR_DIA = 40; // correos y borrados por pasada (límite de Resend y de los 60 s de diario)
 const WEB = 'https://www.locusmundi.com';
+const BUCKET = 'fotos';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAXIMO_CARPETAS_HUERFANAS = 20; // por pasada; el resto, al día siguiente
 
 function supa(ruta, opciones = {}) {
   if (!process.env.SUPABASE_URL) throw new Error('CONFIGURACION_INCOMPLETA');
@@ -33,6 +40,34 @@ async function leer(ruta) {
 async function cambiar(id, campos) {
   const r = await supa(`/rest/v1/autores?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(campos) });
   if (!r.ok) throw new Error(`autores ${id}: ${r.status} ${(await r.text()).slice(0, 200)}`);
+}
+
+// Archivos (rutas completas) bajo una carpeta del almacén, bajando por las subcarpetas.
+async function listar(prefijo) {
+  const rutas = [];
+  for (let offset = 0; ; offset += 1000) {
+    const r = await supa(`/storage/v1/object/list/${BUCKET}`, { method: 'POST', body: JSON.stringify({ prefix: prefijo, limit: 1000, offset }) });
+    if (!r.ok) throw new Error(`listar ${prefijo || '(raíz)'}: ${r.status} ${(await r.text()).slice(0, 200)}`);
+    const items = await r.json();
+    for (const it of items) {
+      const ruta = prefijo ? `${prefijo}/${it.name}` : it.name;
+      if (it.id === null) { if (prefijo) rutas.push(...await listar(ruta)); else rutas.push({ carpeta: ruta }); }
+      else rutas.push(ruta);
+    }
+    if (items.length < 1000) return rutas;
+  }
+}
+// Vacía la carpeta de un Autor. Devuelve cuántos archivos borró; lanza si no queda vacía.
+async function vaciarCarpeta(autorId) {
+  if (!UUID.test(String(autorId))) throw new Error('identificador no válido');
+  const archivos = await listar(autorId);
+  for (const ruta of archivos) if (!ruta.startsWith(autorId + '/')) throw new Error(`ruta fuera de la carpeta: ${ruta}`);
+  for (let i = 0; i < archivos.length; i += 100) {
+    const d = await supa(`/storage/v1/object/${BUCKET}`, { method: 'DELETE', body: JSON.stringify({ prefixes: archivos.slice(i, i + 100) }) });
+    if (!d.ok) throw new Error(`borrar archivos: ${d.status} ${(await d.text()).slice(0, 200)}`);
+  }
+  if ((await listar(autorId)).length) throw new Error('la carpeta no ha quedado vacía');
+  return archivos.length;
 }
 
 // Suma meses de calendario (31/08 + 6 → 28/02 o 29/02).
@@ -89,7 +124,7 @@ async function cuentasVacias({ ahora = Date.now() } = {}) {
   for (const h of historias) if (h.marcado_borrado) anotar(h.autor_id, h.fecha_marcado_borrado);
   for (const s of supresiones) anotar(s.autor_id, s.purgado_en);
 
-  const c = { vacias: 0, reactivadas: 0, avisadas: 0, borradas: 0, con_tinta: 0, pendientes: 0, fallos: [] };
+  const c = { vacias: 0, reactivadas: 0, avisadas: 0, borradas: 0, con_tinta: 0, pendientes: 0, huerfanas: 0, archivos: 0, fallos: [] };
   let gastadas = 0;
   for (const a of autores) {
     try {
@@ -119,6 +154,7 @@ async function cuentasVacias({ ahora = Date.now() } = {}) {
         // Comprobación de última hora: si ha empezado una historia en estos segundos, no se borra.
         const suyas = await leer(`historias?autor_id=eq.${a.id}&marcado_borrado=eq.false&select=id&limit=1`);
         if (suyas.length) continue;
+        c.archivos += await vaciarCarpeta(a.id); // v1.1: primero sus archivos; si falla, la cuenta sigue
         const r = await supa(`/auth/v1/admin/users/${a.id}`, { method: 'DELETE' });
         if (!r.ok && r.status !== 404) throw new Error(`borrar: ${r.status} ${(await r.text()).slice(0, 200)}`);
         c.borradas++;
@@ -127,7 +163,23 @@ async function cuentasVacias({ ahora = Date.now() } = {}) {
       c.fallos.push(`${a.email}: ${e.message}`);
     }
   }
+
+  // v1.1: carpetas del almacén cuyo Autor ya no existe. Nunca con la lista de Autores vacía, y cada una se
+  // comprueba otra vez justo antes (por si alguien se ha dado de alta en estos segundos).
+  if (autores.length) {
+    const conocidos = new Set(autores.map(a => a.id));
+    const carpetas = (await listar('')).filter(x => x.carpeta && UUID.test(x.carpeta) && !conocidos.has(x.carpeta)).map(x => x.carpeta);
+    for (const id of carpetas.slice(0, MAXIMO_CARPETAS_HUERFANAS)) {
+      try {
+        if ((await leer(`autores?id=eq.${id}&select=id`)).length) continue;
+        c.archivos += await vaciarCarpeta(id);
+        c.huerfanas++;
+      } catch (e) {
+        c.fallos.push(`carpeta ${id}: ${e.message}`);
+      }
+    }
+  }
   return c;
 }
 
-module.exports = { cuentasVacias, utiles: { sumarMeses, correoAviso, MESES_AVISO, MESES_PRORROGA, MAXIMO_POR_DIA } };
+module.exports = { cuentasVacias, utiles: { sumarMeses, MAXIMO_CARPETAS_HUERFANAS, correoAviso, MESES_AVISO, MESES_PRORROGA, MAXIMO_POR_DIA } };
