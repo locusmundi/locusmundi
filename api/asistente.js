@@ -1,4 +1,8 @@
 // api/asistente.js — Locus Mundi
+// Versión 8.5 · 31/10/2026 · Lista, pendiente (n): cada respuesta anota su gasto en registro_gasto
+// (servicio "asistente"), además de restar la tinta, para que el gasto de Google quede entero en la
+// tabla y lo cuente el fusible de lo de pago (20 €/día, api/_moderacion.js v1.6). Con ese fusible
+// saltado, no se pide nada a Google (503 FUSIBLE; la web da su mensaje de «inténtalo más tarde»).
 // Versión 8.4 · 17/10/2026 · Fase B2, punto 19 (c): modelos, precios y cambio dólar/euro, leídos
 // de api/_modelos.js. Nada más cambia.
 // Versión 8.3 · 13/10/2026 · Hoja de Ruta, Fase B2, punto 20 (a); Continuidad, sesión
@@ -84,6 +88,7 @@
 // ─── Constantes (todo lo que puede cambiar, en un solo sitio) ───────────
 
 const M = require('./_modelos'); // v8.4
+const { anotarGasto, fusiblePagoSaltado, avisarFusible } = require('./_moderacion'); // v8.5
 const MODELOS = {
   dictado:      M.MODELOS.dictado,
   revision:     M.MODELOS.revision,
@@ -334,6 +339,7 @@ async function pasaje(body, autorId, res) {
   if (!saldo || saldo.tinta <= 0) {
     return res.status(402).json({ error: 'SIN_TINTA', tinta: 0, ultimaCarga: saldo?.ultimaCarga || 0 });
   }
+  if (await fusiblePagoSaltado()) { await avisarFusible(autorId, historia_id, true); return res.status(503).json({ error: 'FUSIBLE' }); } // v8.5
   const h = (await leerFilasServicio(
     `historias?id=eq.${historia_id}&select=id,autor_id,marcado_borrado,contenido,idioma_original&limit=1`
   ))[0];
@@ -407,6 +413,7 @@ async function pasaje(body, autorId, res) {
   }
   const coste = costeEnEuros(MODELO_PASAJE, data.usageMetadata);
   const despues = await restarTinta(autorId, coste);
+  await anotarGasto('asistente', autorId, h.id, coste, { operacion: 'pasaje', modelo: MODELO_PASAJE }); // v8.5
   const texto = (data.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').trim();
   let j = null;
   try { j = JSON.parse(texto.replace(/^```(?:json)?|```$/g, '').trim()); } catch (_) { j = null; }
@@ -473,6 +480,7 @@ module.exports = async function handler(req, res) {
       res.status(402).json({ error: 'SIN_TINTA', tinta: 0, ultimaCarga: saldo?.ultimaCarga || 0 });
       return;
     }
+    if (await fusiblePagoSaltado()) { await avisarFusible(autorId, null, true); res.status(503).json({ error: 'FUSIBLE' }); return; } // v8.5
 
     let sistema;
     let historial = [];
@@ -493,6 +501,7 @@ module.exports = async function handler(req, res) {
     const { texto, uso } = await llamarGemini(modelo, sistema, historial, userMsg);
     const coste = costeEnEuros(modelo, uso);
     const despues = await restarTinta(autorId, coste);
+    await anotarGasto('asistente', autorId, null, coste, { operacion, modelo }); // v8.5
 
     res.status(200).json({
       text: texto,

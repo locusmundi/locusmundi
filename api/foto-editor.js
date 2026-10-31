@@ -1,4 +1,7 @@
 // api/foto-editor.js — Editor de fotos con IA (Locus Mundi, pieza 5)
+// Versión 5.2 · 31/10/2026 · Lista, pendiente (n): "proponer" anota su gasto en registro_gasto
+// (servicio "edicion_foto", precio de api/_modelos.js), también si Google cobra y no devuelve imagen;
+// y no pide nada a Google con el fusible de lo de pago saltado (20 €/día, api/_moderacion.js v1.6; 503 FUSIBLE).
 // Versión 5.1 · 17/10/2026 · Fase B2, punto 19 (c): el nombre del modelo se lee de
 // api/_modelos.js. Nada más cambia.
 // Versión 5 · 08/10/2026 · Diseño de la moderación v10, §5.2 y §11.13, punto 9. Cambios
@@ -66,6 +69,7 @@
 
 const LIMITE_EDICIONES = 4; // único sitio donde vive el 4
 const MODELO = require("./_modelos").MODELOS.fotos; // Nano Banana 2 (v5.1)
+const { costeImagenEnEuros } = require("./_modelos"); // v5.2
 const TAMANO_IMAGEN = "2K";
 const crypto = require("crypto");
 const almacen = require("./_almacen"); // compartido con api/moderar.js
@@ -300,6 +304,12 @@ async function proponer(body, obj, autorId, res) {
   if (!partida) return res.status(404).json({ error: "SIN_IMAGEN" });
   const original = partida.img;
 
+  // v5.2: con el fusible de lo de pago saltado, no se pide nada.
+  if (await mod.fusiblePagoSaltado()) {
+    await mod.avisarFusible(autorId, obj.historiaId, true);
+    return res.status(503).json({ error: "FUSIBLE" });
+  }
+
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_KEY },
@@ -315,6 +325,11 @@ async function proponer(body, obj, autorId, res) {
     }),
   });
   const d = await r.json().catch(() => ({}));
+  // v5.2: gasto anotado siempre que Google respondió (cobra la propuesta, se acepte o no).
+  if (r.ok || (d && d.usageMetadata)) {
+    await mod.anotarGasto("edicion_foto", autorId, obj.historiaId, costeImagenEnEuros(MODELO, d && d.usageMetadata),
+      { objetivo: obj.tipo, restaurar, colorear, modelo: MODELO, tokens: (d && d.usageMetadata) || null });
+  }
   const partes = (d && d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts) || [];
   const parte = partes.find((p) => p.inlineData || p.inline_data);
   if (!r.ok || !parte) {

@@ -32,6 +32,8 @@
 // Versión 1.9 · 29/10/2026 · Seguimiento de la actividad (api/_actividad.js): correo diario «Locus Mundi: ayer»
 // (altas, libros empezados, primeras publicaciones, compras, devoluciones, bajas y acumulado), todos los días,
 // aunque esté todo a cero. Si no se puede preparar o enviar, cuenta como fallo del vigía.
+// Versión 1.10 · 31/10/2026 · Condición de lanzamiento n.º 3 (Lista, pendiente q): cuentas vacías (api/_cuentas.js):
+// sin historia, aviso a los 6 meses y borrado de la cuenta 3 meses después. Si alguna falla, cuenta como fallo.
 
 const purgar = require('./_purgar-borrados'); // v1.2
 const { leerTexto, subir } = require('./_r2'); // subir: v1.7
@@ -41,6 +43,7 @@ const pago = require('./pago'); // v1.4
 const crearRegalos = require('./_regalo'); // v1.4
 const { resumenesDeHoy } = require('./_ventas'); // v1.8
 const { resumenActividad } = require('./_actividad'); // v1.9
+const { cuentasVacias } = require('./_cuentas'); // v1.10
 
 const { modelosEnUso, modelosSinPrecio } = require('./_modelos'); // v1.1
 const MODELOS = modelosEnUso();
@@ -113,6 +116,15 @@ module.exports = async function handler(req, res) {
     const c = await crearRegalos(pago._util).diario();
     if (c.fallos.length) throw new Error(`fallidos: ${c.fallos.join('; ')}`);
     return `${c.recordatorios} recordatorios, ${c.avisos} avisos, ${c.devueltos} devueltos, ${c.borrados} sin pagar borrados`;
+  });
+
+  // 1 ter bis. Cuentas vacías (v1.10): aviso a los 6 meses sin historia; borrado 3 meses después.
+  await comprobar('Cuentas vacías', async () => {
+    const c = await cuentasVacias();
+    const texto = `${c.vacias} sin historia, ${c.avisadas} avisadas, ${c.borradas} borradas, ${c.reactivadas} con historia de nuevo`
+      + (c.con_tinta ? `, ${c.con_tinta} de ellas con tinta` : '') + (c.pendientes ? `, ${c.pendientes} para mañana` : '');
+    if (c.fallos.length) throw new Error(`${texto}; fallidas: ${c.fallos.join('; ')}`);
+    return texto;
   });
 
   // 1 quater. Plazos de conservación (v1.5).

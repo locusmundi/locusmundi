@@ -1,4 +1,8 @@
 // api/_moderacion.js — Locus Mundi
+// Versión 1.6 · 31/10/2026 · Lista, pendiente (n): dos fusibles diarios. El de 5 € sigue solo para lo
+// gratuito (moderación y tarjeta traducida). Uno nuevo, de 20 €, para lo de pago (editor de fotos,
+// "edicion_foto", y Asistente, "asistente", que ahora anotan su gasto): red de seguridad ante un fallo;
+// el uso pagado nunca frena las subidas gratuitas. Decisión de Javier, 31/10.
 // Versión 1.5 · 18/10/2026 · llamarGeminiJson admite un parámetro opcional "maxTokens" (tope de la
 // respuesta, maxOutputTokens). Lo usa la tarjeta traducida de api/moderar.js v3.8, tras el TEST real
 // (una respuesta sin tope se alargó hasta el máximo de Google: 2 minutos y 0,15 €). Sin él, todo igual.
@@ -32,6 +36,7 @@ const PRECIOS_USD = M.PRECIOS_USD;
 const DOLAR_A_EURO = M.DOLAR_A_EURO;
 
 const FUSIBLE_MODERACION_EUROS_DIA = 5.00; // §7
+const FUSIBLE_PAGO_EUROS_DIA = 20.00; // v1.6: editor de fotos y Asistente (de pago)
 const LIMITE_IMAGENES_DIA = 30;            // §7, por Autor (v1.2: antes 10)
 const LIMITE_SUBIDAS_DIA = 5;              // §7, por Autor, solo las que necesitan revisión
 
@@ -80,14 +85,27 @@ async function fusibleSaltado() {
   return (await gastoModeracionDeHoy()) >= FUSIBLE_MODERACION_EUROS_DIA;
 }
 
+// v1.6: lo gastado hoy en lo de pago (editor de fotos y Asistente) y su fusible, aparte.
+async function gastoPagoDeHoy() {
+  const filas = await leerFilas(
+    `registro_gasto?servicio=in.(edicion_foto,asistente)&fecha=gte.${inicioDeHoy()}&select=coste_euros&limit=100000`
+  );
+  return filas.reduce((n, f) => n + (Number(f.coste_euros) || 0), 0);
+}
+async function fusiblePagoSaltado() {
+  return (await gastoPagoDeHoy()) >= FUSIBLE_PAGO_EUROS_DIA;
+}
+
 // Un solo aviso de fusible al día (tabla avisos_moderacion; Javier lo ve en Supabase).
-async function avisarFusible(autorId, historiaId) {
+// v1.6: `pago` = true para el fusible de lo de pago (un aviso al día de cada uno).
+async function avisarFusible(autorId, historiaId, pago = false) {
   try {
-    const hoy = await leerFilas(`avisos_moderacion?tipo=eq.fusible&fecha=gte.${inicioDeHoy()}&select=id&limit=1`);
+    const cual = pago ? '&detalle->>fusible=eq.pago' : '&detalle->>fusible=is.null';
+    const hoy = await leerFilas(`avisos_moderacion?tipo=eq.fusible&fecha=gte.${inicioDeHoy()}${cual}&select=id&limit=1`);
     if (hoy.length) return;
     await insertarFila('avisos_moderacion', {
       tipo: 'fusible', autor_id: autorId || null, historia_id: historiaId || null,
-      detalle: { limite_euros: FUSIBLE_MODERACION_EUROS_DIA }
+      detalle: pago ? { limite_euros: FUSIBLE_PAGO_EUROS_DIA, fusible: 'pago' } : { limite_euros: FUSIBLE_MODERACION_EUROS_DIA }
     });
   } catch (e) { console.error('moderacion: aviso de fusible', e.message); }
 }
@@ -254,6 +272,9 @@ module.exports = {
   PRECIOS_USD,
   DOLAR_A_EURO,
   FUSIBLE_MODERACION_EUROS_DIA,
+  FUSIBLE_PAGO_EUROS_DIA,
+  gastoPagoDeHoy,
+  fusiblePagoSaltado,
   LIMITE_IMAGENES_DIA,
   LIMITE_SUBIDAS_DIA,
   CATEGORIAS_IMAGEN,
