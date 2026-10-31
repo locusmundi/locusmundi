@@ -1,4 +1,6 @@
 // api/_cuentas.js — Locus Mundi
+// Versión 1.2 · 31/10/2026 · Firma corporativa (api/_firma.js) al pie del aviso, en lugar de la web y «Locus Mundi»
+//   (la firma ya lleva la web); en el texto plano, la firma sin imagen (Lista, pendiente r).
 // Versión 1 · 31/10/2026 · Fase C, condición de lanzamiento n.º 3 (Lista, pendiente q). Continuidad, sesión
 // "31/10/2026 (gasto de IA, «más leídos» y Alex)", punto 4 quater. Lo llama api/diario.js (v1.10) cada día.
 // Cuentas vacías: una cuenta sin ninguna historia (ni siquiera un borrador) recibe, a los 6 meses, un correo
@@ -15,6 +17,7 @@
 // carpetas cuyo Autor ya no existe (también las de cuentas borradas a mano), comprobando cada una otra vez.
 
 const { enviarCorreo } = require('./_aviso');
+const { FIRMA_HTML, FIRMA_TEXTO } = require('./_firma'); // v1.2
 
 const MESES_AVISO = 6;
 const MESES_PRORROGA = 3;
@@ -102,12 +105,12 @@ function correoAviso(plazo, tinta = 0) {
     ...(t ? [`You have ${tEN} of Assistant ink left; if the account is deleted, it will be lost.`] : []),
     'If you would rather we delete it now, reply to this email.',
   ];
-  const texto = [...ES, '', ...EN, '', WEB, '', 'Locus Mundi'].join('\n\n').replace(/\n{3,}/g, '\n\n');
+  const texto = [...ES, '', ...EN, '', FIRMA_TEXTO].join('\n\n').replace(/\n{3,}/g, '\n\n'); // v1.2: antes WEB y 'Locus Mundi'
   const p = (s) => `<p style="margin:0 0 1em">${s}</p>`;
   const html = `<div style="font-family:Georgia,serif;font-size:16px;line-height:1.5;color:#222;max-width:560px">`
     + ES.map(p).join('') + '<hr style="border:0;border-top:1px solid #ccc;margin:1.5em 0">'
     + `<div lang="en">${EN.map(p).join('')}</div>`
-    + p(`<a href="${WEB}" style="color:#222">www.locusmundi.com</a>`) + p('Locus Mundi') + '</div>';
+    + '</div>' + `<div style="margin-top:24px">${FIRMA_HTML}</div>`; // v1.2: antes la web y 'Locus Mundi'
   return { asunto, texto, html };
 }
 

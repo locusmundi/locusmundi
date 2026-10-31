@@ -1,4 +1,7 @@
 // api/admin.js — Locus Mundi
+// Versión 5.4 · 31/10/2026 · Firma corporativa (api/_firma.js) al pie de los correos al Autor y a quien denunció (todos
+//   los de correo()): HTML con el logo y texto plano sin imagen. Sin el «Locus Mundi» final (lo dice la firma); la
+//   identificación «Locus Mundi · Alastuey & Morera Asociados, S.L.» del 3.2 se conserva (Lista, pendiente r).
 // Versión 5.3 · 29/10/2026 · Sin la dirección de producción de reserva (3 sitios): sin SUPABASE_URL, error
 //   CONFIGURACION_INCOMPLETA en vez de ir a producción (Lista, pendiente h).
 // Versión 5.2 · 28/10/2026 · Opción A de la retirada (Lista, 8.3). Marcas [R8.3].
@@ -44,6 +47,7 @@
 //  - admin_log.contenido_anterior guarda las dos versiones anteriores: { escrito, publicado }.
 //  - historia_id debe ser un identificador válido; SUPABASE_URL de las variables de entorno.
 
+const { conFirma } = require("./_firma"); // v5.4
 const { huellasVigentes } = require("./_tramos"); // compartido con traducir.js y moderar.js
 
 // v5: quita una cita del texto y arregla los espacios que deja.
@@ -298,7 +302,7 @@ async function correo(to, subject, text) {
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: "Locus Mundi <avisos@locusmundi.com>", to, reply_to: INTERNO, subject, text }),
+    body: JSON.stringify({ from: "Locus Mundi <avisos@locusmundi.com>", to, reply_to: INTERNO, subject, ...conFirma(text) }), // v5.4: html y text con la firma
   });
   if (!r.ok) throw new Error(await r.text());
 }
@@ -322,7 +326,7 @@ async function avisarLevantada(historiaId) {
   const { email, titulo, nombre } = await libroYAutor(historiaId);
   await correo(email, `Tu libro «${titulo}» ya puede volver a la Biblioteca`,
     `Hola${nombre ? ", " + nombre : ""}. Locus Mundi ha levantado la retirada de tu libro «${titulo}». ` +
-    `Ya puedes volver a subirlo a la Biblioteca; antes de publicarse pasará la revisión habitual.\n\nLocus Mundi`);
+    `Ya puedes volver a subirlo a la Biblioteca; antes de publicarse pasará la revisión habitual.`); // v5.4: sin «Locus Mundi» (firma)
 }
 
 async function avisarAutor(historiaId, { medida, cita, motivo_decision, base, origen }) {
@@ -335,7 +339,7 @@ async function avisarAutor(historiaId, { medida, cita, motivo_decision, base, or
     `La decisión se ha tomado ${origen === "denuncia" ? "a raíz de una denuncia" : "por iniciativa de Locus Mundi"}, y la ha tomado una persona, sin medios automatizados.` +
     `\n\nSi no estás de acuerdo, responde a este correo con tus razones y la revisaremos. También puedes acudir a los tribunales. ` +
     (pasaje ? "Tu libro sigue publicado sin ese pasaje. " : "Puedes seguir trabajando en él, pero no podrás volver a subirlo mientras siga retirado. ") + // [R8.3]
-    `Lo demás de tu cuenta sigue igual.\n\nLocus Mundi`;
+    `Lo demás de tu cuenta sigue igual.`; // v5.4: sin «Locus Mundi» (firma)
   await correo(email, `Cambio en tu libro «${titulo}»`, text);
 }
 

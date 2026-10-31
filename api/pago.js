@@ -1,4 +1,6 @@
 // api/pago.js — Locus Mundi
+// Versión 2.7 · 31/10/2026 · Firma corporativa al pie del correo de confirmación: en el HTML la pone la plantilla de
+//   api/_regalo.js (v1.7); aquí, en el texto plano (Lista, pendiente r).
 // Versión 2.6 · 30/10/2026 · Textos de las casillas de desistimiento revisados por Javier (08:32), en la web y en el
 //   correo de confirmación; versiones «E5b».
 // Versión 2.5 · 30/10/2026 · E5 (Alex, pregunta 3): dos casillas al comprar, la aceptación de las condiciones
@@ -375,7 +377,7 @@ function correoCompra(v) {
     pie = 'You\'re receiving this email because you made a purchase on www.locusmundi.com.';
   }
   const p = (x) => `<p style="margin:0 0 14px;">${x}</p>`;
-  const texto = lineas.map((l) => l.replace(/<[^>]+>/g, '')).join('\n\n') + `\n\n${EN ? 'Purchase Terms' : 'Condiciones de Compra'}: ${compra}`;
+  const texto = lineas.map((l) => l.replace(/<[^>]+>/g, '')).join('\n\n') + `\n\n${EN ? 'Purchase Terms' : 'Condiciones de Compra'}: ${compra}` + `\n\n${U.FIRMA_TEXTO}`; // v2.7: firma
   return { asunto, html: U.plantilla(idioma, lineas.map(p), pie), texto };
 }
 

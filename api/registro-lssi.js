@@ -1,4 +1,6 @@
 // api/registro-lssi.js — Locus Mundi
+// Versión 2.2 · 31/10/2026 · Firma corporativa (api/_firma.js) al pie del correo «Has eliminado tu libro…» (HTML con el
+//   logo y texto plano sin imagen), sin el «Locus Mundi» final (Lista, pendiente r).
 // Versión 2.1 · 29/10/2026 · Sin la dirección de producción de reserva: sin SUPABASE_URL, error
 //   CONFIGURACION_INCOMPLETA en vez de ir a producción (Lista, pendiente h).
 // Versión 2 · 25/10/2026 · Fase C, pendientes de index.html (II).
@@ -11,6 +13,7 @@
 //    Javier, 25/10/2026). El libro se comprueba en el servidor (suyo y marcado como borrado).
 // Versión 1: anota alta, publicación y despublicación con la IP (LSSI), sin comprobar quién llama.
 
+const { conFirma } = require("./_firma"); // v2.2
 const SB = process.env.SUPABASE_URL; // v2.1: sin dirección de reserva
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -117,8 +120,8 @@ module.exports = async function handler(req, res) {
 
     const subject = en ? `You have deleted your book “${titulo}”` : `Has eliminado tu libro «${titulo}»`;
     const text = en
-      ? `Hello${nombre ? ", " + nombre : ""}. On ${fecha}, at ${hora}, you deleted your book “${titulo}” from Locus Mundi. If you did it, you don't need to do anything. If it wasn't you, reply to this email as soon as possible: we can recover it for 30 days; after that it is permanently deleted.\n\nLocus Mundi`
-      : `Hola${nombre ? ", " + nombre : ""}. El ${fecha}, a las ${hora}, has eliminado tu libro «${titulo}» de Locus Mundi. Si lo has hecho tú, no tienes que hacer nada. Si no has sido tú, responde a este correo cuanto antes: durante 30 días podemos recuperarlo; después se borra definitivamente.\n\nLocus Mundi`;
+      ? `Hello${nombre ? ", " + nombre : ""}. On ${fecha}, at ${hora}, you deleted your book “${titulo}” from Locus Mundi. If you did it, you don't need to do anything. If it wasn't you, reply to this email as soon as possible: we can recover it for 30 days; after that it is permanently deleted.` // v2.2: sin «Locus Mundi» (firma)
+      : `Hola${nombre ? ", " + nombre : ""}. El ${fecha}, a las ${hora}, has eliminado tu libro «${titulo}» de Locus Mundi. Si lo has hecho tú, no tienes que hacer nada. Si no has sido tú, responde a este correo cuanto antes: durante 30 días podemos recuperarlo; después se borra definitivamente.`;
 
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -128,7 +131,7 @@ module.exports = async function handler(req, res) {
         to: para,
         reply_to: "contactlocusmundi@gmail.com",
         subject,
-        text,
+        ...conFirma(text), // v2.2: html y text con la firma
       }),
     });
     if (!r.ok) { console.error("Correo de eliminación:", await r.text()); res.status(200).json({ ok: true, correo: false }); return; }

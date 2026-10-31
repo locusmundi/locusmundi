@@ -1,4 +1,6 @@
 // api/enviar-formulario.js — Locus Mundi
+// Versión 3.2 · 31/10/2026 · Firma corporativa (api/_firma.js) al pie del acuse de la denuncia (HTML con el logo y texto
+//   plano sin imagen), el único correo de este archivo que va fuera; los avisos internos, sin firma (Lista, pendiente r).
 // Versión 3.1 · 29/10/2026 · Sin la dirección de producción de reserva: sin SUPABASE_URL, error
 //   CONFIGURACION_INCOMPLETA en vez de ir a producción (Lista, pendiente h).
 // Versión 3 · 25/10/2026 · Fase C, pendientes de index.html (II): denuncias según el DSA, arts. 16 y 17
@@ -8,6 +10,7 @@
 // Versión 2 · 21/10/2026 · Fase C, punto 2 (C5a): remitente del dominio, contacto@locusmundi.com
 // (antes onboarding@resend.dev). Continuidad, sesión "21/10/2026 (conversación C5a)".
 
+const { conFirma } = require("./_firma"); // v3.2
 const SB = process.env.SUPABASE_URL; // v3.1: sin dirección de reserva
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -36,11 +39,11 @@ function sbHeaders(extra) {
   };
 }
 
-async function enviarCorreo({ from, to, reply_to, subject, text }) {
+async function enviarCorreo({ from, to, reply_to, subject, text, html }) { // v3.2: html opcional
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to, reply_to: reply_to || undefined, subject, text }),
+    body: JSON.stringify({ from, to, reply_to: reply_to || undefined, subject, text, html }),
   });
   if (!r.ok) throw new Error(await r.text());
 }
@@ -126,9 +129,9 @@ async function denuncia(req, res) {
         to: email,
         reply_to: INTERNO,
         subject: en ? "We have received your report" : "Hemos recibido tu denuncia",
-        text: en
+        ...conFirma(en
           ? `We have received your report about ${obra}, on ${cuando}, for the reason “${mot}”. A person will examine it, without automated means, and we will let you know the decision and the reason for it. Reference: ${corto}.\n\nLocus Mundi · Alastuey & Morera Asociados, S.L.`
-          : `Hemos recibido tu denuncia sobre ${obra}, el ${cuando}, con el motivo «${mot}». La estudiará una persona, sin medios automatizados, y te comunicaremos la decisión y su motivo. Referencia: ${corto}.\n\nLocus Mundi · Alastuey & Morera Asociados, S.L.`,
+          : `Hemos recibido tu denuncia sobre ${obra}, el ${cuando}, con el motivo «${mot}». La estudiará una persona, sin medios automatizados, y te comunicaremos la decisión y su motivo. Referencia: ${corto}.\n\nLocus Mundi · Alastuey & Morera Asociados, S.L.`), // v3.2: html y text con la firma
       });
       acuse = true;
       await fetch(`${SB}/rest/v1/denuncias?id=eq.${fila.id}`, {

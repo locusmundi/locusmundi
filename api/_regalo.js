@@ -1,4 +1,7 @@
 // api/_regalo.js — Locus Mundi
+// Versión 1.7 · 31/10/2026 · Firma corporativa (api/_firma.js) al pie de todos los correos (plantilla y texto plano); también
+//   en la confirmación de compra de api/pago.js, que usa esta plantilla (Lista, pendiente r). El pie de la plantilla ya no
+//   lleva «Locus Mundi · lema» (lo dice la firma; decisión de Javier); queda solo la frase de por qué recibe el correo.
 // Versión 1.6 · 29/10/2026 · «(3 meses)» / «(3 months)» solo en el correo inicial, no en los recordatorios (Lista 7.5, pendiente j).
 // Versión 1.5 · 28/10/2026 · El botón del correo de invitación dice «Ver mi regalo» / «See your gift»
 //   (antes «Aceptar el regalo» / «Accept the gift»): aceptarlo se hace en la web (Lista 7.4).
@@ -24,6 +27,7 @@
 
 const crypto = require('crypto');
 const { avisar, enviarCorreo } = require('./_aviso');
+const { FIRMA_HTML, FIRMA_TEXTO } = require('./_firma'); // v1.7
 
 // --- Ajustes ---------------------------------------------------------------------------------------
 const PRECIO_REGALO = 1500;          // céntimos, IVA incluido
@@ -67,21 +71,21 @@ const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</
 
 // Misma imagen que las plantillas de Supabase (C5a bis): fondo #EDE0C4, tarjeta #FBF7EE, botón #C4932A, Georgia.
 function plantilla(idioma, bloques, pie) {
-  const lema = idioma === 'EN' ? 'Remember · Tell · Publish · Share' : 'Recuerda · Cuenta · Publica · Comparte';
   return `<!doctype html><html><body style="margin:0;padding:0;background:#EDE0C4;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EDE0C4;padding:24px 12px;"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FBF7EE;border:1px solid #d9c9a3;">
 <tr><td style="padding:22px 28px 6px;font-family:Georgia,'Times New Roman',serif;font-size:24px;letter-spacing:0.14em;color:#1A0E07;text-align:center;">Locus Mundi</td></tr>
 <tr><td style="padding:10px 28px 24px;font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.55;color:#1A0E07;">${bloques.join('\n')}</td></tr>
+<tr><td style="padding:4px 28px 24px;">${FIRMA_HTML}</td></tr>
 </table>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td style="padding:14px 28px;font-family:Georgia,'Times New Roman',serif;font-size:12px;line-height:1.5;color:#6b5a45;text-align:center;">Locus Mundi · ${lema}<br>${pie}</td></tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;"><tr><td style="padding:14px 28px;font-family:Georgia,'Times New Roman',serif;font-size:12px;line-height:1.5;color:#6b5a45;text-align:center;">${pie}</td></tr></table>
 </td></tr></table></body></html>`;
 }
 const p = (html) => `<p style="margin:0 0 14px;">${html}</p>`;
 const h = (txt) => `<p style="margin:18px 0 6px;font-weight:bold;color:#1B3A6B;">${txt}</p>`;
 const boton = (txt, url) => `<p style="margin:20px 0;text-align:center;"><a href="${url}" style="display:inline-block;background:#C4932A;color:#FBF7EE;text-decoration:none;padding:12px 26px;font-family:Georgia,serif;font-size:16px;">${txt}</a></p>`;
 const cita = (txt) => `<p style="margin:0 0 14px;padding:10px 14px;border-left:3px solid #C4932A;background:#F3EAD6;font-style:italic;">${txt}</p>`;
-const texto = (bloques) => bloques.join('\n\n');
+const texto = (bloques) => [...bloques, FIRMA_TEXTO].join('\n\n'); // v1.7: con la firma
 
 // Invitación al destinatario: tipo 'inicial' (texto aprobado en la C5a), 'rec1' (al mes), 'rec2' (15 días antes).
 function correoInvitacion(r, tipo) {
@@ -189,7 +193,7 @@ function correoRegala(r, tipo, extra) {
       'We have deleted their details.'];
   }
   const html = plantilla(r.idioma, lineas.map(p), pie);
-  const txt = lineas.map((l) => l.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')).join('\n\n');
+  const txt = lineas.map((l) => l.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')).join('\n\n') + `\n\n${FIRMA_TEXTO}`; // v1.7
   return { asunto, html, texto: txt };
 }
 
@@ -384,4 +388,4 @@ module.exports = function regalos({ rest, stripe }) {
 };
 
 module.exports.ajustes = { PRECIO_REGALO, PLAZO_MESES, TINTA_REGALO, FOTOS_REGALO };
-module.exports.utiles = { codigoDe, normalizar, huella, sumarMeses, correoInvitacion, correoRegala, plantilla, esc, euros, fechaLarga }; // v1.3: plantilla, esc, euros y fechaLarga
+module.exports.utiles = { codigoDe, normalizar, huella, sumarMeses, correoInvitacion, correoRegala, plantilla, esc, euros, fechaLarga, FIRMA_TEXTO }; // v1.3: plantilla, esc, euros y fechaLarga; v1.7: FIRMA_TEXTO
