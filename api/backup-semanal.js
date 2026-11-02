@@ -1,5 +1,5 @@
 // api/backup-semanal.js — Locus Mundi
-// Versión 3.4 (cambios al final de esta cabecera).
+// Versión 3.5 (cambios al final de esta cabecera).
 // Versión 3 · 17/10/2026 · Fase B2, punto 6. Continuidad, sesión "17/10/2026 (conversación 5)".
 // Cambios respecto a la v2:
 //  - La copia va a Cloudflare R2 (locusmundi-copias, UE), no a GitHub: allí una regla borra cada
@@ -23,8 +23,10 @@
 //  - estructura.sql: tablas, funciones, disparadores, reglas, permisos y almacenes, generada cada vez
 //    por public.estructura_copia() (solo la puede usar el servidor).
 //  - Comprobación: cada fila de autores tiene su cuenta en la copia; si no, la copia no vale y avisa.
-// Límite conocido: con el tiempo máximo de 60 s, unas 1.500 fotos por pasada. Si no le da tiempo,
-// la copia queda incompleta y avisa (revisar con Vercel Pro o copia incremental).
+// Versión 3.5 · 02/11/2026 · Fase C, endurecimiento (pendiente (i) de la Lista). Continuidad, sesión
+// "02/11/2026 (tope de la copia)". Solo cambia el tiempo: tope de 45 s a 270 s y función de 60 s a
+// 300 s (máximo del plan Hobby de Vercel; también en vercel.json). Si aun así no le da tiempo, la
+// copia queda incompleta y avisa. Antes de abrir: copiar solo las fotos nuevas (copia incremental).
 
 const { subir } = require('./_r2');
 const { avisar } = require('./_aviso');
@@ -48,7 +50,7 @@ const TABLAS = {
   lecturas: 'historia_id', // v3.2
 };
 const BUCKET_FOTOS = 'fotos';
-const TIEMPO_MAXIMO_MS = 45000;
+const TIEMPO_MAXIMO_MS = 270000; // v3.5 (antes 45000)
 const EN_PARALELO = 5;
 
 module.exports = async function handler(req, res) {
@@ -182,4 +184,4 @@ module.exports = async function handler(req, res) {
   }
 };
 
-module.exports.config = { maxDuration: 60 };
+module.exports.config = { maxDuration: 300 }; // v3.5 (antes 60)
