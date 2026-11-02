@@ -19,6 +19,9 @@
     "api/pdf.js": {
       "maxDuration": 300,
       "includeFiles": "{lectura.js,logo_locus_mundi_fondo_blanco.png,node_modules/{@sparticuz/chromium/bin,@fontsource/eb-garamond/files,@fontsource/playfair-display/files}/**}"
+    },
+    "api/backup-semanal.js": {
+      "maxDuration": 300
     }
   }
 }
