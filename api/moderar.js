@@ -1,4 +1,9 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.16 · 04/11/2026 · Lista, pendiente (v). Operación nueva «descartarImagen»: el Autor descarta una
+//   imagen que Javier aceptó («Creo que es un error» con la razón dada). Solo pasa un aviso error_imagen de
+//   «aceptado» a «descartado», de un libro suyo y con esa ruta; después ni «revisarImagen» la acepta sin IA ni
+//   la limpieza la protege (borra el archivo). Requiere «descartado» en el CHECK de avisos_moderacion.estado.
+//   Original: el editor ocultaba el aviso solo en ese navegador («Entendido», localStorage). Marcas [T04-v].
 // Versión 3.15 · 28/10/2026 · Opción A de la retirada (Lista, 8.3). Un libro retirado por Locus Mundi
 //   (historias.retirada_en, que pone api/admin.js) no se sube: «subir» responde LIBRO_RETIRADO antes de
 //   la revisión (no gasta crédito de Google). Si la marca llega durante la revisión, publicar_historia
@@ -986,6 +991,20 @@ async function consultar(body, autorId, res) {
   });
 }
 
+// ─── Descartar una imagen aceptada (v3.16, [T04-v]) ─────────────────────
+
+async function descartarImagen(body, autorId, res) {
+  const h = await historiaDelAutor(body.historia_id, autorId, 'id');
+  if (!h) return res.status(404).json({ error: 'NO_ENCONTRADA' });
+  const ruta = String(body.ruta || '');
+  if (!ruta) return res.status(400).json({ error: 'RUTA_NO_VALIDA' });
+  const filas = await actualizar(
+    `avisos_moderacion?historia_id=eq.${h.id}&tipo=eq.error_imagen&estado=eq.aceptado&ruta=eq.${encodeURIComponent(ruta)}`,
+    { estado: 'descartado' }, true);
+  if (!Array.isArray(filas) || filas.length === 0) return res.status(409).json({ error: 'SIN_AVISO_ACEPTADO' });
+  return res.status(200).json({ ok: true });
+}
+
 // ─── "Creo que es un error" (texto): una vez por subida, una frase ──────
 
 async function errorTexto(body, autorId, res) {
@@ -1231,6 +1250,7 @@ module.exports = async function handler(req, res) {
       case 'error': return await errorTexto(body, autorId, res);
       case 'revisarImagen': return await revisarImagenCargada(body, autorId, res);
       case 'errorImagen': return await errorImagen(body, autorId, res);
+      case 'descartarImagen': return await descartarImagen(body, autorId, res); // [T04-v]
       default: return res.status(400).json({ error: 'OPERACION_DESCONOCIDA' });
     }
   } catch (e) {
