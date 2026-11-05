@@ -7,6 +7,10 @@
      ({arbol:'descarga'}, sin datos del árbol) y fallos del navegador a la tabla `errores` (máx. 5 por visita).
      v1.1 · 05/11/2026 (misma sesión, tras la prueba en real): avisos de años sin bloquear (cuatro cifras, murió antes de
      nacer, menos de 12 años más que su hijo, vivo con más de 120 años) en la ficha y en «Ya está tu árbol».
+     v1.2 · 05/11/2026 («Árbol: cláusula legal e inglés»): inglés (TEXTOS.en, criterio de Claude). Idioma: ?lang=en|es
+     (el pie de la web lo pasa en inglés) y, si no, el del navegador, como la web. Fechas y nombres de archivo por
+     idioma (en inglés, «5 Nov 2026» y 2026-11-05); «tu/your» en minúscula con T.minus; los estudios guardados en otro
+     idioma se pasan al de la página al abrir. Pie de la imagen en inglés: «My family tree · Locus Mundi · locusmundi.com».
      Nada del árbol sale del dispositivo: se guarda en localStorage (lm_arbol_v1) y en el archivo .json. -->
 <html lang="es">
 <head>
@@ -198,7 +202,7 @@ html,body{margin:0}
 <script>
 (function(){
 "use strict";
-/* ===== Textos (diccionario). Solo español por ahora; otro idioma = otra entrada con las mismas claves. ===== */
+/* ===== Textos (diccionario): español e inglés; otro idioma = otra entrada con las mismas claves. ===== */
 const TEXTOS={es:{
   lang:'es',
   tituloPagina:'Mi árbol genealógico · Locus Mundi',
@@ -273,9 +277,94 @@ const TEXTOS={es:{
   avVivo:'Si vive, tendría más de 120 años: revisa el año.',
   ti:'tú',
   revisarTit:'Antes de ver tu árbol, revisa estos años:',
-  abrirlo:'Abrirlo', abierto:'Árbol abierto.', cancelar:'Cancelar'
+  abrirlo:'Abrirlo', abierto:'Árbol abierto.', cancelar:'Cancelar',
+  minus:x=>x.replace(/^Tu /,'tu '),
+  fecha:(d,corta)=>d.getDate()+'/'+(d.getMonth()+1)+(corta?'':'/'+d.getFullYear()),
+  fechaArchivo:d=>d.getDate()+'-'+(d.getMonth()+1)+'-'+d.getFullYear()
+},
+en:{
+  lang:'en',
+  tituloPagina:'My family tree · Locus Mundi',
+  marca:'Locus Mundi', titulo:'My family tree',
+  guardar:'Save', guardarAria:'Save my tree to a file',
+  anterior:'‹ Back', siguiente:'Next ›', terminarArbol:'Finish My tree ›', irFamilia:'My family ›', verImagenes:'See my images ›',
+  estudios:['No formal schooling','Primary','Secondary / High school','Vocational training','University','I don’t know'],
+  estudioNose:'I don’t know',
+  tu:'You', tuPadre:'Your father', tuMadre:'Your mother',
+  abuelos4:['Your paternal grandfather','Your paternal grandmother','Your maternal grandfather','Your maternal grandmother'],
+  padreDe:x=>'Father of '+x.replace(/^Your /,'your '), madreDe:x=>'Mother of '+x.replace(/^Your /,'your '),
+  corto:{padre:'your father',madre:'your mother',abuelo:'your grandfather',abuela:'your grandmother',bisabuelo:'your great-grandfather',bisabuela:'your great-grandmother'},
+  tramo:{bis:'Great-grandparents',abu:'Grandparents',pad:'Parents',tu:'You',fam:'My family'},
+  ord:i=>{const n=i+1,d=n%10,c=n%100; return n+(d===1&&c!==11?'st':d===2&&c!==12?'nd':d===3&&c!==13?'rd':'th');},
+  miembros:n=>n+' '+(n===1?'member':'members'),
+  inicioEmpezado:n=>'You have a tree in progress: you have already identified '+n+' '+(n===1?'member':'members')+' of your family.',
+  inicioNuevo:'Let’s start with your great-grandparents. Even if you know little, a name or a village is already a lot. Whatever you don’t know, just skip it.',
+  seguir:'Continue my tree', empezar:'Start my tree', abrir:'Open my tree from a file', reset:'Start over',
+  recordar:'Save a copy to a file in case you switch devices.', guardarAhora:'Save now',
+  privacidad:'Your tree is saved only on this device. Locus Mundi keeps no data about your family, unless you decide to add it to a book.',
+  miniAria:'Miniature tree',
+  lugarNac:'Place of birth', pais:'Country', poblacion:'Town or city', nose:'I don’t know',
+  nombre:'Name', nombrePh:'A first name is enough', tuNombre:'Your name',
+  nadaDe:el=>'I know nothing about '+el, el:'him', ella:'her',
+  nadaMarcado:el=>'You have marked that you know nothing about '+el+'.', deshacer:'Undo',
+  anoNac:'Year of birth', notaVivos:'For living people we only ask for name, year and place of birth.',
+  vive:'Still living?', si:'Yes', no:'No',
+  nacio:'Born', murio:'Died', ano:'Year', aprox:'Approximate years',
+  estudiosL:'Education', oficio:'What did they do for a living?',
+  oficioAyuda:'Work that never appeared on any paper counts too: the home, the land, the shop, caring for others.',
+  destacar:'Worth noting', destacarAyuda:'A position, an event, a saying',
+  hermanos:'Siblings', tienes:'You have', tuvo:'Had', hermanosSuf:'siblings',
+  hermanoN:i=>'Sibling '+i, otroHermano:'+ Another sibling', anadirNombres:'+ Add their names',
+  parejas:'Partners', sinNombre:'no name yet', subir:'Move up', bajar:'Move down', quitar:'Remove', otraParejaQ:'+ Another partner?',
+  yaEsta:'Your tree is done', identificados:n=>'You have identified '+n+' '+(n===1?'member':'members')+' of your family.',
+  verDescargar:'View and download My tree', seguirFamilia:'Continue with My family',
+  niveles:['Child','Grandchild','Great-grandchild'],
+  nombreMenores:'Name (for minors, first name only)', anoCorto:'Year', ciudad:'Town or city',
+  hijastro:'Child of your partner only', suPareja:'Their partner', masSuPareja:'+ Their partner',
+  masNieto:'+ A grandchild', masBisnieto:'+ A great-grandchild',
+  famTitulo:'Your partners, children, grandchildren and great-grandchildren', famNota:'For each person, only name, year and town of birth.',
+  pareja:i=>T.ord(i)+' partner', nombreBlanco:'Name (you can leave it blank)',
+  masHijo:nm=>'+ A child'+(nm?' with '+nm:''), masPareja:hay=>'+ '+(hay?'Another partner':'Your partner'),
+  imgArbol:'My tree', imgFamilia:'My family',
+  pieImagen:'My family tree · Locus Mundi · locusmundi.com',
+  hermano1:' sibling', hermanosN:' siblings', esposa:'wife', esposo:'husband',
+  yMas:r=>'and '+r+' more',
+  cuenta:'What your tree tells',
+  gen:{bis:'great-grandparents',abu:'grandparents',pad:'parents',tu:'you'},
+  y:' and ',
+  donde:p=>'Where they were born: '+p+'.',
+  vividos:(med,nm,a)=>'Years lived: '+med+' on average; the longest-lived, '+nm+', '+a+' years.',
+  oficios:p=>'Occupations: '+p+'.', estudiosC:p=>'Education: '+p+'.', hijosPareja:p=>'Children per couple, on average: '+p+'.',
+  hacia:'c. ', nac:'b. ', muer:'d. ',
+  listo:'Your tree is ready', tituloImg:'Title of the images', tituloImgPh:'The García López Family',
+  anadirFam:'Add My family (children, grandchildren…)',
+  menores:'If any minors appear, their names are shown with the consent of their parents or guardians.',
+  descargar2:'Download both images', descargar1:'Download the image', guardarOtroDia:'Save my tree to continue another day',
+  leyenda1:'Behind every life there is a story.', leyenda2a:'Tell it, or ask a relative to tell it, on ', leyenda2b:'Locus Mundi', leyenda2c:'.',
+  preparando:'One moment: the image is still being prepared.', descargadas:'Images downloaded.', descargada:'Image downloaded.',
+  confirmarReset:'The tree you have in progress on this device will be deleted. Start over?',
+  confirmarQuitar:nm=>'Remove '+nm+'?',
+  familiaDe:a=>'The '+a+' Family',
+  archivoArbol:(fam,f)=>'My tree – '+(fam?fam+' – ':'')+f+'.json',
+  archivoImg:(t,fam,f)=>t+' – '+(fam?fam+' – ':'')+f+'.jpg',
+  guardado:'Tree saved to a file.', noGuardado:'The file could not be saved.',
+  noEsArbol:'This file is not a Locus Mundi tree.',
+  sustituir:(f1,nf,na,f2)=>'This file is from '+f1+' and has '+nf+' '+(nf===1?'member':'members')+'. It will replace the tree on this device ('+na+' '+(na===1?'member':'members')+', from '+f2+'). Open it?',
+  avCifras:'Check the year: it must have four digits and not be later than today.',
+  avMuerte:'Died before being born: check the years.',
+  avHijo:q=>'Less than 12 years older than '+q+': check the year.',
+  avVivo:'If still living, would be over 120: check the year.',
+  ti:'you',
+  revisarTit:'Before you see your tree, check these years:',
+  abrirlo:'Open it', abierto:'Tree opened.', cancelar:'Cancel',
+  minus:x=>x.replace(/^Your /,'your '),
+  fecha:(d,corta)=>d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+(corta?'':' '+d.getFullYear()),
+  fechaArchivo:d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')
 }};
-const T=TEXTOS.es;
+/* idioma: ?lang=en|es (el pie de la web lo pasa en inglés); si no, el del navegador, como la web */
+const IDIOMA=(()=>{try{const q=new URLSearchParams(location.search).get('lang'); if(q&&TEXTOS[q.toLowerCase()])return q.toLowerCase();}catch(e){}
+  return String(navigator.language||'es').slice(0,2).toLowerCase()==='en'?'en':'es';})();
+const T=TEXTOS[IDIOMA];
 
 const KEY='lm_arbol_v1';
 const CODES='AD,AE,AF,AG,AI,AL,AM,AO,AR,AS,AT,AU,AW,AX,AZ,BA,BB,BD,BE,BF,BG,BH,BI,BJ,BL,BM,BN,BO,BQ,BR,BS,BT,BW,BY,BZ,CA,CC,CD,CF,CG,CH,CI,CK,CL,CM,CN,CO,CR,CU,CV,CW,CX,CY,CZ,DE,DJ,DK,DM,DO,DZ,EC,EE,EG,EH,ER,ES,ET,FI,FJ,FK,FM,FO,FR,GA,GB,GD,GE,GF,GG,GH,GI,GL,GM,GN,GP,GQ,GR,GT,GU,GW,GY,HK,HN,HR,HT,HU,ID,IE,IL,IM,IN,IQ,IR,IS,IT,JE,JM,JO,JP,KE,KG,KH,KI,KM,KN,KP,KR,KW,KY,KZ,LA,LB,LC,LI,LK,LR,LS,LT,LU,LV,LY,MA,MC,MD,ME,MF,MG,MH,MK,ML,MM,MN,MO,MP,MQ,MR,MS,MT,MU,MV,MW,MX,MY,MZ,NA,NC,NE,NF,NG,NI,NL,NO,NP,NR,NU,NZ,OM,PA,PE,PF,PG,PH,PK,PL,PM,PN,PR,PS,PT,PW,PY,QA,RE,RO,RS,RU,RW,SA,SB,SC,SD,SE,SG,SH,SI,SJ,SK,SL,SM,SN,SO,SR,SS,ST,SV,SX,SY,SZ,TC,TD,TG,TH,TJ,TK,TL,TM,TN,TO,TR,TT,TV,TW,TZ,UA,UG,US,UY,UZ,VA,VC,VE,VG,VI,VN,VU,WF,WS,XK,YE,YT,ZA,ZM,ZW'.split(',');
@@ -308,7 +397,8 @@ $('#prev').textContent=T.anterior;
 function nuevo(){const p={}; for(let i=1;i<=15;i++)p[i]={}; return {v:1,creado:Date.now(),mod:0,archivo:0,familia:'',p,fam:{parejas:[]}};}
 let st=cargar();
 function cargar(){try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.p)return norm(s);}catch(e){} return nuevo();}
-function norm(s){s.fam=s.fam||{parejas:[]}; for(let i=1;i<=15;i++){const P=s.p[i]=s.p[i]||{}; if(P.hermanos&&!Array.isArray(P.hermanos)){const a=[]; Object.keys(P.hermanos).forEach(k=>{a[+k]=P.hermanos[k];}); P.hermanos=Array.from(a,x=>x||'');}} return s;}
+function estudioIdioma(e){if(!e)return e; for(const k in TEXTOS){const j=TEXTOS[k].estudios.indexOf(e); if(j>=0)return T.estudios[j];} return e;}
+function norm(s){s.fam=s.fam||{parejas:[]}; for(let i=1;i<=15;i++){const P=s.p[i]=s.p[i]||{}; if(P.estudios)P.estudios=estudioIdioma(P.estudios); if(P.hermanos&&!Array.isArray(P.hermanos)){const a=[]; Object.keys(P.hermanos).forEach(k=>{a[+k]=P.hermanos[k];}); P.hermanos=Array.from(a,x=>x||'');}} return s;}
 function guardar(){st.mod=Date.now(); try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}}
 function getP(path){return path.split('.').reduce((o,k)=>o==null?o:o[k],st);}
 function setP(path,val){const ks=path.split('.'); let o=st; for(let i=0;i<ks.length-1;i++){if(o[ks[i]]==null)o[ks[i]]=/^\d+$/.test(ks[i+1])?[]:{}; o=o[ks[i]];} o[ks[ks.length-1]]=val;}
@@ -426,7 +516,7 @@ function avisos(n){
   const a=ano(P.nac), m=(n>1&&P.vive==='no')?ano(P.muer):null;
   if(Number.isNaN(a)||Number.isNaN(m))L.push(T.avCifras);
   if(a&&m&&m<a)L.push(T.avMuerte);
-  if(n>1&&a){const c=Math.floor(n/2), h=ano((st.p[c]||{}).nac); if(h&&!(st.p[c]||{}).nada&&a>h-12)L.push(T.avHijo(c===1?T.ti:rel(c).replace('Tu ','tu ')));}
+  if(n>1&&a){const c=Math.floor(n/2), h=ano((st.p[c]||{}).nac); if(h&&!(st.p[c]||{}).nada&&a>h-12)L.push(T.avHijo(c===1?T.ti:T.minus(rel(c))));}
   if(a&&(n===1||P.vive==='si')&&ahora-a>120)L.push(T.avVivo);
   return L;
 }
@@ -819,7 +909,7 @@ function focusLast(sel){const l=document.querySelectorAll(sel); if(l.length)l[l.
 function primeraPendiente(){for(const n of ORDEN){const P=st.p[n]; if(!P.nada&&!(P.nombre&&P.nombre.trim()))return 'p'+n;} return 'listo';}
 
 /* archivo */
-function fecha(ts,corta){const d=new Date(ts); return d.getDate()+'/'+(d.getMonth()+1)+(corta?'':'/'+d.getFullYear());}
+function fecha(ts,corta){return T.fecha(new Date(ts),corta);}
 function nombreFamilia(){
   if(st.familia&&st.familia.trim())return st.familia.trim();
   return sugerirFamilia();
@@ -835,7 +925,7 @@ function saveFile(name,blob){
   try{const url=URL.createObjectURL(blob); const l=document.createElement('a'); l.href=url; l.download=name; l.rel='noopener'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); return Promise.resolve(true);}
   catch(e){toast(T.noGuardado); return Promise.resolve(false);}
 }
-const hoy=()=>{const d=new Date(); return d.getDate()+'-'+(d.getMonth()+1)+'-'+d.getFullYear();};
+const hoy=()=>T.fechaArchivo(new Date());
 async function aArchivo(){
   const d=new Date(), fam=nombreFamilia();
   const data=JSON.stringify({app:'locusmundi-arbol',v:1,guardado:d.toISOString(),miembros:miembros(),arbol:st},null,1);
