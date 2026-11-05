@@ -1,4 +1,8 @@
 // api/moderar.js — Locus Mundi
+// Versión 3.17 · 05/11/2026 · Árbol genealógico, paso final (contenido v2.6 §10 b). Si la revisión de una imagen
+//   (_moderacion.js v1.7) ve el pie de «Mi árbol genealógico · Locus Mundi», la fila de registro_gasto de esa
+//   revisión lleva «arbol: true» en el detalle (con su ruta), al cargar y al subir. Lo cuenta actividad_dia para
+//   el correo «ayer». Nada más cambia. Marcas [ARB].
 // Versión 3.16 · 04/11/2026 · Lista, pendiente (v). Operación nueva «descartarImagen»: el Autor descarta una
 //   imagen que Javier aceptó («Creo que es un error» con la razón dada). Solo pasa un aviso error_imagen de
 //   «aceptado» a «descartado», de un libro suyo y con esa ruta; después ni «revisarImagen» la acepta sin IA ni
@@ -805,7 +809,7 @@ async function subir(body, autorId, ip, res) {
     let r;
     try { r = await mod.revisarImagen(img); }
     catch (e) { await mod.anotarGasto('moderacion_imagen', autorId, h.id, e.coste || 0, { origen: 'subir', ruta, fallo: true }); throw e; }
-    await mod.anotarGasto('moderacion_imagen', autorId, h.id, r.coste, { origen: 'subir', ruta, categoria: r.categoria, bloqueo: r.bloqueo });
+    await mod.anotarGasto('moderacion_imagen', autorId, h.id, r.coste, { origen: 'subir', ruta, categoria: r.categoria, bloqueo: r.bloqueo, ...(r.arbol ? { arbol: true } : {}) }); // [ARB]
     if (r.categoria === 'ok') {
       if (p.que === 'portada') await actualizar(`historias?id=eq.${h.id}&portada_url=eq.${encodeURIComponent(p.url)}`, { portada_revisada: p.url });
       else await actualizar(`fotos?id=eq.${p.foto.id}&url=eq.${encodeURIComponent(p.url)}`, { imagen_revisada: p.url });
@@ -1094,7 +1098,7 @@ async function revisarImagenCargada(body, autorId, res) {
       return res.status(503).json({ error: 'REVISION_NO_DISPONIBLE' });
     }
     await mod.anotarGasto('moderacion_imagen', autorId, obj.historia.id, r.coste,
-      { origen: 'carga', ruta, objetivo: obj.tipo, categoria: r.categoria, bloqueo: r.bloqueo });
+      { origen: 'carga', ruta, objetivo: obj.tipo, categoria: r.categoria, bloqueo: r.bloqueo, ...(r.arbol ? { arbol: true } : {}) }); // [ARB]
   }
 
   if (r.categoria !== 'ok') {

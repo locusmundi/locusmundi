@@ -1,4 +1,8 @@
 // api/_moderacion.js — Locus Mundi
+// Versión 1.7 · 05/11/2026 · Árbol genealógico, paso final (contenido v2.6 §10 b). La revisión de una imagen
+// dice además si es una imagen de «Mi árbol» / «Mi familia» de Locus Mundi (o una foto de ella), por su pie
+// «Mi árbol genealógico · Locus Mundi · locusmundi.com»: campo «arbol» (true/false). No cambia la categoría.
+// revisarImagen devuelve { categoria, coste, bloqueo, arbol }. Marcas [ARB].
 // Versión 1.6 · 31/10/2026 · Lista, pendiente (n): dos fusibles diarios. El de 5 € sigue solo para lo
 // gratuito (moderación y tarjeta traducida). Uno nuevo, de 20 €, para lo de pago (editor de fotos,
 // "edicion_foto", y Asistente, "asistente", que ahora anotan su gasto): red de seguridad ante un fallo;
@@ -215,11 +219,15 @@ const INSTRUCCIONES_IMAGEN =
   '- "ok": everything else, including people in swimsuits, soldiers or weapons without graphic harm, funerals ' +
   'without a visible corpse, hospital or old-age scenes without wounds, hunting or farm animals without cruelty.\n' +
   'When in doubt between "ok" and another category, choose "ok", except for any doubt about the nudity of a child, ' +
-  'where you choose "menor". Answer only with JSON: {"categoria": "ok" | "menor" | "adulto" | "violencia"}.';
+  'where you choose "menor".\n' +
+  'Separately, set "arbol" to true only if the image is a family-tree chart made with Locus Mundi (or a photo of one): ' +
+  'it carries the small printed footer "Mi árbol genealógico · Locus Mundi · locusmundi.com". Otherwise false. ' +
+  'This does not change the category. ' + // [ARB]
+  'Answer only with JSON: {"categoria": "ok" | "menor" | "adulto" | "violencia", "arbol": true | false}.';
 
 const ESQUEMA_IMAGEN = {
   type: 'OBJECT',
-  properties: { categoria: { type: 'STRING', enum: ['ok', ...CATEGORIAS_IMAGEN] } },
+  properties: { categoria: { type: 'STRING', enum: ['ok', ...CATEGORIAS_IMAGEN] }, arbol: { type: 'BOOLEAN' } }, // [ARB]
   required: ['categoria']
 };
 
@@ -233,7 +241,7 @@ function categoriaDeBloqueo(bloqueo) {
   return 'violencia';
 }
 
-// imagen = { buffer, tipo }. Devuelve { categoria: 'ok'|'menor'|'adulto'|'violencia', coste, bloqueo }.
+// imagen = { buffer, tipo }. Devuelve { categoria: 'ok'|'menor'|'adulto'|'violencia', coste, bloqueo, arbol }.
 // Lanza un error si no se ha podido revisar (Gemini caído o respuesta ilegible dos veces):
 // quien llama no guarda la imagen y pide que se vuelva a intentar.
 async function revisarImagen(imagen) {
@@ -249,9 +257,9 @@ async function revisarImagen(imagen) {
       esquema: ESQUEMA_IMAGEN
     });
     coste += r.coste;
-    if (r.bloqueo) return { categoria: categoriaDeBloqueo(r.bloqueo), coste, bloqueo: r.bloqueo };
+    if (r.bloqueo) return { categoria: categoriaDeBloqueo(r.bloqueo), coste, bloqueo: r.bloqueo, arbol: false };
     const c = r.json && r.json.categoria;
-    if (c === 'ok' || CATEGORIAS_IMAGEN.includes(c)) return { categoria: c, coste, bloqueo: null };
+    if (c === 'ok' || CATEGORIAS_IMAGEN.includes(c)) return { categoria: c, coste, bloqueo: null, arbol: r.json.arbol === true }; // [ARB]
     console.error('moderacion: respuesta de imagen ilegible; intento', intento + 1);
   }
   const e = new Error('REVISION_IMAGEN_FALLIDA');
