@@ -1,5 +1,5 @@
 // api/backup-semanal.js — Locus Mundi
-// Versión 3.5 (cambios al final de esta cabecera).
+// Versión 3.6 (cambios al final de esta cabecera).
 // Versión 3 · 17/10/2026 · Fase B2, punto 6. Continuidad, sesión "17/10/2026 (conversación 5)".
 // Cambios respecto a la v2:
 //  - La copia va a Cloudflare R2 (locusmundi-copias, UE), no a GitHub: allí una regla borra cada
@@ -27,8 +27,17 @@
 // "02/11/2026 (tope de la copia)". Solo cambia el tiempo: tope de 45 s a 270 s y función de 60 s a
 // 300 s (máximo del plan Hobby de Vercel; también en vercel.json). Si aun así no le da tiempo, la
 // copia queda incompleta y avisa. Antes de abrir: copiar solo las fotos nuevas (copia incremental).
+// Versión 3.6 · 05/11/2026 · Fase C (Lista, pendiente (i), parte 2). Continuidad, sesión
+// "05/11/2026 (copia incremental de fotos)". Copia incremental de fotos, sin cambiar las carpetas:
+//  - Cada copia guarda copia-AAAA-MM-DD/fotos-indice.json (ruta y huella: eTag, tamaño y fecha).
+//  - Una foto igual que en la última copia buena (ultima-copia.json) se copia DENTRO de R2 desde
+//    aquella carpeta (_r2.js v1.1, copiar), sin bajarla de Supabase; nueva o cambiada, se baja.
+//    Si la copia interna falla (p. ej., ya caducó), se baja. Sin índice anterior, se bajan todas.
+//  - Cada copia sigue completa: la copia interna es un objeto nuevo y sus 35 días empiezan de
+//    cero (regla intacta); una foto borrada en Supabase ya no pasa a la copia siguiente
+//    (supresión intacta). fin.json anota fotos_bajadas, fotos_copiadas_r2 e indice_anterior.
 
-const { subir } = require('./_r2');
+const { subir, leerTexto, copiar } = require('./_r2'); // v3.6: leerTexto y copiar
 const { avisar } = require('./_aviso');
 
 const TABLAS = {
@@ -52,6 +61,7 @@ const TABLAS = {
 const BUCKET_FOTOS = 'fotos';
 const TIEMPO_MAXIMO_MS = 270000; // v3.5 (antes 45000)
 const EN_PARALELO = 5;
+const COPIAS_EN_PARALELO = 10; // v3.6: copias dentro de R2 (no pasan por Supabase)
 
 module.exports = async function handler(req, res) {
   const auth = req.headers['authorization'];
@@ -65,7 +75,8 @@ module.exports = async function handler(req, res) {
   const cab = { apikey: llave, Authorization: `Bearer ${llave}`, 'Content-Type': 'application/json' };
   const hoy = new Date().toISOString().slice(0, 10);
   const carpeta = `copia-${hoy}`;
-  const resumen = { fecha: hoy, tablas: {}, cuentas: 0, estructura_kb: 0, fotos: 0, mb_fotos: 0, completa: false };
+  const resumen = { fecha: hoy, tablas: {}, cuentas: 0, estructura_kb: 0, fotos: 0, mb_fotos: 0,
+    fotos_bajadas: 0, fotos_copiadas_r2: 0, indice_anterior: null, completa: false }; // v3.6
 
   try {
     if (!url || !llave) throw new Error('faltan las variables de Supabase');
@@ -136,7 +147,11 @@ module.exports = async function handler(req, res) {
         for (const it of items) {
           const ruta = prefijo ? `${prefijo}/${it.name}` : it.name;
           if (it.id === null) rutas.push(...(await listar(ruta)));
-          else rutas.push(ruta);
+          else {
+            // v3.6: huella de la foto; sin eTag, no se puede comparar (se bajará).
+            const m = it.metadata || {};
+            rutas.push({ ruta, huella: m.eTag ? `${m.eTag}|${m.size}|${it.updated_at}` : null, bytes: +m.size || 0 });
+          }
         }
         if (items.length < 1000) break;
       }
@@ -144,22 +159,62 @@ module.exports = async function handler(req, res) {
     }
     const archivos = await listar('');
 
-    // 3. Copiar cada archivo, de 5 en 5, vigilando el tiempo.
-    for (let i = 0; i < archivos.length; i += EN_PARALELO) {
+    // 2 bis (v3.6). Índice de la última copia buena: qué fotos tiene ya R2 y con qué huella.
+    let anterior = null; const enAnterior = new Map();
+    try {
+      const ult = await leerTexto('ultima-copia.json');
+      const fecha = ult && JSON.parse(ult).fecha;
+      const indice = fecha && (await leerTexto(`copia-${fecha}/fotos-indice.json`));
+      if (indice) {
+        anterior = `copia-${fecha}`;
+        for (const f of JSON.parse(indice)) if (f.huella) enAnterior.set(f.ruta, f.huella);
+      }
+    } catch (e) {
+      console.error(`backup-semanal: sin índice anterior (${e.message}); se bajan todas las fotos`);
+      anterior = null; enAnterior.clear();
+    }
+    resumen.indice_anterior = anterior;
+    const igual = (a) => a.huella && enAnterior.get(a.ruta) === a.huella;
+    const iguales = archivos.filter(igual);
+    const aBajar = archivos.filter((a) => !igual(a));
+
+    const sinTiempo = () => {
       if (Date.now() - inicio > TIEMPO_MAXIMO_MS) {
         throw new Error(`sin tiempo: copiadas ${resumen.fotos} de ${archivos.length} fotos`);
       }
+    };
+    const bajar = async ({ ruta }) => {
+      const d = await fetch(`${url}/storage/v1/object/${BUCKET_FOTOS}/${ruta.split('/').map(encodeURIComponent).join('/')}`, { headers: cab });
+      if (!d.ok) throw new Error(`descargar ${ruta}: ${d.status}`);
+      const datos = Buffer.from(await d.arrayBuffer());
+      await subir(`${carpeta}/fotos/${ruta}`, datos, d.headers.get('content-type') || 'application/octet-stream');
+      resumen.fotos += 1; resumen.fotos_bajadas += 1;
+      resumen.mb_fotos += datos.length / 1048576;
+    };
+
+    // 3. Fotos iguales: copia dentro de R2 (de 10 en 10). Si falla, se baja como las nuevas.
+    for (let i = 0; i < iguales.length; i += COPIAS_EN_PARALELO) {
+      sinTiempo();
       await Promise.all(
-        archivos.slice(i, i + EN_PARALELO).map(async (ruta) => {
-          const d = await fetch(`${url}/storage/v1/object/${BUCKET_FOTOS}/${ruta.split('/').map(encodeURIComponent).join('/')}`, { headers: cab });
-          if (!d.ok) throw new Error(`descargar ${ruta}: ${d.status}`);
-          const datos = Buffer.from(await d.arrayBuffer());
-          await subir(`${carpeta}/fotos/${ruta}`, datos, d.headers.get('content-type') || 'application/octet-stream');
-          resumen.fotos += 1;
-          resumen.mb_fotos += datos.length / 1048576;
+        iguales.slice(i, i + COPIAS_EN_PARALELO).map(async (a) => {
+          if (anterior !== carpeta) {
+            try { await copiar(`${anterior}/fotos/${a.ruta}`, `${carpeta}/fotos/${a.ruta}`); }
+            catch (e) { console.error(`backup-semanal: ${e.message}; se baja`); return bajar(a); }
+          } // misma carpeta (otra copia del mismo día): la foto ya está.
+          resumen.fotos += 1; resumen.fotos_copiadas_r2 += 1;
+          resumen.mb_fotos += a.bytes / 1048576;
         })
       );
     }
+
+    // 3 bis. Fotos nuevas o cambiadas: de Supabase a R2, de 5 en 5, vigilando el tiempo.
+    for (let i = 0; i < aBajar.length; i += EN_PARALELO) {
+      sinTiempo();
+      await Promise.all(aBajar.slice(i, i + EN_PARALELO).map(bajar));
+    }
+
+    // 3 ter. Índice de esta copia (lo usará la siguiente y lo comprueba restaurar.js).
+    await subir(`${carpeta}/fotos-indice.json`, JSON.stringify(archivos.map(({ ruta, huella }) => ({ ruta, huella }))), 'application/json');
     resumen.mb_fotos = Math.round(resumen.mb_fotos * 10) / 10;
 
     // 4. Cierre: la copia solo cuenta como buena si llega aquí.
