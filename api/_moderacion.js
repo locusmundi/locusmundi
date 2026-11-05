@@ -1,4 +1,6 @@
 // api/_moderacion.js — Locus Mundi
+// Versión 1.8 · 05/11/2026 · «Árbol: cláusula legal e inglés». El árbol también cuenta con su pie en inglés
+// («My family tree · Locus Mundi · locusmundi.com»), que lleva arbol.html v1.2 en inglés. Marca [ARB-EN].
 // Versión 1.7 · 05/11/2026 · Árbol genealógico, paso final (contenido v2.6 §10 b). La revisión de una imagen
 // dice además si es una imagen de «Mi árbol» / «Mi familia» de Locus Mundi (o una foto de ella), por su pie
 // «Mi árbol genealógico · Locus Mundi · locusmundi.com»: campo «arbol» (true/false). No cambia la categoría.
@@ -221,7 +223,8 @@ const INSTRUCCIONES_IMAGEN =
   'When in doubt between "ok" and another category, choose "ok", except for any doubt about the nudity of a child, ' +
   'where you choose "menor".\n' +
   'Separately, set "arbol" to true only if the image is a family-tree chart made with Locus Mundi (or a photo of one): ' +
-  'it carries the small printed footer "Mi árbol genealógico · Locus Mundi · locusmundi.com". Otherwise false. ' +
+  'it carries the small printed footer "Mi árbol genealógico · Locus Mundi · locusmundi.com" (in English, ' +
+  '"My family tree · Locus Mundi · locusmundi.com"). Otherwise false. ' + // [ARB-EN]
   'This does not change the category. ' + // [ARB]
   'Answer only with JSON: {"categoria": "ok" | "menor" | "adulto" | "violencia", "arbol": true | false}.';
 
