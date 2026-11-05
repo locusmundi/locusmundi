@@ -5,6 +5,8 @@
      /vendor/fuentes/fuentes.css (antes, Google Fonts); descarga normal del navegador (enlace «download»);
      textos en un diccionario (TEXTOS.es); aviso anónimo de descarga a /api/contador-historias
      ({arbol:'descarga'}, sin datos del árbol) y fallos del navegador a la tabla `errores` (máx. 5 por visita).
+     v1.1 · 05/11/2026 (misma sesión, tras la prueba en real): avisos de años sin bloquear (cuatro cifras, murió antes de
+     nacer, menos de 12 años más que su hijo, vivo con más de 120 años) en la ficha y en «Ya está tu árbol».
      Nada del árbol sale del dispositivo: se guarda en localStorage (lm_arbol_v1) y en el archivo .json. -->
 <html lang="es">
 <head>
@@ -132,6 +134,12 @@ input:disabled{background:#F2ECDF;color:var(--muted)}
 .priv{font-size:.88rem;color:var(--muted);text-align:center;margin:22px auto 0;max-width:30em}
 .small{font-size:.9rem;text-align:center}
 .small button{color:var(--muted);text-decoration:underline;font-weight:400}
+.aviso{color:var(--gran);font-size:.92rem;margin:4px 0 0}
+.aviso:empty{display:none}
+.revisar{background:#FBEDEE;border-left:3px solid var(--gran);border-radius:6px;padding:8px 12px;margin:14px 0 0;text-align:left;font-size:.95rem}
+.revisar p{margin:0 0 4px;font-weight:600;color:var(--gran)}
+.revisar ul{margin:0;padding-left:18px}
+.revisar a{color:var(--navy)}
 .remind{font-size:.88rem;color:var(--muted);text-align:center;margin:12px 0 0}
 .remind button{font-size:.88rem;text-decoration:underline}
 
@@ -259,6 +267,12 @@ const TEXTOS={es:{
   guardado:'Árbol guardado en un archivo.', noGuardado:'No se ha podido guardar el archivo.',
   noEsArbol:'Este archivo no es un árbol de Locus Mundi.',
   sustituir:(f1,nf,na,f2)=>'Este archivo es del '+f1+' y tiene '+nf+' '+(nf===1?'miembro':'miembros')+'. Sustituirá al árbol que tienes en este dispositivo ('+na+' '+(na===1?'miembro':'miembros')+', del '+f2+'). ¿Abrirlo?',
+  avCifras:'Revisa el año: debe tener cuatro cifras y no pasar de hoy.',
+  avMuerte:'Murió antes de nacer: revisa los años.',
+  avHijo:q=>'Tiene menos de 12 años más que '+q+': revisa el año.',
+  avVivo:'Si vive, tendría más de 120 años: revisa el año.',
+  ti:'tú',
+  revisarTit:'Antes de ver tu árbol, revisa estos años:',
   abrirlo:'Abrirlo', abierto:'Árbol abierto.', cancelar:'Cancelar'
 }};
 const T=TEXTOS.es;
@@ -404,6 +418,19 @@ function vMini(cur){
 }
 function nHer(P){const n=parseInt(P.nHer,10)||0; const m=(P.hermanos||[]).filter(h=>h&&h.trim()).length; return Math.max(n,m);}
 
+/* v1.1: avisos de años (no bloquean: hay datos aproximados y antepasados muy antiguos) */
+function avisos(n){
+  const P=st.p[n]||{}; if(P.nada||(n>1&&!P.vive))return [];
+  const ahora=new Date().getFullYear(), L=[];
+  const ano=x=>{const t=String(x||'').trim(); if(!t)return null; return /^\d{4}$/.test(t)&&+t>=1000&&+t<=ahora?+t:NaN;};
+  const a=ano(P.nac), m=(n>1&&P.vive==='no')?ano(P.muer):null;
+  if(Number.isNaN(a)||Number.isNaN(m))L.push(T.avCifras);
+  if(a&&m&&m<a)L.push(T.avMuerte);
+  if(n>1&&a){const c=Math.floor(n/2), h=ano((st.p[c]||{}).nac); if(h&&!(st.p[c]||{}).nada&&a>h-12)L.push(T.avHijo(c===1?T.ti:rel(c).replace('Tu ','tu ')));}
+  if(a&&(n===1||P.vive==='si')&&ahora-a>120)L.push(T.avVivo);
+  return L;
+}
+const vAvisos=n=>'<p class="aviso" id="av">'+avisos(n).map(esc).join(' ')+'</p>';
 function fLugar(base){
   const nose=getP(base+'.lugarNose');
   return '<div class="fld"><span>'+T.lugarNac+'</span><div class="row">'+
@@ -422,7 +449,7 @@ function vFicha(n){
     return h+'<p class="note">'+T.nadaMarcado(el)+' <button class="link" data-act="desnada" data-n="'+n+'">'+T.deshacer+'</button></p></div>';
   }
   if(n===1){
-    return h+'<div class="f">'+fNombre(b,T.tuNombre)+'<div class="row">'+fAno(b,T.anoNac,'nac')+'</div>'+
+    return h+'<div class="f">'+fNombre(b,T.tuNombre)+'<div class="row">'+fAno(b,T.anoNac,'nac')+'</div>'+vAvisos(n)+
       fLugar(b)+fHermanos(n)+'<p class="note">'+T.notaVivos+'</p></div></div>';
   }
   const vive=P.vive||'';
@@ -431,10 +458,10 @@ function vFicha(n){
   if(!vive)return h+'</div>';
   h+='<div class="f">'+fNombre(b);
   if(vive==='si'){
-    return h+'<div class="row">'+fAno(b,T.anoNac,'nac')+'</div>'+fLugar(b)+'<p class="note">'+T.notaVivos+'</p></div></div>';
+    return h+'<div class="row">'+fAno(b,T.anoNac,'nac')+'</div>'+vAvisos(n)+fLugar(b)+'<p class="note">'+T.notaVivos+'</p></div></div>';
   }
   h+='<div class="fld"><div class="row">'+fAno(b,T.nacio,'nac',T.ano)+(vive==='no'?fAno(b,T.murio,'muer',T.ano):'')+
-    '</div><label class="chk"><input type="checkbox" data-k="'+b+'.aprox"'+(P.aprox?' checked':'')+'> '+T.aprox+'</label></div>'+
+    '</div>'+vAvisos(n)+'<label class="chk"><input type="checkbox" data-k="'+b+'.aprox"'+(P.aprox?' checked':'')+'> '+T.aprox+'</label></div>'+
     fLugar(b)+
     '<label class="fld"><span>'+T.estudiosL+'</span><select data-k="'+b+'.estudios"><option value=""></option>'+ESTUDIOS.map(e=>'<option'+(P.estudios===e?' selected':'')+'>'+e+'</option>').join('')+'</select></label>'+
     '<label class="fld"><span>'+T.oficio+'</span><input type="text" data-k="'+b+'.oficio" value="'+v(b+'.oficio')+'"><p class="help">'+T.oficioAyuda+'</p></label>'+
@@ -478,12 +505,17 @@ function fParejas(n){
 function vListo(){
   const n=miembros();
   let h='<div class="card done"><svg style="width:80px;height:80px;margin:0 auto"><use href="#ico"/></svg><h2>'+T.yaEsta+'</h2>'+
-    '<p style="margin:0">'+T.identificados(n)+'</p>'+
+    '<p style="margin:0">'+T.identificados(n)+'</p>'+vRevisar()+
     '<div class="stack"><button class="btn p" data-act="pieza2">'+T.verDescargar+'</button><button class="btn s" data-go="familia">'+T.seguirFamilia+'</button></div>';
   if(st.mod>st.archivo)h+=recordatorio();
   return h+'</div>';
 }
 
+function vRevisar(){
+  const L=ORDEN.map(n=>[n,avisos(n)]).filter(x=>x[1].length);
+  if(!L.length)return '';
+  return '<div class="revisar"><p>'+T.revisarTit+'</p><ul>'+L.map(([n,a])=>'<li><a href="#p'+n+'">'+esc(rel(n))+'</a>: '+a.map(esc).join(' ')+'</li>').join('')+'</ul></div>';
+}
 /* Mi familia */
 const NIV=T.niveles;
 function fPersona(b,phName){
@@ -734,6 +766,7 @@ async function descargar(){
 main.addEventListener('input',e=>{
   const t=e.target, k=t.dataset.k; if(!k||t.type==='radio'||t.type==='checkbox')return;
   setP(k,t.value); guardar();
+  if(/\.(nac|muer)$/.test(k)&&t.value.length===4)refrescarAvisos(k);
   if(t.hasAttribute('data-cnt')){const c=$('#cnt'); if(c)c.textContent=t.value.length+'/110';}
   if(t.dataset.her){const n=+t.dataset.her,P=st.p[n],L=$('#herlist'); if(L){const want=parseInt(P.nHer,10)||0; for(let i=L.children.length;i<want;i++){const x=document.createElement('input'); x.type='text'; x.placeholder=T.hermanoN(i+1); x.dataset.k='p.'+n+'.hermanos.'+i; L.appendChild(x);}
     while(L.children.length>Math.max(want,1)&&!L.lastElementChild.value.trim())L.lastElementChild.remove();
@@ -746,7 +779,9 @@ main.addEventListener('change',e=>{
   if(!k)return;
   if(t.type==='checkbox')setP(k,t.checked); else setP(k,t.value);
   guardar(); if(t.hasAttribute('data-re'))keepScroll(render);
+  refrescarAvisos(k);
 });
+function refrescarAvisos(k){const m=/^p\.(\d+)\.(nac|muer)$/.exec(k||''), av=$('#av'); if(m&&av)av.textContent=avisos(+m[1]).join(' ');}
 function keepScroll(fn){const y=window.scrollY; fn(); window.scrollTo(0,y);}
 document.addEventListener('click',async e=>{
   const go=e.target.closest('[data-go]'); if(go){ir(go.dataset.go); return;}
@@ -840,7 +875,7 @@ let tt;
 function toast(t){let el=$('.toast'); if(!el){el=document.createElement('div'); el.className='toast'; document.body.appendChild(el);} el.textContent=t; clearTimeout(tt); tt=setTimeout(()=>el.remove(),3800);}
 
 /* para el banco de pruebas (solo lectura de funciones puras) */
-window.__arbol={rel,rolCorto,miembros,cuenta,anosTxt,lugarTxt,sugerirFamilia,nombreFamilia,T,
+window.__arbol={avisos,rel,rolCorto,miembros,cuenta,anosTxt,lugarTxt,sugerirFamilia,nombreFamilia,T,
   estado:()=>st, dibujarArbol, dibujarFamilia};
 
 render();
