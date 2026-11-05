@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<!-- arbol.html — Locus Mundi · Mi árbol genealógico
+     Versión 1 · 05/11/2026 · Fase C, «Árbol genealógico, construcción II». A partir del prototipo validado
+     el 04/11 (arbol-prototipo-1.html; contenido v2.5 §9 y §10). Cambios: documento completo; fuentes de
+     /vendor/fuentes/fuentes.css (antes, Google Fonts); descarga normal del navegador (enlace «download»);
+     textos en un diccionario (TEXTOS.es); aviso anónimo de descarga a /api/contador-historias
+     ({arbol:'descarga'}, sin datos del árbol) y fallos del navegador a la tabla `errores` (máx. 5 por visita).
+     Nada del árbol sale del dispositivo: se guarda en localStorage (lm_arbol_v1) y en el archivo .json. -->
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>Mi árbol genealógico · Locus Mundi</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icono-32.png"/>
+<link rel="icon" type="image/png" sizes="48x48" href="/icono-48.png"/>
+<link rel="apple-touch-icon" href="/icono-180.png"/>
+<meta name="description" content="Haz tu árbol genealógico gratis, hasta tus bisabuelos, y descárgalo en imagen. Tus datos se quedan en tu dispositivo."/>
+<meta name="theme-color" content="#FAF7F0"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="Locus Mundi"/>
+<meta property="og:locale" content="es_ES"/>
+<meta property="og:title" content="Mi árbol genealógico — Locus Mundi"/>
+<meta property="og:description" content="Haz tu árbol genealógico gratis, hasta tus bisabuelos, y descárgalo en imagen."/>
+<meta property="og:image" content="https://www.locusmundi.com/vista-previa.jpg"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:url" content="https://www.locusmundi.com/arbol"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<link rel="canonical" href="https://www.locusmundi.com/arbol"/>
+<link rel="stylesheet" href="/vendor/fuentes/fuentes.css"/>
+<style>
+:root{
+  --navy:#1B3A6B; --gold:#C4932A; --gold2:#A87A1E; --goldl:#EAD9AE; --bg:#EDE0C4; --ink:#1A0E07;
+  --gran:#9A0117; --cream:#FAF7F0; --line:#D8C9A6; --muted:#6B5A45; --card:#FFFDF8;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:"Crimson Pro",Georgia,"Times New Roman",serif;font-size:18px;line-height:1.45;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--cream)}
+h1,h2,h3{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;color:var(--navy);text-wrap:balance;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* cabecera */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--cream);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:10px;padding-block:8px}
+header svg.ico{width:34px;height:34px;flex:none}
+header h1{font-size:1.18rem;flex:1;min-width:0;line-height:1.1}
+header h1 small{display:block;font-family:"Crimson Pro",serif;font-size:.72rem;color:var(--muted);font-weight:400;letter-spacing:.06em;text-transform:uppercase}
+.hbtn{border:1px solid var(--line);background:var(--card);border-radius:20px;padding:4px 12px;font-size:.85rem;color:var(--navy);cursor:pointer;white-space:nowrap}
+.tramos{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+.tramos::-webkit-scrollbar{display:none}
+.tramos a{flex:none;text-decoration:none;font-size:.9rem;padding:3px 11px;border-radius:14px;color:var(--navy);border:1px solid transparent}
+.tramos a.on{background:var(--navy);color:var(--cream)}
+.tramos a:not(.on){border-color:var(--line)}
+
+main{padding-block:14px 120px}
+.mini{background:var(--cream);border:1px solid var(--line);border-radius:14px;padding:6px 4px 0;margin-bottom:14px}
+.mini svg{display:block;width:100%;height:auto;max-width:100%}
+.mini circle.b{cursor:pointer}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.fhead{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.fhead > div{min-width:0}
+.tramo{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold2);font-weight:600}
+.fhead h2{font-size:1.55rem;line-height:1.15}
+.nada{flex:none;border:none;background:none;color:var(--muted);text-decoration:underline;font-size:.88rem;cursor:pointer;padding:4px 0;text-align:right;max-width:9em}
+
+.q{margin:0 0 6px;font-weight:600;color:var(--navy)}
+.seg{display:flex;border:1px solid var(--navy);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.seg label{flex:1;text-align:center;padding:8px 4px;cursor:pointer;color:var(--navy)}
+.seg label+label{border-left:1px solid var(--navy)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:checked){background:var(--navy);color:var(--cream)}
+
+.f{display:grid;gap:14px}
+.fld{display:grid;gap:4px;min-width:0}
+.fld > span{font-size:.92rem;font-weight:600;color:var(--navy)}
+.help{font-size:1rem;color:var(--muted);font-style:italic;margin:0}
+.prevs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.prevs.one{grid-template-columns:minmax(0,62%);justify-content:center}
+.prevs figure{margin:0;display:grid;gap:4px;text-align:center;min-width:0}
+.prevs img{width:100%;aspect-ratio:2480/3508;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:0 3px 10px rgba(26,14,7,.12);cursor:zoom-in}
+.prevs figcaption{font-size:.9rem;color:var(--muted)}
+.final{display:grid;gap:16px}
+.final h2{font-size:2rem;text-align:center}
+.leyenda{display:grid;gap:2px;text-align:center;text-decoration:none;color:var(--ink);background:var(--cream);border:1px solid var(--line);border-radius:4px;box-shadow:inset 0 0 0 6px var(--cream),inset 0 0 0 7px var(--gold),0 3px 10px rgba(26,14,7,.12);padding:18px 20px;font-size:.95rem;line-height:1.35}
+.leyenda b{font-size:.95rem;font-weight:400;color:var(--ink)}
+.leyenda span{font-size:.95rem}
+.leyenda u{color:var(--gran);font-weight:700;text-decoration:none}
+.big{position:fixed;inset:0;z-index:22;background:rgba(26,14,7,.85);overflow:auto;padding:16px;cursor:zoom-out}
+.big img{display:block;width:100%;max-width:900px;margin:0 auto;height:auto}
+input[type=text],select,textarea{width:100%;min-width:0;border:1px solid var(--line);border-radius:9px;background:#fff;padding:9px 11px;font-size:1rem}
+input[type=text]:focus,select:focus,textarea:focus{outline:2px solid var(--gold);outline-offset:0;border-color:var(--gold)}
+input:disabled{background:#F2ECDF;color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row > *{flex:1 1 120px;min-width:0}
+.yr{flex:0 1 110px}
+.chk{display:flex;align-items:center;gap:8px;font-size:.95rem;cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:var(--navy)}
+.inl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.inl input[type=text]{width:4.2em;text-align:center}
+.cnt{font-size:.8rem;color:var(--muted);text-align:right}
+.note{background:#F4ECD9;border-left:3px solid var(--gold);padding:8px 12px;border-radius:6px;font-size:.92rem;margin:0}
+.link{border:none;background:none;color:var(--navy);padding:2px 0;cursor:pointer;font-weight:600;text-align:left}
+.sub{border-top:1px dashed var(--line);padding-top:12px;display:grid;gap:10px}
+.sub h3{font-size:1.15rem}
+.plist{display:grid;gap:8px}
+.pr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#FBF6EA;border:1px solid var(--line);border-radius:9px;padding:7px 9px}
+.pr .ord{font-weight:600;color:var(--gold2);min-width:2.2em}
+.pr .txt{flex:1;min-width:0}
+.pr input[type=text]{flex:1 1 120px}
+.pr .yr input{width:100%}
+.mv{border:1px solid var(--line);background:#fff;border-radius:6px;width:30px;height:30px;cursor:pointer;color:var(--navy);padding:0}
+.x{border:none;background:none;color:var(--gran);cursor:pointer;font-size:.88rem;padding:2px 4px}
+
+/* nav inferior */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--cream);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav .wrap{display:flex;justify-content:space-between;gap:10px;padding-block:10px}
+.btn{border:none;border-radius:11px;padding:11px 18px;cursor:pointer;font-size:1.02rem;font-weight:600}
+.btn.p{background:var(--navy);color:var(--cream)}
+.btn.s{background:transparent;color:var(--navy);border:1.5px solid var(--navy)}
+.btn.g{background:var(--gold);color:#fff}
+.btn:disabled{opacity:.35;cursor:default}
+.stack{display:grid;gap:10px}
+
+/* entrada */
+.hero{text-align:center;padding-block:10px 4px}
+.hero svg{width:96px;height:96px}
+.hero h2{font-size:2rem;margin:6px 0 10px}
+.hero p{margin:0 auto 18px;max-width:28em}
+.priv{font-size:.88rem;color:var(--muted);text-align:center;margin:22px auto 0;max-width:30em}
+.small{font-size:.9rem;text-align:center}
+.small button{color:var(--muted);text-decoration:underline;font-weight:400}
+.remind{font-size:.88rem;color:var(--muted);text-align:center;margin:12px 0 0}
+.remind button{font-size:.88rem;text-decoration:underline}
+
+/* familia */
+.fam{display:grid;gap:12px}
+.fc{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--card);display:grid;gap:10px;min-width:0}
+.fc.light{background:#FBF6EA}
+.fc.dash{border-style:dashed;border-color:var(--gold2)}
+.fc .ft{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.fc .ft b{font-family:"Cormorant Garamond",serif;font-size:1.15rem;color:var(--navy)}
+.kids{display:grid;gap:10px;padding-left:12px;border-left:2px solid var(--goldl)}
+.lvl{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold2);font-weight:600}
+
+/* diálogo y aviso */
+.dlg{position:fixed;inset:0;z-index:20;background:rgba(26,14,7,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.dlg .card{max-width:420px;width:100%;display:grid;gap:16px}
+.dlg p{margin:0}
+.dlg .row{justify-content:flex-end}
+.dlg .row .btn{flex:0 0 auto}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:21;background:var(--ink);color:var(--cream);padding:10px 16px;border-radius:10px;font-size:.95rem;max-width:calc(100% - 32px);box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.done{text-align:center;display:grid;gap:12px}
+.done h2{font-size:2rem}
+html,body{margin:0}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ico" viewBox="0 0 48 48">
+    <circle cx="24" cy="24" r="23" fill="#FAF7F0" stroke="#C4932A" stroke-width="1.2"/>
+    <circle cx="9.5" cy="22" r="5" fill="#A87A1E"/><circle cx="38.5" cy="19.5" r="5" fill="#A87A1E"/>
+    <circle cx="15.5" cy="15" r="6.8" fill="#C4932A"/><circle cx="33.5" cy="13.5" r="6.5" fill="#C4932A"/>
+    <circle cx="20.5" cy="21" r="5.5" fill="#A87A1E"/><circle cx="29.5" cy="20.5" r="5" fill="#C4932A"/>
+    <circle cx="24.5" cy="10.5" r="7" fill="#9A0117"/>
+    <path d="M22 43 Q23 37 22.6 30 L25.4 30 Q25 37 26 43 Z" fill="#1B3A6B"/>
+    <path d="M24 31 L24 22 M24 22 L20 16.5 M24 22 L28.5 16 M24 34 Q18 30 11 26.5 M16.5 29.3 L14 24 M24 33 Q30 28.5 37 24 M31.5 28.5 L33.5 22.5" stroke="#1B3A6B" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+  </symbol>
+</svg>
+
+<header>
+  <div class="wrap">
+    <a href="/" aria-label="Locus Mundi" style="display:flex"><svg class="ico"><use href="#ico"/></svg></a>
+    <h1><small id="h-marca">Locus Mundi</small><span id="h-titulo">Mi árbol genealógico</span></h1>
+    <button class="hbtn" data-act="guardar" id="hguardar" hidden>Guardar</button>
+  </div>
+  <div class="wrap"><nav class="tramos" id="tramos" hidden></nav></div>
+</header>
+
+<main class="wrap" id="main"></main>
+<div class="nav" id="nav" hidden><div class="wrap">
+  <button class="btn s" id="prev">‹ Anterior</button>
+  <button class="btn p" id="next">Siguiente ›</button>
+</div></div>
+<input type="file" id="fopen" accept=".json,application/json" hidden>
+<datalist id="paises"></datalist>
+
+<script>
+(function(){
+"use strict";
+/* ===== Textos (diccionario). Solo español por ahora; otro idioma = otra entrada con las mismas claves. ===== */
+const TEXTOS={es:{
+  lang:'es',
+  tituloPagina:'Mi árbol genealógico · Locus Mundi',
+  marca:'Locus Mundi', titulo:'Mi árbol genealógico',
+  guardar:'Guardar', guardarAria:'Guardar mi árbol en un archivo',
+  anterior:'‹ Anterior', siguiente:'Siguiente ›', terminarArbol:'Terminar Mi árbol ›', irFamilia:'Mi familia ›', verImagenes:'Ver mis imágenes ›',
+  estudios:['Sin estudios reglados','Primarios','Secundarios / Bachillerato','Formación profesional','Universitarios','No lo sé'],
+  estudioNose:'No lo sé',
+  tu:'Tú', tuPadre:'Tu padre', tuMadre:'Tu madre',
+  abuelos4:['Tu abuelo paterno','Tu abuela paterna','Tu abuelo materno','Tu abuela materna'],
+  padreDe:x=>'Padre de '+x.replace('Tu ','tu '), madreDe:x=>'Madre de '+x.replace('Tu ','tu '),
+  corto:{padre:'tu padre',madre:'tu madre',abuelo:'tu abuelo',abuela:'tu abuela',bisabuelo:'tu bisabuelo',bisabuela:'tu bisabuela'},
+  tramo:{bis:'Bisabuelos',abu:'Abuelos',pad:'Padres',tu:'Tú',fam:'Mi familia'},
+  ord:i=>(i+1)+'.ª',
+  miembros:n=>n+' '+(n===1?'miembro':'miembros'),
+  inicioEmpezado:n=>'Tienes un árbol empezado: ya has identificado a '+n+' '+(n===1?'miembro':'miembros')+' de tu familia.',
+  inicioNuevo:'Empecemos por tus bisabuelos. Aunque sepas poco, un nombre o un pueblo ya es mucho. Lo que no sepas, sáltatelo.',
+  seguir:'Seguir con mi árbol', empezar:'Empezar mi árbol', abrir:'Abrir mi árbol desde un archivo', reset:'Empezar de nuevo',
+  recordar:'Guarda una copia en un archivo por si cambias de dispositivo.', guardarAhora:'Guardar ahora',
+  privacidad:'Tu árbol se guarda solo en este dispositivo. Locus Mundi no guarda ningún dato de tu familia, salvo que decidas subirlo a un libro.',
+  miniAria:'Árbol en miniatura',
+  lugarNac:'Lugar de nacimiento', pais:'País', poblacion:'Población', nose:'No lo sé',
+  nombre:'Nombre', nombrePh:'Basta el de pila', tuNombre:'Tu nombre',
+  nadaDe:el=>'No sé nada de '+el, el:'él', ella:'ella',
+  nadaMarcado:el=>'Has marcado que no sabes nada de '+el+'.', deshacer:'Deshacer',
+  anoNac:'Año de nacimiento', notaVivos:'De las personas vivas solo se pide nombre, año y lugar de nacimiento.',
+  vive:'¿Vive?', si:'Sí', no:'No',
+  nacio:'Nació', murio:'Murió', ano:'Año', aprox:'Años aproximados',
+  estudiosL:'Estudios', oficio:'¿A qué se dedicaba?',
+  oficioAyuda:'También cuenta el trabajo que no constaba en ningún papel: la casa, el campo, la tienda, cuidar de otros.',
+  destacar:'Algo que destacar', destacarAyuda:'Un cargo, un hecho, una frase',
+  hermanos:'Hermanos', tienes:'Tienes', tuvo:'Tuvo', hermanosSuf:'hermanos',
+  hermanoN:i=>'Hermano/a '+i, otroHermano:'+ Otro hermano', anadirNombres:'+ Añadir sus nombres',
+  parejas:'Parejas', sinNombre:'sin nombre aún', subir:'Subir', bajar:'Bajar', quitar:'Quitar', otraParejaQ:'+ ¿Tuvo otra pareja?',
+  yaEsta:'Ya está tu árbol', identificados:n=>'Has identificado a '+n+' '+(n===1?'miembro':'miembros')+' de tu familia.',
+  verDescargar:'Ver y descargar Mi árbol', seguirFamilia:'Seguir con Mi familia',
+  niveles:['Hijo o hija','Nieto o nieta','Bisnieto o bisnieta'],
+  nombreMenores:'Nombre (de los menores, solo el de pila)', anoCorto:'Año', ciudad:'Ciudad',
+  hijastro:'Es hijo/a solo de tu pareja', suPareja:'Su pareja', masSuPareja:'+ Su pareja',
+  masNieto:'+ Un nieto o nieta', masBisnieto:'+ Un bisnieto o bisnieta',
+  famTitulo:'Tus parejas, hijos, nietos y bisnietos', famNota:'De cada persona, solo nombre, año y ciudad de nacimiento.',
+  pareja:i=>(i+1)+'.ª pareja', nombreBlanco:'Nombre (puedes dejarlo en blanco)',
+  masHijo:nm=>'+ Un hijo o hija'+(nm?' con '+nm:''), masPareja:hay=>'+ '+(hay?'Otra pareja':'Tu pareja'),
+  imgArbol:'Mi árbol', imgFamilia:'Mi familia',
+  pieImagen:'Mi árbol genealógico · Locus Mundi · locusmundi.com',
+  hermano1:' hermano', hermanosN:' hermanos', esposa:'esposa', esposo:'esposo',
+  yMas:r=>'y '+r+' más',
+  cuenta:'Lo que cuenta tu árbol',
+  gen:{bis:'bisabuelos',abu:'abuelos',pad:'padres',tu:'tú'},
+  y:' y ',
+  donde:p=>'Dónde nacieron: '+p+'.',
+  vividos:(med,nm,a)=>'Años vividos: una media de '+med+'; quien más vivió, '+nm+', '+a+' años.',
+  oficios:p=>'Oficios: '+p+'.', estudiosC:p=>'Estudios: '+p+'.', hijosPareja:p=>'Hijos por pareja, de media: '+p+'.',
+  hacia:'h. ', nac:'n. ', muer:'m. ',
+  listo:'Tu árbol está listo', tituloImg:'Título de las imágenes', tituloImgPh:'Familia García López',
+  anadirFam:'Añadir Mi familia (hijos, nietos…)',
+  menores:'Si aparecen menores de edad, sus nombres se muestran con el consentimiento de sus padres o tutores.',
+  descargar2:'Descargar las dos imágenes', descargar1:'Descargar la imagen', guardarOtroDia:'Guardar mi árbol para seguir otro día',
+  leyenda1:'Detrás de cada vida hay una historia.', leyenda2a:'Cuéntala, o pide a un familiar que la cuente, en ', leyenda2b:'Locus Mundi', leyenda2c:'.',
+  preparando:'Un momento: aún se está preparando la imagen.', descargadas:'Imágenes descargadas.', descargada:'Imagen descargada.',
+  confirmarReset:'Se borrará el árbol que tienes empezado en este dispositivo. ¿Empezar de nuevo?',
+  confirmarQuitar:nm=>'¿Quitar a '+nm+'?',
+  familiaDe:a=>'Familia '+a,
+  archivoArbol:(fam,f)=>'Mi árbol – '+(fam?fam+' – ':'')+f+'.json',
+  archivoImg:(t,fam,f)=>t+' – '+(fam?fam+' – ':'')+f+'.jpg',
+  guardado:'Árbol guardado en un archivo.', noGuardado:'No se ha podido guardar el archivo.',
+  noEsArbol:'Este archivo no es un árbol de Locus Mundi.',
+  sustituir:(f1,nf,na,f2)=>'Este archivo es del '+f1+' y tiene '+nf+' '+(nf===1?'miembro':'miembros')+'. Sustituirá al árbol que tienes en este dispositivo ('+na+' '+(na===1?'miembro':'miembros')+', del '+f2+'). ¿Abrirlo?',
+  abrirlo:'Abrirlo', abierto:'Árbol abierto.', cancelar:'Cancelar'
+}};
+const T=TEXTOS.es;
+
+const KEY='lm_arbol_v1';
+const CODES='AD,AE,AF,AG,AI,AL,AM,AO,AR,AS,AT,AU,AW,AX,AZ,BA,BB,BD,BE,BF,BG,BH,BI,BJ,BL,BM,BN,BO,BQ,BR,BS,BT,BW,BY,BZ,CA,CC,CD,CF,CG,CH,CI,CK,CL,CM,CN,CO,CR,CU,CV,CW,CX,CY,CZ,DE,DJ,DK,DM,DO,DZ,EC,EE,EG,EH,ER,ES,ET,FI,FJ,FK,FM,FO,FR,GA,GB,GD,GE,GF,GG,GH,GI,GL,GM,GN,GP,GQ,GR,GT,GU,GW,GY,HK,HN,HR,HT,HU,ID,IE,IL,IM,IN,IQ,IR,IS,IT,JE,JM,JO,JP,KE,KG,KH,KI,KM,KN,KP,KR,KW,KY,KZ,LA,LB,LC,LI,LK,LR,LS,LT,LU,LV,LY,MA,MC,MD,ME,MF,MG,MH,MK,ML,MM,MN,MO,MP,MQ,MR,MS,MT,MU,MV,MW,MX,MY,MZ,NA,NC,NE,NF,NG,NI,NL,NO,NP,NR,NU,NZ,OM,PA,PE,PF,PG,PH,PK,PL,PM,PN,PR,PS,PT,PW,PY,QA,RE,RO,RS,RU,RW,SA,SB,SC,SD,SE,SG,SH,SI,SJ,SK,SL,SM,SN,SO,SR,SS,ST,SV,SX,SY,SZ,TC,TD,TG,TH,TJ,TK,TL,TM,TN,TO,TR,TT,TV,TW,TZ,UA,UG,US,UY,UZ,VA,VC,VE,VG,VI,VN,VU,WF,WS,XK,YE,YT,ZA,ZM,ZW'.split(',');
+const ESTUDIOS=T.estudios;
+const ORDEN=[8,9,10,11,12,13,14,15,4,5,6,7,2,3,1];
+const $=s=>document.querySelector(s);
+const main=$('#main');
+
+/* ---- avisos al servidor (anónimos: sin nombres, IP guardada ni cookie) ---- */
+function avisar(cuerpo){try{fetch('/api/contador-historias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cuerpo),keepalive:true}).catch(()=>{});}catch(e){}}
+let nErr=0;
+function errorNavegador(m){if(++nErr>5)return; avisar({error:{mensaje:String(m||'').slice(0,500),pagina:'/arbol'}});}
+window.addEventListener('error',e=>errorNavegador((e&&e.message)||'error'));
+window.addEventListener('unhandledrejection',e=>errorNavegador('promesa: '+((e&&e.reason&&e.reason.message)||e.reason)));
+
+/* textos fijos de la página */
+document.documentElement.lang=T.lang; document.title=T.tituloPagina;
+$('#h-marca').textContent=T.marca; $('#h-titulo').textContent=T.titulo;
+$('#hguardar').textContent=T.guardar; $('#hguardar').setAttribute('aria-label',T.guardarAria);
+$('#prev').textContent=T.anterior;
+
+/* países */
+(function(){
+  let dn=null; try{dn=new Intl.DisplayNames([T.lang],{type:'region'});}catch(e){}
+  const names=CODES.map(c=>{let n=c; try{n=dn?dn.of(c):c;}catch(e){} return n;}).sort((a,b)=>a.localeCompare(b,T.lang));
+  $('#paises').innerHTML=names.map(n=>'<option value="'+esc(n)+'">').join('');
+})();
+
+/* estado */
+function nuevo(){const p={}; for(let i=1;i<=15;i++)p[i]={}; return {v:1,creado:Date.now(),mod:0,archivo:0,familia:'',p,fam:{parejas:[]}};}
+let st=cargar();
+function cargar(){try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.p)return norm(s);}catch(e){} return nuevo();}
+function norm(s){s.fam=s.fam||{parejas:[]}; for(let i=1;i<=15;i++){const P=s.p[i]=s.p[i]||{}; if(P.hermanos&&!Array.isArray(P.hermanos)){const a=[]; Object.keys(P.hermanos).forEach(k=>{a[+k]=P.hermanos[k];}); P.hermanos=Array.from(a,x=>x||'');}} return s;}
+function guardar(){st.mod=Date.now(); try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}}
+function getP(path){return path.split('.').reduce((o,k)=>o==null?o:o[k],st);}
+function setP(path,val){const ks=path.split('.'); let o=st; for(let i=0;i<ks.length-1;i++){if(o[ks[i]]==null)o[ks[i]]=/^\d+$/.test(ks[i+1])?[]:{}; o=o[ks[i]];} o[ks[ks.length-1]]=val;}
+
+function miembros(s){
+  s=s||st; let n=0; const has=x=>x&&typeof x.nombre==='string'&&x.nombre.trim();
+  for(let i=1;i<=15;i++){const P=s.p[i]||{}; if(P.nada)continue; if(has(P))n++;
+    (P.hermanos||[]).forEach(h=>{if(h&&h.trim())n++;});
+    (P.parejas||[]).forEach(x=>{if(!x.dir&&has(x))n++;});}
+  const walk=arr=>(arr||[]).forEach(x=>{if(has(x))n++; if(x.pareja&&has(x.pareja))n++; walk(x.hijos);});
+  walk((s.fam||{}).parejas); return n;
+}
+
+/* parentescos */
+const male=n=>n%2===0;
+function rel(n){
+  if(n===1)return T.tu;
+  if(n===2)return T.tuPadre; if(n===3)return T.tuMadre;
+  if(n<8)return T.abuelos4[n-4];
+  return male(n)?T.padreDe(rel(Math.floor(n/2))):T.madreDe(rel(Math.floor(n/2)));
+}
+function rolCorto(n){
+  const C=T.corto;
+  if(n<4)return male(n)?C.padre:C.madre;
+  if(n<8)return male(n)?C.abuelo:C.abuela;
+  return male(n)?C.bisabuelo:C.bisabuela;
+}
+function tramoDe(n){return n>=8?T.tramo.bis:n>=4?T.tramo.abu:n>=2?T.tramo.pad:T.tramo.tu;}
+const ord=T.ord;
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+const v=path=>esc(getP(path)||'');
+
+/* rutas */
+function ruta(){const h=location.hash.slice(1); if(/^p([1-9]|1[0-5])$/.test(h))return h; if(h==='listo'||h==='familia'||h==='inicio'||h==='final')return h; return 'inicio';}
+function ir(h){if(location.hash.slice(1)===h)render(); else location.hash=h;}
+window.addEventListener('hashchange',()=>{render(); window.scrollTo(0,0);});
+function siguiente(r){
+  if(r.startsWith('p')){const n=+r.slice(1),i=ORDEN.indexOf(n); return i<ORDEN.length-1?'p'+ORDEN[i+1]:'listo';}
+  if(r==='listo')return 'familia'; return null;
+}
+function anterior(r){
+  if(r.startsWith('p')){const n=+r.slice(1),i=ORDEN.indexOf(n); return i>0?'p'+ORDEN[i-1]:'inicio';}
+  if(r==='listo')return 'p1'; if(r==='familia')return 'listo'; if(r==='final')return famLlena()?'familia':'listo'; return null;
+}
+
+/* render */
+function render(){
+  const r=ruta();
+  $('#tramos').hidden=$('#nav').hidden=(r==='inicio');
+  $('#hguardar').hidden=(r==='inicio');
+  renderTramos(r);
+  if(r==='inicio')main.innerHTML=vInicio();
+  else if(r==='listo')main.innerHTML=vListo();
+  else if(r==='familia')main.innerHTML=vFamilia();
+  else if(r==='final')main.innerHTML=vFinal();
+  else main.innerHTML='<div class="mini" id="mini">'+vMini(+r.slice(1))+'</div>'+vFicha(+r.slice(1));
+  const pv=$('#prev'),nx=$('#next'),a=anterior(r),s=siguiente(r);
+  pv.disabled=!a; pv.onclick=()=>a&&ir(a);
+  nx.disabled=false;
+  if(r==='familia'){nx.textContent=T.verImagenes; nx.onclick=()=>ir('final');}
+  else if(r==='final'){nx.textContent=T.siguiente; nx.disabled=true; generar();}
+  else if(r==='listo'){nx.textContent=T.irFamilia; nx.onclick=()=>ir('familia');}
+  else {nx.textContent=r==='p1'?T.terminarArbol:T.siguiente; nx.onclick=()=>s&&ir(s);}
+}
+function renderTramos(r){
+  const t=[[T.tramo.bis,'p8'],[T.tramo.abu,'p4'],[T.tramo.pad,'p2'],[T.tramo.tu,'p1'],[T.tramo.fam,'familia']];
+  let cur=r==='familia'?T.tramo.fam:r==='listo'?T.tramo.tu:r.startsWith('p')?tramoDe(+r.slice(1)):'';
+  $('#tramos').innerHTML=t.map(([l,h])=>'<a href="#'+h+'"'+(l===cur?' class="on"':'')+'>'+l+'</a>').join('');
+  const on=$('#tramos .on'); if(on)on.scrollIntoView({block:'nearest',inline:'nearest'});
+}
+const recordatorio=()=>'<p class="remind">'+T.recordar+' <button class="link" data-act="guardar">'+T.guardarAhora+'</button></p>';
+
+function vInicio(){
+  const n=miembros(), ico='<svg><use href="#ico"/></svg>';
+  let h='<div class="hero">'+ico+'<h2>'+T.titulo+'</h2>';
+  if(n>0){
+    h+='<p>'+T.inicioEmpezado(n)+'</p>'+
+      '<div class="stack"><button class="btn p" data-act="seguir">'+T.seguir+'</button><button class="btn s" data-act="abrir">'+T.abrir+'</button></div>'+
+      '<p class="small" style="margin-top:14px"><button class="link" data-act="reset">'+T.reset+'</button></p>';
+    if(st.mod>st.archivo)h+=recordatorio();
+  } else {
+    h+='<p>'+T.inicioNuevo+'</p>'+
+      '<div class="stack"><button class="btn p" data-act="empezar">'+T.empezar+'</button><button class="btn s" data-act="abrir">'+T.abrir+'</button></div>';
+  }
+  return h+'</div><p class="priv">'+T.privacidad+'</p>';
+}
+
+function vMini(cur){
+  const W=340,rows={8:[26,11],4:[72,12.5],2:[114,14],1:[150,16]};
+  const pos={};
+  for(let i=8;i<16;i++)pos[i]=[22+(i-8)*(W-44)/7,rows[8][0],rows[8][1]];
+  for(let i=4;i<8;i++)pos[i]=[(pos[2*i][0]+pos[2*i+1][0])/2,rows[4][0],rows[4][1]];
+  for(let i=2;i<4;i++)pos[i]=[(pos[2*i][0]+pos[2*i+1][0])/2,rows[2][0],rows[2][1]];
+  pos[1]=[(pos[2][0]+pos[3][0])/2,rows[1][0],rows[1][1]];
+  let g='<path d="M'+(pos[1][0]-5)+' 186 Q'+(pos[1][0]-3)+' 172 '+(pos[1][0]-2.5)+' 160 L'+(pos[1][0]+2.5)+' 160 Q'+(pos[1][0]+3)+' 172 '+(pos[1][0]+5)+' 186Z" fill="#1B3A6B"/>';
+  for(let i=1;i<8;i++){[2*i,2*i+1].forEach(c=>{const a=pos[i],b=pos[c],my=(a[1]+b[1])/2;
+    g+='<path d="M'+a[0]+' '+a[1]+' C'+a[0]+' '+my+' '+b[0]+' '+my+' '+b[0]+' '+b[1]+'" stroke="#1B3A6B" stroke-width="2.2" fill="none" stroke-linecap="round"/>';});}
+  for(let i=1;i<16;i++){
+    const P=st.p[i]||{},[x,y,r]=pos[i],ok=!P.nada&&P.nombre&&P.nombre.trim();
+    const fill=i===1?'#9A0117':ok?'#C4932A':'#EAD9AE';
+    if(i===cur)g+='<circle cx="'+x+'" cy="'+y+'" r="'+(r+4)+'" fill="none" stroke="#1B3A6B" stroke-width="2.5"/>';
+    g+='<circle class="b" data-go="p'+i+'" cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+fill+'" stroke="'+(i===1?'#9A0117':ok?'#A87A1E':'#D3BD86')+'" stroke-width="1"><title>'+esc(rel(i))+'</title></circle>';
+    const nh=nHer(P);
+    if(nh>0)g+='<text x="'+(x+r-2)+'" y="'+(y-r+3)+'" font-size="10" font-family="Crimson Pro,serif" font-weight="600" fill="#1B3A6B" style="pointer-events:none">+'+nh+'</text>';
+  }
+  return '<svg viewBox="0 0 '+W+' 190" role="img" aria-label="'+T.miniAria+'">'+g+'</svg>';
+}
+function nHer(P){const n=parseInt(P.nHer,10)||0; const m=(P.hermanos||[]).filter(h=>h&&h.trim()).length; return Math.max(n,m);}
+
+function fLugar(base){
+  const nose=getP(base+'.lugarNose');
+  return '<div class="fld"><span>'+T.lugarNac+'</span><div class="row">'+
+    '<input type="text" list="paises" placeholder="'+T.pais+'" data-k="'+base+'.pais" value="'+v(base+'.pais')+'"'+(nose?' disabled':'')+' autocomplete="off">'+
+    '<input type="text" placeholder="'+T.poblacion+'" data-k="'+base+'.pob" value="'+v(base+'.pob')+'"'+(nose?' disabled':'')+'></div>'+
+    '<label class="chk"><input type="checkbox" data-k="'+base+'.lugarNose" data-re'+(nose?' checked':'')+'> '+T.nose+'</label></div>';
+}
+function fNombre(base,ph){return '<label class="fld"><span>'+T.nombre+'</span><input type="text" data-k="'+base+'.nombre" value="'+v(base+'.nombre')+'" placeholder="'+(ph||T.nombrePh)+'" autocomplete="off"></label>';}
+const fAno=(b,lab,campo,ph)=>'<label class="fld yr"><span>'+lab+'</span><input type="text" inputmode="numeric" maxlength="4"'+(ph?' placeholder="'+ph+'"':'')+' data-k="'+b+'.'+campo+'" value="'+v(b+'.'+campo)+'"></label>';
+
+function vFicha(n){
+  const P=st.p[n], b='p.'+n, el=male(n)?T.el:T.ella;
+  let h='<div class="card"><div class="fhead"><div><div class="tramo">'+tramoDe(n)+'</div><h2>'+esc(rel(n))+'</h2></div>'+
+    (n>1&&!P.nada?'<button class="nada" data-act="nada" data-n="'+n+'">'+T.nadaDe(el)+'</button>':'')+'</div>';
+  if(P.nada){
+    return h+'<p class="note">'+T.nadaMarcado(el)+' <button class="link" data-act="desnada" data-n="'+n+'">'+T.deshacer+'</button></p></div>';
+  }
+  if(n===1){
+    return h+'<div class="f">'+fNombre(b,T.tuNombre)+'<div class="row">'+fAno(b,T.anoNac,'nac')+'</div>'+
+      fLugar(b)+fHermanos(n)+'<p class="note">'+T.notaVivos+'</p></div></div>';
+  }
+  const vive=P.vive||'';
+  h+='<p class="q">'+T.vive+'</p><div class="seg">'+[['si',T.si],['no',T.no],['nose',T.nose]].map(([k,l])=>
+    '<label><input type="radio" name="vive" value="'+k+'" data-k="'+b+'.vive" data-re'+(vive===k?' checked':'')+'>'+l+'</label>').join('')+'</div>';
+  if(!vive)return h+'</div>';
+  h+='<div class="f">'+fNombre(b);
+  if(vive==='si'){
+    return h+'<div class="row">'+fAno(b,T.anoNac,'nac')+'</div>'+fLugar(b)+'<p class="note">'+T.notaVivos+'</p></div></div>';
+  }
+  h+='<div class="fld"><div class="row">'+fAno(b,T.nacio,'nac',T.ano)+(vive==='no'?fAno(b,T.murio,'muer',T.ano):'')+
+    '</div><label class="chk"><input type="checkbox" data-k="'+b+'.aprox"'+(P.aprox?' checked':'')+'> '+T.aprox+'</label></div>'+
+    fLugar(b)+
+    '<label class="fld"><span>'+T.estudiosL+'</span><select data-k="'+b+'.estudios"><option value=""></option>'+ESTUDIOS.map(e=>'<option'+(P.estudios===e?' selected':'')+'>'+e+'</option>').join('')+'</select></label>'+
+    '<label class="fld"><span>'+T.oficio+'</span><input type="text" data-k="'+b+'.oficio" value="'+v(b+'.oficio')+'"><p class="help">'+T.oficioAyuda+'</p></label>'+
+    '<label class="fld"><span>'+T.destacar+'</span><input type="text" maxlength="110" data-k="'+b+'.destacar" data-cnt value="'+v(b+'.destacar')+'"><div class="row" style="align-items:baseline"><p class="help">'+T.destacarAyuda+'</p><span class="cnt" id="cnt">'+((P.destacar||'').length)+'/110</span></div></label>'+
+    fHermanos(n)+fParejas(n)+'</div></div>';
+  return h;
+}
+
+function fHermanos(n){
+  const P=st.p[n], b='p.'+n, tu=n===1;
+  const k=parseInt(P.nHer,10)||0, names=P.hermanos||[];
+  let h='<div class="sub"><h3>'+T.hermanos+'</h3><div class="inl">'+(tu?T.tienes:T.tuvo)+
+    ' <input type="text" inputmode="numeric" maxlength="2" data-k="'+b+'.nHer" data-her="'+n+'" value="'+v(b+'.nHer')+'"> '+T.hermanosSuf+'</div>';
+  if(P.verNombres){
+    let u=names.length; while(u>0&&!(names[u-1]||'').trim())u--;
+    const m=Math.max(k,u,1);
+    h+='<div class="plist" id="herlist">';
+    for(let i=0;i<m;i++)h+='<input type="text" placeholder="'+T.hermanoN(i+1)+'" data-k="'+b+'.hermanos.'+i+'" value="'+esc(names[i]||'')+'">';
+    h+='</div><button class="link" data-act="masher" data-n="'+n+'">'+T.otroHermano+'</button>';
+  } else h+='<button class="link" data-act="vernom" data-n="'+n+'">'+T.anadirNombres+'</button>';
+  return h+'</div>';
+}
+
+function parejasDe(n){const P=st.p[n]; if(!Array.isArray(P.parejas))P.parejas=[{dir:true}]; if(!P.parejas.some(x=>x.dir))P.parejas.unshift({dir:true}); return P.parejas;}
+function fParejas(n){
+  const L=parejasDe(n), pn=male(n)?n+1:n-1, PP=st.p[pn]||{};
+  let h='<div class="sub"><h3>'+T.parejas+'</h3><div class="plist">';
+  L.forEach((x,i)=>{
+    const mv=(L.length>1?'<button class="mv" data-act="mv" data-n="'+n+'" data-i="'+i+'" data-d="-1" aria-label="'+T.subir+'"'+(i===0?' disabled':'')+'>↑</button><button class="mv" data-act="mv" data-n="'+n+'" data-i="'+i+'" data-d="1" aria-label="'+T.bajar+'"'+(i===L.length-1?' disabled':'')+'>↓</button>':'');
+    if(x.dir){
+      const nm=!PP.nada&&PP.nombre&&PP.nombre.trim()?esc(PP.nombre.trim()):'<i>'+T.sinNombre+'</i>';
+      h+='<div class="pr"><span class="ord">'+ord(i)+'</span><span class="txt">'+nm+' ('+rolCorto(pn)+')'+(PP.nac?', '+esc(PP.nac):'')+'</span>'+mv+'</div>';
+    } else {
+      const b='p.'+n+'.parejas.'+i;
+      h+='<div class="pr"><span class="ord">'+ord(i)+'</span><input type="text" placeholder="'+T.nombre+'" data-k="'+b+'.nombre" value="'+v(b+'.nombre')+'"><span class="yr"><input type="text" inputmode="numeric" maxlength="4" placeholder="'+T.ano+'" data-k="'+b+'.nac" value="'+v(b+'.nac')+'"></span>'+mv+'<button class="x" data-act="del" data-path="'+b+'">'+T.quitar+'</button></div>';
+    }
+  });
+  return h+'</div><button class="link" data-act="otrapareja" data-n="'+n+'">'+T.otraParejaQ+'</button></div>';
+}
+
+function vListo(){
+  const n=miembros();
+  let h='<div class="card done"><svg style="width:80px;height:80px;margin:0 auto"><use href="#ico"/></svg><h2>'+T.yaEsta+'</h2>'+
+    '<p style="margin:0">'+T.identificados(n)+'</p>'+
+    '<div class="stack"><button class="btn p" data-act="pieza2">'+T.verDescargar+'</button><button class="btn s" data-go="familia">'+T.seguirFamilia+'</button></div>';
+  if(st.mod>st.archivo)h+=recordatorio();
+  return h+'</div>';
+}
+
+/* Mi familia */
+const NIV=T.niveles;
+function fPersona(b,phName){
+  return fNombre(b,phName||T.nombreMenores)+
+    '<div class="row">'+fAno(b,T.anoCorto,'nac')+
+    '<label class="fld"><span>'+T.ciudad+'</span><input type="text" data-k="'+b+'.ciudad" value="'+v(b+'.ciudad')+'"></label></div>';
+}
+function vHijo(b,lvl){
+  const x=getP(b), dash=lvl===0&&x.hijastro;
+  let h='<div class="fc'+(dash?' dash':'')+'"><div class="ft"><span class="lvl">'+NIV[lvl]+'</span><button class="x" data-act="del" data-path="'+b+'">'+T.quitar+'</button></div>'+fPersona(b);
+  if(lvl===0)h+='<label class="chk"><input type="checkbox" data-k="'+b+'.hijastro" data-re'+(x.hijastro?' checked':'')+'> '+T.hijastro+'</label>';
+  if(lvl<2){
+    if(x.pareja){
+      h+='<div class="fc light"><div class="ft"><span class="lvl">'+T.suPareja+'</span><button class="x" data-act="del" data-path="'+b+'.pareja">'+T.quitar+'</button></div>'+fPersona(b+'.pareja',T.nombre)+'</div>';
+    } else h+='<button class="link" data-act="setpareja" data-path="'+b+'">'+T.masSuPareja+'</button>';
+    const hs=x.hijos||[];
+    if(hs.length)h+='<div class="kids">'+hs.map((_,i)=>vHijo(b+'.hijos.'+i,lvl+1)).join('')+'</div>';
+    h+='<button class="link" data-act="addhijo" data-path="'+b+'">'+(lvl===0?T.masNieto:T.masBisnieto)+'</button>';
+  }
+  return h+'</div>';
+}
+function vFamilia(){
+  const L=st.fam.parejas||[];
+  let h='<div class="card"><div class="fhead"><div><div class="tramo">'+T.tramo.fam+'</div><h2>'+T.famTitulo+'</h2></div></div>'+
+    '<p class="note" style="margin-bottom:14px">'+T.famNota+'</p><div class="fam">';
+  L.forEach((x,i)=>{
+    const b='fam.parejas.'+i;
+    h+='<div class="fc"><div class="ft"><b>'+T.pareja(i)+'</b><button class="x" data-act="del" data-path="'+b+'">'+T.quitar+'</button></div>'+fPersona(b,T.nombreBlanco);
+    const hs=x.hijos||[];
+    if(hs.length)h+='<div class="kids">'+hs.map((_,j)=>vHijo(b+'.hijos.'+j,0)).join('')+'</div>';
+    h+='<button class="link" data-act="addhijo" data-path="'+b+'">'+T.masHijo(x.nombre&&x.nombre.trim()?esc(x.nombre.trim()):'')+'</button></div>';
+  });
+  h+='<button class="btn s" data-act="addpareja">'+T.masPareja(L.length>0)+'</button></div></div>';
+  return h;
+}
+
+/* ===== Imágenes ===== */
+const IW=2480,IH=3508,MG=120;
+const K={navy:'#1B3A6B',gold:'#C4932A',gold2:'#A87A1E',cream:'#FAF7F0',gran:'#9A0117',ink:'#1A0E07',muted:'#6B5A45',goldl:'#EAD9AE',light:'#FBF6EA',card:'#FFFDF8'};
+const FS='"Crimson Pro", Georgia, serif', FT='"Cormorant Garamond", Georgia, serif';
+function nom(P){return P&&!P.nada&&typeof P.nombre==='string'&&P.nombre.trim()?P.nombre.trim():'';}
+function lugarTxt(P){if(!P||P.lugarNose)return ''; const a=(P.pob||'').trim(),b=(P.pais||'').trim(); return a&&b?a+' ('+b+')':a||b;}
+function anosTxt(P,n){
+  const h=P.aprox?T.hacia:'', a=(P.nac||'').trim(), m=(P.muer||'').trim();
+  const vivo=n===1||P.vive==='si';
+  if(vivo||P.vive==='nose')return a?(vivo?T.nac:T.nac+h)+a:'';
+  if(a&&m)return h+a+' – '+h+m; if(a)return T.nac+h+a; if(m)return T.muer+h+m; return '';
+}
+const SUP='⁰¹²³⁴⁵⁶⁷⁸⁹'; const sup=i=>String(i).split('').map(d=>SUP[+d]).join('');
+function lista(a){return a.length<2?a.join(''):a.slice(0,-1).join(', ')+T.y+a[a.length-1];}
+const fmt=x=>x.toLocaleString(T.lang,{maximumFractionDigits:1});
+function fnt(it){return (it.it?'italic ':'')+(it.wt||400)+' '+it.px+'px '+(it.fam||FS);}
+function wrap(c,t,w){const ws=String(t).split(/\s+/); const L=[]; let cur='';
+  for(const x of ws){const tr=cur?cur+' '+x:x; if(c.measureText(tr).width<=w||!cur)cur=tr; else {L.push(cur); cur=x;}} if(cur)L.push(cur); return L;}
+function lay(c,w,items){
+  const pad=Math.round(14+w*0.05); let h=pad; const out=[];
+  for(const it of items){ if(!it.t)continue; c.font=fnt(it);
+    let ls=wrap(c,it.t,w-2*pad); const mx=it.max||3; if(ls.length>mx){ls=ls.slice(0,mx); const z=ls[mx-1]; ls[mx-1]=(/\s/.test(z)?z.replace(/\s+\S*$/,''):z)+'…';}
+    ls.forEach(l=>{out.push({l,it,y:h+it.px*0.92}); h+=Math.round(it.px*1.2);}); h+=it.gap||3; }
+  return {out,h:h+pad-3};
+}
+function rr(c,x,y,w,h,r){c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();}
+function card(c,cx,top,w,L,s){
+  s=s||{}; rr(c,cx-w/2,top,w,L.h,Math.min(22,w*0.08));
+  c.fillStyle=s.fill||K.card; c.fill(); c.setLineDash(s.dash?[14,10]:[]); c.lineWidth=s.lw||3; c.strokeStyle=s.stroke||K.gold; c.stroke(); c.setLineDash([]);
+  c.textAlign='center'; c.textBaseline='alphabetic';
+  for(const o of L.out){c.font=fnt(o.it); c.fillStyle=o.it.col||K.ink; c.fillText(o.l,cx,top+o.y);}
+}
+function lienzo(titulo){
+  const cv=document.createElement('canvas'); cv.width=IW; cv.height=IH; const c=cv.getContext('2d');
+  c.fillStyle=K.cream; c.fillRect(0,0,IW,IH);
+  c.strokeStyle=K.gold; c.lineWidth=4; c.strokeRect(60,60,IW-120,IH-120);
+  c.textAlign='center'; c.fillStyle=K.navy; c.font='600 150px '+FT; c.fillText(titulo,IW/2,255);
+  const fam=nombreFamilia(); if(fam){c.fillStyle=K.gold2; c.font='italic 600 84px '+FT; c.fillText(fam,IW/2,360);}
+  c.strokeStyle=K.gold; c.lineWidth=2; c.beginPath(); c.moveTo(MG+200,IH-170); c.lineTo(IW-MG-200,IH-170); c.stroke();
+  c.fillStyle=K.muted; c.font='400 38px '+FS; c.fillText(T.pieImagen,IW/2,IH-110);
+  return [cv,c];
+}
+function rama(c,x1,y1,x2,y2,w,dash){const my=(y1+y2)/2; c.beginPath(); c.moveTo(x1,y1); c.bezierCurveTo(x1,my,x2,my,x2,y2); c.lineWidth=w; c.strokeStyle=K.navy; c.lineCap='round'; c.setLineDash(dash?[16,12]:[]); c.stroke(); c.setLineDash([]);}
+
+const GENS=[[T.gen.bis,[8,9,10,11,12,13,14,15]],[T.gen.abu,[4,5,6,7]],[T.gen.pad,[2,3]]];
+function cuenta(){
+  const L=[], P=n=>st.p[n]||{};
+  const ok=n=>!!nom(P(n));
+  let tot=0; const parts=[];
+  for(const [g,ns] of [...GENS,[T.gen.tu,[1]]]){const m={}; ns.filter(ok).forEach(n=>{const x=P(n); if(x.lugarNose)return; const l=(x.pob||'').trim()||(x.pais||'').trim(); if(l){m[l]=(m[l]||0)+1; tot++;}});
+    const ks=Object.keys(m).sort((a,b)=>m[b]-m[a]); if(ks.length)parts.push(g+', '+lista(ks.map(k=>m[k]>1?k+' ('+m[k]+')':k)));}
+  if(tot>=2)L.push(T.donde(parts.join('; ')));
+  const ed=[]; for(let n=2;n<16;n++){const x=P(n); if(!ok(n)||x.vive!=='no')continue; const a=parseInt(x.nac,10),m=parseInt(x.muer,10); if(a&&m&&m>=a)ed.push([m-a,nom(x)]);}
+  if(ed.length>=2){const med=Math.round(ed.reduce((s,e)=>s+e[0],0)/ed.length); const mx=ed.reduce((a,b)=>b[0]>a[0]?b:a); L.push(T.vividos(med,mx[1],mx[0]));}
+  tot=0; parts.length=0;
+  for(const [g,ns] of GENS){const o=[]; ns.filter(ok).forEach(n=>{const t=(P(n).oficio||'').trim(); if(t&&P(n).vive!=='si'){o.push(t.charAt(0).toLowerCase()+t.slice(1)); tot++;}}); if(o.length)parts.push(g+', '+lista([...new Set(o)]));}
+  if(tot>=2)L.push(T.oficios(parts.join('; ')));
+  tot=0; parts.length=0;
+  for(const [g,ns] of GENS){const m={}; ns.filter(ok).forEach(n=>{const e=P(n).estudios; if(e&&e!==T.estudioNose&&P(n).vive!=='si'){m[e]=(m[e]||0)+1; tot++;}}); const ks=Object.keys(m); if(ks.length)parts.push(g+', '+lista(ks.map(k=>k.toLowerCase()+(m[k]>1?' ('+m[k]+')':''))));}
+  if(tot>=2)L.push(T.estudiosC(parts.join('; ')));
+  tot=0; parts.length=0;
+  for(const [g,ns] of GENS){const hs=[]; for(let i=0;i<ns.length;i+=2){const ch=Math.floor(ns[i]/2), x=P(ch); const known=(x.nHer!==undefined&&String(x.nHer).trim()!=='')||(x.hermanos||[]).some(h=>h&&h.trim()); if(known){hs.push(1+nHer(x)); tot++;}}
+    if(hs.length)parts.push(g+', '+fmt(hs.reduce((a,b)=>a+b,0)/hs.length));}
+  if(tot>=2)L.push(T.hijosPareja(parts.join('; ')));
+  return L;
+}
+
+function personaArbol(n,sc,notas){
+  const P=st.p[n]||{}, nm=nom(P);
+  if(!nm)return [{t:'?',px:Math.round(64*sc),wt:600,fam:FT,col:K.gold2}];
+  let name=nm; const d=(P.destacar||'').trim();
+  if(d&&P.vive!=='si'){notas.push([nm,d]); name+=sup(notas.length);}
+  const it=[{t:name,px:Math.round(38*sc),wt:600,col:K.navy,max:3,gap:6},{t:anosTxt(P,n),px:Math.round(31*sc),max:1},{t:lugarTxt(P),px:Math.round(31*sc),it:true,col:K.muted,max:2}];
+  if(P.vive==='si')return it;
+  it.push({t:(P.oficio||'').trim(),px:Math.round(31*sc),max:2});
+  if(n<8){
+    if(P.estudios&&P.estudios!==T.estudioNose)it.push({t:P.estudios,px:Math.round(30*sc),col:K.muted,max:2});
+    const h=nHer(P); if(h)it.push({t:h+(h===1?T.hermano1:T.hermanosN),px:Math.round(30*sc),col:K.muted});
+    (P.parejas||[]).forEach((x,i)=>{if(!x.dir&&x.nombre&&x.nombre.trim())it.push({t:ord(i)+' '+(male(n)?T.esposa:T.esposo)+': '+x.nombre.trim()+(x.nac?', '+x.nac:''),px:Math.round(29*sc),col:K.muted,max:2});});
+  }
+  return it;
+}
+
+function dibujarArbol(){
+  const [cv,c]=lienzo(T.imgArbol); const notas=[];
+  const cfg={8:{w:262,sc:.9},4:{w:500,sc:1},2:{w:760,sc:1.1}};
+  const pos={}, lays={};
+  for(let i=8;i<16;i++)pos[i]=MG+(i-8+.5)*((IW-2*MG)/8);
+  for(let i=7;i>=2;i--)pos[i]=(pos[2*i]+pos[2*i+1])/2; pos[1]=(pos[2]+pos[3])/2;
+  const rowsY={}, hs={};
+  for(const base of [8,4,2]){
+    const f=cfg[base]; let hmax=0;
+    for(let n=base;n<base*2;n++){lays[n]=lay(c,f.w,personaArbol(n,f.sc,notas)); hmax=Math.max(hmax,lays[n].h);}
+    hs[base]=hmax;
+  }
+  const A=st.p[1]||{};
+  const aL=lay(c,640,[{t:nom(A)||T.tu,px:52,wt:600,col:'#fff',max:2,gap:6},{t:anosTxt(A,1),px:34,col:'#F3E3C3',max:1},{t:lugarTxt(A),px:32,it:true,col:'#F3E3C3',max:2}]);
+  const lines=cuenta(), bandEst=(lines.length||notas.length)?190+(lines.length+notas.length)*64:0;
+  const gap=Math.max(140,Math.min(330,(IH-280-(450+hs[8]+hs[4]+hs[2]+aL.h+190+bandEst))/4));
+  let y=450; for(const base of [8,4,2]){rowsY[base]=[y,hs[base]]; y+=hs[base]+gap;}
+  const aTop=y;
+  const top=n=>rowsY[n>=8?8:n>=4?4:2][0];
+  const bot=n=>top(n)+lays[n].h;
+  for(let i=1;i<8;i++)[2*i,2*i+1].forEach(p=>{const fy=i===1?aTop:top(i); rama(c,pos[i],fy+(i===1?0:10),pos[p],bot(p)-6,i===1?14:i<4?11:8);});
+  const tb=aTop+aL.h;
+  c.fillStyle=K.navy; c.beginPath(); c.moveTo(pos[1]-34,tb+190); c.quadraticCurveTo(pos[1]-14,tb+90,pos[1]-18,tb-10); c.lineTo(pos[1]+18,tb-10); c.quadraticCurveTo(pos[1]+14,tb+90,pos[1]+34,tb+190); c.closePath(); c.fill();
+  for(let n=2;n<16;n++){const base=n>=8?8:n>=4?4:2; const kn=!!nom(st.p[n]); card(c,pos[n],top(n),cfg[base].w,lays[n],kn?{}:{fill:K.light,stroke:K.goldl,dash:true});}
+  card(c,pos[1],aTop,640,aL,{fill:K.gran,stroke:K.gran});
+  const hn=(A.hermanos||[]).filter(h=>h&&h.trim()).map(h=>h.trim()), extra=Math.max(0,nHer(A)-hn.length);
+  const chips=hn.slice(0,extra||hn.length>6?5:6); const resto=hn.length-chips.length+extra;
+  if(resto>0)chips.push(chips.length?T.yMas(resto):resto+(resto===1?T.hermano1:T.hermanosN));
+  const cw=250, side=[[],[]]; chips.forEach((t,i)=>side[i%2].push(t));
+  side.forEach((ls,s)=>ls.forEach((t,j)=>{const L=lay(c,cw,[{t,px:34,wt:600,col:K.navy,max:2}]); const cx=s===0?pos[1]-320-20-cw/2-j*(cw+20):pos[1]+320+20+cw/2+j*(cw+20);
+    c.strokeStyle=K.navy; c.lineWidth=4; c.beginPath(); c.moveTo(s===0?cx+cw/2:cx-cw/2,aTop+aL.h/2); c.lineTo(s===0?cx+cw/2+20:cx-cw/2-20,aTop+aL.h/2); c.stroke();
+    card(c,cx,aTop+(aL.h-L.h)/2,cw,L,{fill:K.light});}));
+  let by=tb+190+Math.round(gap*.5)+70;
+  if(lines.length||notas.length){
+    c.textAlign='left'; c.fillStyle=K.navy; c.font='600 64px '+FT; c.fillText(T.cuenta,MG+40,by); by+=30;
+    c.strokeStyle=K.gold; c.lineWidth=2; c.beginPath(); c.moveTo(MG+40,by); c.lineTo(IW-MG-40,by); c.stroke(); by+=62;
+    const lim=IH-230;
+    const put=(t,it)=>{c.font=it?'italic 400 33px '+FS:'400 35px '+FS; c.fillStyle=it?K.muted:K.ink; for(const l of wrap(c,t,IW-2*MG-80)){if(by>lim)return; c.fillText(l,MG+40,by); by+=46;} by+=10;};
+    lines.forEach(t=>put(t)); if(notas.length&&lines.length)by+=10;
+    notas.forEach((x,i)=>put(sup(i+1)+' '+x[0]+': '+x[1],true));
+  }
+  return cv;
+}
+
+function famLlena(){let r=false; const has=x=>x&&typeof x.nombre==='string'&&x.nombre.trim(); const w=a=>(a||[]).forEach(x=>{if(has(x)||(x.pareja&&has(x.pareja)))r=true; w(x.hijos);}); w((st.fam||{}).parejas); return r;}
+function personaFam(x,sc,blanco){
+  const nm=x&&x.nombre&&x.nombre.trim();
+  const col=blanco?'#fff':K.navy, sub=blanco?'#F3E3C3':K.ink;
+  return [{t:nm||'?',px:Math.round(40*sc),wt:600,col,max:2,gap:5},{t:(x.nac||'').trim(),px:Math.round(32*sc),col:sub,max:1},{t:(x.ciudad||'').trim(),px:Math.round(31*sc),it:true,col:blanco?sub:K.muted,max:2}];
+}
+function dibujarFamilia(){
+  const [cv,c]=lienzo(T.imgFamilia);
+  const mk=(h,l)=>{const n={h,l,kids:(l<2?(h.hijos||[]):[]).map(k=>mk(k,l+1))}; n.lv=Math.max(1,n.kids.reduce((s,k)=>s+k.lv,0)); return n;};
+  const groups=(st.fam.parejas||[]).map(p=>{const g={p,kids:(p.hijos||[]).map(h=>mk(h,0))}; g.lv=Math.max(1,g.kids.reduce((s,k)=>s+k.lv,0)); return g;});
+  const cols=groups.reduce((s,g)=>s+g.lv,0)+1;
+  const colW=Math.min(600,(IW-2*MG)/cols), w=colW-30, sc=colW<330?.78:colW<450?.9:1;
+  const x0=MG+((IW-2*MG)-cols*colW)/2; let cur=0, ax=0;
+  const place=(n)=>{const s=cur; if(!n.kids.length){cur+=1;} else n.kids.forEach(place); if(cur-s<n.lv)cur=s+n.lv; n.x=x0+(s+n.lv/2)*colW;};
+  groups.forEach((g,i)=>{if(i===1){ax=x0+(cur+.5)*colW; cur++;} const s=cur; if(!g.kids.length)cur+=1; else g.kids.forEach(place); if(cur-s<g.lv)cur=s+g.lv; g.x=x0+(s+g.lv/2)*colW;});
+  if(groups.length<=1){ax=x0+(cur+.5)*colW; cur++;}
+  const pW=Math.min(560,colW*1.6>560?560:Math.max(w,420));
+  const pL=[2,3].map(n=>{const P=st.p[n]||{}; return lay(c,pW,personaFam({nombre:nom(P),nac:(P.nac||''),ciudad:(P.pob||P.pais||'')},1));});
+  const pTop=470, pH=Math.max(pL[0].h,pL[1].h);
+  const aW=Math.max(w,440), A=st.p[1]||{};
+  const aL=lay(c,aW,personaFam({nombre:nom(A)||T.tu,nac:A.nac||'',ciudad:A.pob||A.pais||''},1,true));
+  const gL=groups.map(g=>lay(c,w,personaFam(g.p,sc)));
+  const aTop=pTop+pH+150, aRowH=Math.max(aL.h,...gL.map(l=>l.h));
+  const lvls=[[],[],[]]; const walk=n=>{lvls[n.l].push(n); n.kids.forEach(walk);}; groups.forEach(g=>g.kids.forEach(walk));
+  const lvTop=[]; let yy=aTop+aRowH+170;
+  for(let l=0;l<3;l++){let mh=0; lvls[l].forEach(n=>{n.L=lay(c,w,personaFam(n.h,sc)); n.pL=n.h.pareja&&l<2?lay(c,w,personaFam(n.h.pareja,sc*.95)):null; n.bh=n.L.h+(n.pL?16+n.pL.h:0); mh=Math.max(mh,n.bh);}); lvTop[l]=yy; yy+=mh+170;}
+  const ln=(pts,dash,lw)=>{c.beginPath(); c.moveTo(pts[0][0],pts[0][1]); pts.slice(1).forEach(p=>c.lineTo(p[0],p[1])); c.strokeStyle=K.navy; c.lineWidth=lw||4; c.setLineDash(dash?[16,12]:[]); c.stroke(); c.setLineDash([]);};
+  const px=[ax-pW/2-30,ax+pW/2+30];
+  ln([[px[0],pTop+pH/2],[px[1],pTop+pH/2]]); ln([[ax,pTop+pH/2],[ax,aTop]]);
+  const cuelga=(fromX,fromY,kids,top,dashAll)=>{if(!kids.length)return; const by=top-80; ln([[fromX,fromY],[fromX,by]],dashAll);
+    const xs=kids.map(k=>k.x); ln([[Math.min(fromX,...xs),by],[Math.max(fromX,...xs),by]],dashAll);
+    kids.forEach(k=>ln([[k.x,by],[k.x,top]],dashAll||(k.l===0&&k.h.hijastro)));};
+  groups.forEach((g,i)=>{c.fillStyle=K.gold2; c.font='600 34px '+FS; c.textAlign='center';
+    if(i<2){const my=aTop+aRowH/2; ln([[ax,my],[g.x,my]]); c.fillText(ord(i),(ax+g.x)/2,my-14);}
+    else {const uy=aTop-45-(i-2)*28, sx=ax+aW/2-40-(i-2)*30; ln([[sx,aTop],[sx,uy],[g.x,uy],[g.x,aTop]]); c.fillText(ord(i),(sx+g.x)/2,uy-12);}});
+  groups.forEach((g,i)=>cuelga(g.x,aTop+gL[i].h,g.kids,lvTop[0],false));
+  const rec=(n,dash)=>{const d=dash||(n.l===0&&n.h.hijastro); if(n.kids.length)cuelga(n.x,lvTop[n.l]+n.bh,n.kids,lvTop[n.l+1],d); n.kids.forEach(k=>rec(k,d));};
+  groups.forEach(g=>g.kids.forEach(k=>rec(k,false)));
+  [2,3].forEach((n,i)=>card(c,i?ax+pW/2+30:ax-pW/2-30,pTop,pW,pL[i]));
+  card(c,ax,aTop,aW,aL,{fill:K.gran,stroke:K.gran});
+  groups.forEach((g,i)=>card(c,g.x,aTop,w,gL[i]));
+  const fich=(n,dash)=>{const d=dash||(n.l===0&&n.h.hijastro); card(c,n.x,lvTop[n.l],w,n.L,d?{dash:true,stroke:K.gold2}:{}); if(n.pL)card(c,n.x,lvTop[n.l]+n.L.h+16,w,n.pL,{fill:K.light,stroke:K.goldl,lw:2}); n.kids.forEach(k=>fich(k,d));};
+  groups.forEach(g=>g.kids.forEach(k=>fich(k,false)));
+  return cv;
+}
+
+const IMGS={};
+let genTok=0, gt;
+async function generar(){
+  const tok=++genTok;
+  try{await Promise.all(['600 80px "Cormorant Garamond"','italic 600 80px "Cormorant Garamond"','400 40px "Crimson Pro"','600 40px "Crimson Pro"','italic 400 40px "Crimson Pro"'].map(f=>document.fonts.load(f)));}catch(e){}
+  const jobs=[['A',dibujarArbol]]; if(famLlena())jobs.push(['B',dibujarFamilia]);
+  for(const [k,fn] of jobs){
+    let cv; try{cv=fn();}catch(e){console.error(e); errorNavegador('imagen '+k+': '+(e&&e.message)); continue;}
+    const b=await new Promise(r=>cv.toBlob(r,'image/jpeg',0.92)); if(tok!==genTok||!b)return;
+    if(IMGS[k]&&IMGS[k].url)URL.revokeObjectURL(IMGS[k].url);
+    IMGS[k]={blob:b,url:URL.createObjectURL(b)};
+    const im=$('#img'+k); if(im)im.src=IMGS[k].url;
+  }
+}
+main.addEventListener('input',e=>{if(e.target.dataset.k==='familia'){clearTimeout(gt); gt=setTimeout(generar,600);}});
+function vFinal(){
+  const fam=famLlena();
+  if(!st.familia){st.familia=sugerirFamilia(); try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}}
+  return '<div class="card final"><h2>'+T.listo+'</h2>'+
+    '<label class="fld"><span>'+T.tituloImg+'</span><input type="text" data-k="familia" value="'+esc(st.familia)+'" placeholder="'+T.tituloImgPh+'"></label>'+
+    '<div class="prevs'+(fam?'':' one')+'"><figure><img id="imgA" alt="'+T.imgArbol+'" data-act="ver" data-img="imgA"><figcaption>'+T.imgArbol+'</figcaption></figure>'+
+    (fam?'<figure><img id="imgB" alt="'+T.imgFamilia+'" data-act="ver" data-img="imgB"><figcaption>'+T.imgFamilia+'</figcaption></figure>':'')+'</div>'+
+    (fam?'':'<p class="small" style="margin:0"><a href="#familia" style="color:var(--navy);font-weight:600">'+T.anadirFam+'</a></p>')+
+    '<label class="chk"><input type="checkbox" id="consent"> '+T.menores+'</label>'+
+    '<div class="stack"><button class="btn p" id="dl" data-act="descargar" disabled>'+(fam?T.descargar2:T.descargar1)+'</button>'+
+    '<button class="btn s" data-act="guardar">'+T.guardarOtroDia+'</button></div>'+
+    '<a class="leyenda" href="https://www.locusmundi.com/" target="_blank" rel="noopener"><b>'+T.leyenda1+'</b><span>'+T.leyenda2a+'<u>'+T.leyenda2b+'</u>'+T.leyenda2c+'</span></a></div>';
+}
+async function descargar(){
+  if(!$('#consent')||!$('#consent').checked)return;
+  const fam=nombreFamilia(), f=hoy(), out=[['A',T.imgArbol]]; if(famLlena())out.push(['B',T.imgFamilia]);
+  for(const [k] of out){if(!IMGS[k]){toast(T.preparando); return;}}
+  for(const [k,t] of out){if(!(await saveFile(T.archivoImg(t,fam,f),IMGS[k].blob)))return;}
+  avisar({arbol:'descarga'}); // contador anónimo: una descarga = 1, sin ningún dato del árbol
+  toast(out.length>1?T.descargadas:T.descargada);
+}
+
+/* eventos */
+main.addEventListener('input',e=>{
+  const t=e.target, k=t.dataset.k; if(!k||t.type==='radio'||t.type==='checkbox')return;
+  setP(k,t.value); guardar();
+  if(t.hasAttribute('data-cnt')){const c=$('#cnt'); if(c)c.textContent=t.value.length+'/110';}
+  if(t.dataset.her){const n=+t.dataset.her,P=st.p[n],L=$('#herlist'); if(L){const want=parseInt(P.nHer,10)||0; for(let i=L.children.length;i<want;i++){const x=document.createElement('input'); x.type='text'; x.placeholder=T.hermanoN(i+1); x.dataset.k='p.'+n+'.hermanos.'+i; L.appendChild(x);}
+    while(L.children.length>Math.max(want,1)&&!L.lastElementChild.value.trim())L.lastElementChild.remove();
+    if(Array.isArray(P.hermanos)){P.hermanos.length=Math.min(P.hermanos.length,L.children.length); guardar();}}}
+  if(/\.(nombre|nHer|hermanos\.\d+)$/.test(k)&&$('#mini')){const r=ruta(); if(r.startsWith('p'))$('#mini').innerHTML=vMini(+r.slice(1));}
+});
+main.addEventListener('change',e=>{
+  const t=e.target, k=t.dataset.k;
+  if(t.id==='consent'){$('#dl').disabled=!t.checked; return;}
+  if(!k)return;
+  if(t.type==='checkbox')setP(k,t.checked); else setP(k,t.value);
+  guardar(); if(t.hasAttribute('data-re'))keepScroll(render);
+});
+function keepScroll(fn){const y=window.scrollY; fn(); window.scrollTo(0,y);}
+document.addEventListener('click',async e=>{
+  const go=e.target.closest('[data-go]'); if(go){ir(go.dataset.go); return;}
+  const a=e.target.closest('[data-act]'); if(!a)return;
+  const act=a.dataset.act, n=+a.dataset.n, path=a.dataset.path;
+  switch(act){
+    case 'empezar': st=nuevo(); guardar(); ir('p8'); break;
+    case 'seguir': ir(primeraPendiente()); break;
+    case 'reset':
+      if(await ask(T.confirmarReset,T.reset)){st=nuevo(); try{localStorage.removeItem(KEY);}catch(e){} guardar(); ir('p8');}
+      break;
+    case 'nada': st.p[n].nada=true; guardar(); ir(siguiente('p'+n)); break;
+    case 'desnada': st.p[n].nada=false; guardar(); keepScroll(render); break;
+    case 'vernom': st.p[n].verNombres=true; guardar(); keepScroll(render); focusLast('.plist input'); break;
+    case 'masher': {const P=st.p[n]; P.hermanos=P.hermanos||[]; const m=Math.max(parseInt(P.nHer,10)||0,P.hermanos.length,1); while(P.hermanos.length<m)P.hermanos.push(''); P.hermanos.push(''); if((parseInt(P.nHer,10)||0)<P.hermanos.length)P.nHer=String(P.hermanos.length); guardar(); keepScroll(render); focusLast('.plist input'); break;}
+    case 'otrapareja': parejasDe(n).push({nombre:'',nac:''}); guardar(); keepScroll(render); break;
+    case 'mv': {const L=parejasDe(n),i=+a.dataset.i,j=i+(+a.dataset.d); if(j<0||j>=L.length)break; [L[i],L[j]]=[L[j],L[i]]; guardar(); keepScroll(render); break;}
+    case 'del': {
+      const x=getP(path); const lleno=x&&(x.nombre||'').trim();
+      if(lleno&&!(await ask(T.confirmarQuitar(x.nombre.trim()),T.quitar)))break;
+      const ks=path.split('.'), last=ks.pop(), par=getP(ks.join('.'));
+      if(Array.isArray(par))par.splice(+last,1); else delete par[last];
+      guardar(); keepScroll(render); break;}
+    case 'addpareja': (st.fam.parejas=st.fam.parejas||[]).push({nombre:'',hijos:[]}); guardar(); keepScroll(render); break;
+    case 'addhijo': {const x=getP(path); (x.hijos=x.hijos||[]).push({nombre:''}); guardar(); keepScroll(render); break;}
+    case 'setpareja': getP(path).pareja={nombre:''}; guardar(); keepScroll(render); break;
+    case 'guardar': aArchivo(); break;
+    case 'abrir': $('#fopen').value=''; $('#fopen').click(); break;
+    case 'pieza2': ir('final'); break;
+    case 'descargar': descargar(); break;
+    case 'ver': {const im=$('#'+a.dataset.img); if(!im||!im.src)break; const d=document.createElement('div'); d.className='big'; d.innerHTML='<img alt="" src="'+im.src+'">'; d.onclick=()=>d.remove(); document.body.appendChild(d); break;}
+  }
+});
+function focusLast(sel){const l=document.querySelectorAll(sel); if(l.length)l[l.length-1].focus();}
+function primeraPendiente(){for(const n of ORDEN){const P=st.p[n]; if(!P.nada&&!(P.nombre&&P.nombre.trim()))return 'p'+n;} return 'listo';}
+
+/* archivo */
+function fecha(ts,corta){const d=new Date(ts); return d.getDate()+'/'+(d.getMonth()+1)+(corta?'':'/'+d.getFullYear());}
+function nombreFamilia(){
+  if(st.familia&&st.familia.trim())return st.familia.trim();
+  return sugerirFamilia();
+}
+function sugerirFamilia(){
+  const ap=n=>{const t=nom(st.p[n]).split(/\s+/); return t.length>1?t[1]:'';};
+  const a=[ap(2),ap(3)].filter(Boolean);
+  if(a.length)return T.familiaDe(a.join(' '));
+  const t=nom(st.p[1]).split(/\s+/); return t.length>1?T.familiaDe(t.slice(1).join(' ')):'';
+}
+/* descarga normal del navegador: enlace con «download» */
+function saveFile(name,blob){
+  try{const url=URL.createObjectURL(blob); const l=document.createElement('a'); l.href=url; l.download=name; l.rel='noopener'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); return Promise.resolve(true);}
+  catch(e){toast(T.noGuardado); return Promise.resolve(false);}
+}
+const hoy=()=>{const d=new Date(); return d.getDate()+'-'+(d.getMonth()+1)+'-'+d.getFullYear();};
+async function aArchivo(){
+  const d=new Date(), fam=nombreFamilia();
+  const data=JSON.stringify({app:'locusmundi-arbol',v:1,guardado:d.toISOString(),miembros:miembros(),arbol:st},null,1);
+  if(!(await saveFile(T.archivoArbol(fam,hoy()),new Blob([data],{type:'application/json'}))))return;
+  st.archivo=Date.now()+1; try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}
+  toast(T.guardado);
+  if(ruta()!=='final')keepScroll(render); else document.querySelectorAll('.remind').forEach(x=>x.remove());
+}
+$('#fopen').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f)return;
+  const rd=new FileReader();
+  rd.onload=async()=>{
+    let o; try{o=JSON.parse(rd.result);}catch(err){toast(T.noEsArbol); return;}
+    if(!o||o.app!=='locusmundi-arbol'||!o.arbol||!o.arbol.p){toast(T.noEsArbol); return;}
+    const nf=miembros(o.arbol), na=miembros();
+    if(na>0){
+      if(!(await ask(T.sustituir(fecha(Date.parse(o.guardado)||o.arbol.mod),nf,na,fecha(st.mod,true)),T.abrirlo)))return;
+    }
+    st=norm(o.arbol);
+    st.archivo=Date.now()+1; try{localStorage.setItem(KEY,JSON.stringify(st));}catch(err){}
+    st.mod=st.archivo-1;
+    toast(T.abierto); ir(primeraPendiente());
+  };
+  rd.readAsText(f);
+});
+
+/* diálogo y aviso */
+function ask(text,ok){
+  return new Promise(res=>{
+    const d=document.createElement('div'); d.className='dlg';
+    d.innerHTML='<div class="card" role="dialog" aria-modal="true"><p>'+esc(text)+'</p><div class="row"><button class="btn s" data-r="0">'+T.cancelar+'</button><button class="btn p" data-r="1">'+esc(ok)+'</button></div></div>';
+    d.addEventListener('click',e=>{const b=e.target.closest('[data-r]'); if(b||e.target===d){e.stopPropagation(); d.remove(); res(!!(b&&b.dataset.r==='1'));}});
+    document.body.appendChild(d); d.querySelector('[data-r="1"]').focus();
+  });
+}
+let tt;
+function toast(t){let el=$('.toast'); if(!el){el=document.createElement('div'); el.className='toast'; document.body.appendChild(el);} el.textContent=t; clearTimeout(tt); tt=setTimeout(()=>el.remove(),3800);}
+
+/* para el banco de pruebas (solo lectura de funciones puras) */
+window.__arbol={rel,rolCorto,miembros,cuenta,anosTxt,lugarTxt,sugerirFamilia,nombreFamilia,T,
+  estado:()=>st, dibujarArbol, dibujarFamilia};
+
+render();
+})();
+</script>
+</body>
+</html>
