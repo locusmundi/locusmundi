@@ -1,4 +1,8 @@
 // api/contador-historias.js — Locus Mundi
+// Versión 9 · 05/11/2026 · Fase C, «Árbol genealógico, construcción II» (contenido v2.5 §10 a).
+//  POST { arbol: 'descarga' } suma 1 a las descargas del árbol de hoy (función sumar_descarga_arbol; tabla
+//  cerrada `arbol_descargas`, una fila por día, tope 10 000/día). Anónimo: ni IP, ni cookie, ni datos del árbol.
+//  La cifra sale en el correo «ayer» (api/_actividad.js v2). Siempre responde 204.
 // Versión 8 · 27/10/2026 · Fase C, endurecimiento parte 3 (E3, registro de errores). Continuidad, sesión
 // "27/10/2026 (endurecimiento, parte 3)".
 //  POST { error: { mensaje, pagina } } guarda un fallo del navegador en la tabla cerrada `errores`
@@ -42,6 +46,11 @@ module.exports = async function handler(req, res) {
       let body = req.body;
       if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
       if (body && body.error) return await guardarError(body.error, SUPABASE_URL, SERVICE_KEY, res); // v8
+      if (body && body.arbol === 'descarga') { // v9
+        const r = await rpc('sumar_descarga_arbol');
+        if (!r.ok) console.error('contador-historias (árbol):', r.status);
+        return res.status(204).end();
+      }
       const id = String((body && body.historia_id) || '');
       if (!UUID_RE.test(id)) return res.status(400).json({ error: 'historia_id' });
       const r = await rpc('sumar_lectura', { p_historia_id: id.toLowerCase() });

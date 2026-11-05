@@ -1,4 +1,6 @@
 // api/_actividad.js — Locus Mundi
+// Versión 2 · 05/11/2026 · Fase C, «Árbol genealógico, construcción II»: línea «Árboles descargados» (ayer) y su
+// acumulado (actividad_dia: arbol_descargas y arbol_descargas_total; tabla arbol_descargas).
 // Versión 1 · 29/10/2026 · Fase C, endurecimiento (seguimiento de la actividad). Continuidad, sesión «29/10/2026
 // (endurecimiento, parte 9)», punto 10 (f), y sesión «29/10/2026 (seguimiento de la actividad)». Decisión de Javier:
 // solo correo (sin pestaña en admin.html), diario siempre (también con todo a cero: así confirma que `diario`
@@ -38,6 +40,7 @@ function texto(c) {
     ...compras.map(x => `  - ${NOMBRES[x.producto] || x.producto}: ${x.n} · ${eur(x.total_cent)}`),
     `Devoluciones: ${c.devoluciones.n} · ${eur(c.devoluciones.cent)}`,
     `Bajas: ${c.bajas}`,
+    `Árboles descargados: ${c.arbol_descargas || 0}`, // v2
   ];
   if (c.ventas_prueba) l.push(`(${c.ventas_prueba} compra(s) del modo de prueba de Stripe o de cuentas +test: no cuentan)`);
   l.push('', 'ACUMULADO (hoy)',
@@ -45,6 +48,7 @@ function texto(c) {
     `Con libro: ${c.autores_con_libro}`,
     `Con número de Autor: ${c.autores_con_numero}`,
     `Libros en la Biblioteca: ${c.biblioteca}`,
+    `Árboles descargados: ${c.arbol_descargas_total || 0}`, // v2
     `Ventas de ${mes}: ${c.mes_compras} · ${eur(c.mes_cobrado_cent)} · devuelto ${eur(c.mes_devuelto_cent)}`,
     '', 'Importes: total cobrado, con IVA. Control interno, no contable (para eso, el resumen semanal y mensual de ventas).');
   const asunto = `Locus Mundi: ayer (${d}/${m}) · altas ${c.altas} · publicaciones ${c.primeras_publicaciones} · compras ${nCompras}`;
