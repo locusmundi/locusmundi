@@ -4,6 +4,10 @@
 // cada petición se firma con las llaves R2_ACCESS_KEY_ID y R2_SECRET_ACCESS_KEY (firma AWS v4,
 // que es la que usa R2). El guion bajo hace que Vercel no lo publique como función.
 // Caducidad: una regla de R2 ("caducidad-35-dias") borra sola todo objeto a los 35 días.
+// Versión 1.1 · 05/11/2026 · Fase C (Lista, pendiente (i), parte 2: copia incremental de fotos).
+// Continuidad, sesión "05/11/2026 (copia incremental de fotos)". Nuevo copiar(origen, destino):
+// copia un objeto dentro de R2 sin bajarlo (CopyObject). La copia es un objeto nuevo: su plazo de
+// 35 días empieza de cero.
 
 const crypto = require('crypto');
 
@@ -21,7 +25,7 @@ function codificar(segmento) {
   return encodeURIComponent(segmento).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
 }
 
-async function peticion(metodo, clave, cuerpo, tipo) {
+async function peticion(metodo, clave, cuerpo, tipo, extra) {
   const id = process.env.R2_ACCESS_KEY_ID;
   const secreta = process.env.R2_SECRET_ACCESS_KEY;
   if (!id || !secreta) throw new Error('R2: faltan las llaves en Vercel');
@@ -34,6 +38,7 @@ async function peticion(metodo, clave, cuerpo, tipo) {
 
   const cab = { host: HOST, 'x-amz-content-sha256': hashCuerpo, 'x-amz-date': amzFecha };
   if (tipo) cab['content-type'] = tipo;
+  Object.assign(cab, extra || {}); // v1.1 (x-amz-copy-source)
   const nombres = Object.keys(cab).sort();
   const firmadas = nombres.join(';');
   const canonica = [metodo, ruta, '', nombres.map((n) => `${n}:${cab[n]}\n`).join(''), firmadas, hashCuerpo].join('\n');
@@ -65,4 +70,13 @@ async function leerTexto(clave) {
   return r.text();
 }
 
-module.exports = { subir, leerTexto, BUCKET };
+// v1.1. Copia un objeto dentro del almacén, sin bajarlo. Lanza un error si R2 no lo hace
+// (también si responde 200 con un error dentro, como permite S3 en las copias).
+async function copiar(origen, destino) {
+  const fuente = '/' + BUCKET + '/' + origen.split('/').map(codificar).join('/');
+  const r = await peticion('PUT', destino, null, null, { 'x-amz-copy-source': fuente });
+  const t = await r.text();
+  if (!r.ok || /<Error>/.test(t)) throw new Error(`R2 copiar ${origen}: ${r.status} ${t.slice(0, 200)}`);
+}
+
+module.exports = { subir, leerTexto, copiar, BUCKET };
