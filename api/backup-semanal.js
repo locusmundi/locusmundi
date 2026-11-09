@@ -1,5 +1,5 @@
 // api/backup-semanal.js — Locus Mundi
-// Versión 3.6 (cambios al final de esta cabecera).
+// Versión 3.7 (cambios al final de esta cabecera).
 // Versión 3 · 17/10/2026 · Fase B2, punto 6. Continuidad, sesión "17/10/2026 (conversación 5)".
 // Cambios respecto a la v2:
 //  - La copia va a Cloudflare R2 (locusmundi-copias, UE), no a GitHub: allí una regla borra cada
@@ -36,6 +36,10 @@
 //  - Cada copia sigue completa: la copia interna es un objeto nuevo y sus 35 días empiezan de
 //    cero (regla intacta); una foto borrada en Supabase ya no pasa a la copia siguiente
 //    (supresión intacta). fin.json anota fotos_bajadas, fotos_copiadas_r2 e indice_anterior.
+// Versión 3.7 · 09/11/2026 · Lista, pendiente (pp): copia también arbol_descargas (contador diario de
+//   descargas del Árbol, 05/11). restaurar.js no cambia: restaura las tablas que lista fin.json.
+//   Siguen fuera, regenerables o de control: errores, frases_aprobadas, moderaciones, registro_gasto,
+//   supresiones, traducciones_cache y veredictos_tramo.
 
 const { subir, leerTexto, copiar } = require('./_r2'); // v3.6: leerTexto y copiar
 const { avisar } = require('./_aviso');
@@ -57,6 +61,7 @@ const TABLAS = {
   paises: 'codigo', // v3.2
   regiones: 'codigo', // v3.2
   lecturas: 'historia_id', // v3.2
+  arbol_descargas: 'dia', // v3.7
 };
 const BUCKET_FOTOS = 'fotos';
 const TIEMPO_MAXIMO_MS = 270000; // v3.5 (antes 45000)
