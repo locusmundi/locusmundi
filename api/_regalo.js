@@ -1,4 +1,6 @@
 // api/_regalo.js — Locus Mundi
+// Versión 1.8 · 09/11/2026 · Precio del Plan Familiar: 25 € (antes 15 €; Javier, 09/11). Los correos a quien regala ya no
+//   llevan «15 €» escrito: dicen el importe real de la venta (importeTexto).
 // Versión 1.7 · 31/10/2026 · Firma corporativa (api/_firma.js) al pie de todos los correos (plantilla y texto plano); también
 //   en la confirmación de compra de api/pago.js, que usa esta plantilla (Lista, pendiente r). El pie de la plantilla ya no
 //   lleva «Locus Mundi · lema» (lo dice la firma; decisión de Javier); queda solo la frase de por qué recibe el correo.
@@ -30,7 +32,7 @@ const { avisar, enviarCorreo } = require('./_aviso');
 const { FIRMA_HTML, FIRMA_TEXTO } = require('./_firma'); // v1.7
 
 // --- Ajustes ---------------------------------------------------------------------------------------
-const PRECIO_REGALO = 1500;          // céntimos, IVA incluido
+const PRECIO_REGALO = 2500;          // céntimos, IVA incluido (v1.8; antes 1500)
 const PLAZO_MESES = 3;
 const TINTA_REGALO = 2;              // euros de tinta (carga de 5 €)
 const FOTOS_REGALO = 10;
@@ -65,6 +67,8 @@ const euros = (cent, idioma) => {
   const n = (cent / 100).toFixed(2);
   return idioma === 'EN' ? `€${n}` : `${n.replace('.', ',')} €`;
 };
+// v1.8: importe sin céntimos si es redondo («25 €», «€25»); si no, con ellos.
+const importeTexto = (cent, idioma) => (cent % 100 === 0 ? (idioma === 'EN' ? `€${cent / 100}` : `${cent / 100} €`) : euros(cent, idioma));
 
 // --- Correos ---------------------------------------------------------------------------------------
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -147,6 +151,7 @@ function correoRegala(r, tipo, extra) {
   const EN = r.idioma === 'EN';
   const R = esc(r.regala_nombre), D = esc(r.destinatario_nombre);
   const plazo = r.plazo ? fechaLarga(r.plazo, r.idioma) : '';
+  const T = importeTexto((extra && extra.total) || (r.ventas && r.ventas.total_cent) || PRECIO_REGALO, EN ? 'EN' : 'ES'); // v1.8
   const pie = EN ? 'You\'re receiving this email because you bought a gift on www.locusmundi.com.' : 'Recibes este correo porque has comprado un regalo en www.locusmundi.com.';
   let asunto; let lineas;
   if (!EN) {
@@ -154,15 +159,15 @@ function correoRegala(r, tipo, extra) {
       asunto = `Tu regalo para ${r.destinatario_nombre} ya está en camino`;
       lineas = [`Hola, ${R}:`,
         `Gracias por regalar el Plan Familiar de Locus Mundi a ${D}. Le hemos enviado un correo a <b>${esc(r.destinatario_email)}</b> con tu mensaje y el enlace para aceptarlo.`,
-        `Tiene hasta el <b>${plazo}</b> para aceptarlo. Si no lo acepta en ese plazo, o nos dice que no le interesa, te devolveremos los 15 € íntegros y borraremos sus datos.`,
-        'Mientras no lo acepte, puedes desistir de la compra en los 14 días siguientes y te devolveremos los 15 € íntegros: basta con responder a este correo.',
+        `Tiene hasta el <b>${plazo}</b> para aceptarlo. Si no lo acepta en ese plazo, o nos dice que no le interesa, te devolveremos los ${T} íntegros y borraremos sus datos.`,
+        `Mientras no lo acepte, puedes desistir de la compra en los 14 días siguientes y te devolveremos los ${T} íntegros: basta con responder a este correo.`,
         `Cuando ${D} lo acepte, empezará el servicio y ya no podrás desistir ni pedir la devolución. Así lo aceptaste al comprar, junto con las condiciones del regalo y las <a href="${WEB}/?legal=compra" style="color:#1B3A6B;">Condiciones de Compra</a>.`, // v1.3
         'El recibo y la factura te los envía directamente Link, el servicio de pagos de Stripe. En tu extracto aparecerá como LINK.COM* LOCUS MUNDI.',
         `Si la dirección de ${D} no es correcta, respóndenos a este correo.`];
     } else if (tipo === 'quince') {
       asunto = `${r.destinatario_nombre} aún no ha aceptado tu regalo`;
       lineas = [`Hola, ${R}:`, `${D} aún no ha aceptado el Plan Familiar que le regalaste; tiene hasta el <b>${plazo}</b>. Quizá quieras recordárselo.`,
-        'Si no lo acepta, te devolveremos los 15 € íntegros.'];
+        `Si no lo acepta, te devolveremos los ${T} íntegros.`];
     } else if (tipo === 'aceptado') {
       asunto = `${r.destinatario_nombre} ha aceptado tu regalo`;
       lineas = [`Hola, ${R}:`, `${D} ha aceptado el Plan Familiar que le regalaste. Ya puede empezar a escribir su historia en Locus Mundi.`, 'Gracias por regalarlo.'];
@@ -175,15 +180,15 @@ function correoRegala(r, tipo, extra) {
     asunto = `Your gift for ${r.destinatario_nombre} is on its way`;
     lineas = [`Hello ${R},`,
       `Thank you for giving ${D} the Locus Mundi Family Plan. We've sent an email to <b>${esc(r.destinatario_email)}</b> with your message and the link to accept it.`,
-      `They have until <b>${plazo}</b> to accept it. If they don't accept it by then, or tell us they're not interested, we'll refund you the full €15 and delete their details.`,
-      'As long as they haven\'t accepted it, you can withdraw from the purchase within 14 days and we\'ll refund the full €15: just reply to this email.',
+      `They have until <b>${plazo}</b> to accept it. If they don't accept it by then, or tell us they're not interested, we'll refund you the full ${T} and delete their details.`,
+      `As long as they haven't accepted it, you can withdraw from the purchase within 14 days and we'll refund the full ${T}: just reply to this email.`,
       `Once ${D} accepts it, the service begins and you can no longer withdraw or ask for a refund. You accepted this when you bought it, together with the gift terms and the <a href="${WEB}/?legal=compra" style="color:#1B3A6B;">Purchase Terms</a>.`, // v1.3
       'Your receipt and invoice are sent directly by Link, Stripe\'s payment service. It will appear on your statement as LINK.COM* LOCUS MUNDI.',
       `If ${D}'s email address isn't correct, reply to this email.`];
   } else if (tipo === 'quince') {
     asunto = `${r.destinatario_nombre} hasn't accepted your gift yet`;
     lineas = [`Hello ${R},`, `${D} hasn't accepted the Family Plan you gave them yet; they have until <b>${plazo}</b>. You may want to remind them.`,
-      'If they don\'t accept it, we\'ll refund you the full €15.'];
+      `If they don't accept it, we'll refund you the full ${T}.`];
   } else if (tipo === 'aceptado') {
     asunto = `${r.destinatario_nombre} has accepted your gift`;
     lineas = [`Hello ${R},`, `${D} has accepted the Family Plan you gave them. They can now start writing their story on Locus Mundi.`, 'Thank you for giving it.'];
@@ -228,7 +233,7 @@ module.exports = function regalos({ rest, stripe }) {
     const r = Object.assign({}, r0, { plazo });
     await enviar(r.destinatario_email, correoInvitacion(r, 'inicial')); // si falla, Stripe repite el aviso
     if (venta.comprador_email) {
-      await enviar(venta.comprador_email, correoRegala(r, 'confirmacion')).catch((e) => avisar('Locus Mundi: confirmación de regalo no enviada', `Regalo ${r.id}: ${e.message}`).catch(() => {}));
+      await enviar(venta.comprador_email, correoRegala(r, 'confirmacion', { total: venta.total_cent })).catch((e) => avisar('Locus Mundi: confirmación de regalo no enviada', `Regalo ${r.id}: ${e.message}`).catch(() => {}));
     }
   }
 
@@ -388,4 +393,4 @@ module.exports = function regalos({ rest, stripe }) {
 };
 
 module.exports.ajustes = { PRECIO_REGALO, PLAZO_MESES, TINTA_REGALO, FOTOS_REGALO };
-module.exports.utiles = { codigoDe, normalizar, huella, sumarMeses, correoInvitacion, correoRegala, plantilla, esc, euros, fechaLarga, FIRMA_TEXTO }; // v1.3: plantilla, esc, euros y fechaLarga; v1.7: FIRMA_TEXTO
+module.exports.utiles = { importeTexto, codigoDe, normalizar, huella, sumarMeses, correoInvitacion, correoRegala, plantilla, esc, euros, fechaLarga, FIRMA_TEXTO }; // v1.3: plantilla, esc, euros y fechaLarga; v1.7: FIRMA_TEXTO

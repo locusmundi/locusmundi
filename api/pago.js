@@ -1,4 +1,7 @@
 // api/pago.js — Locus Mundi
+// Versión 2.8 · 09/11/2026 · Precios nuevos (Javier, 09/11): fotos solo en lotes de 5 (10 €) y de 10 (18 €), antes
+//   1 €/foto en lotes de 5 a 20; PDF 7 € (antes 5 €). (Lista, pendiente bb) Si el lote no cabe y se devuelve, correo de
+//   devolución (correoDevolucion) en vez de la confirmación de compra.
 // Versión 2.7 · 31/10/2026 · Firma corporativa al pie del correo de confirmación: en el HTML la pone la plantilla de
 //   api/_regalo.js (v1.7); aquí, en el texto plano (Lista, pendiente r).
 // Versión 2.6 · 30/10/2026 · Textos de las casillas de desistimiento revisados por Javier (08:32), en la web y en el
@@ -49,10 +52,9 @@ const crearRegalos = require('./_regalo'); // v2
 
 // --- Ajustes ---------------------------------------------------------------------------------------
 const MAX_FOTOS_LIBRO = 20;          // = index.html
-const LOTES_FOTOS = [5, 10, 15, 20];
-const PRECIO_FOTO = 100;             // céntimos
+const LOTES_FOTOS = { 5: 1000, 10: 1800 }; // v2.8: fotos → céntimos del lote (antes [5,10,15,20] a 100 cada una)
 const CARGAS_ASISTENTE = { 5: 2, 10: 4 }; // euros pagados → euros de tinta (2 € por cada 5 €)
-const PRECIO_PDF = 500;
+const PRECIO_PDF = 700;              // v2.8; antes 500
 const DESCARGAS_POR_COMPRA = 15;     // = api/pdf.js
 const SIN_PDF = ['AR', 'ZH', 'JA', 'HI']; // = api/pdf.js
 // v2: fuera IVA_TIPO (21 % provisional). Managed Payments: el IVA lo calcula Stripe por el código fiscal.
@@ -180,10 +182,10 @@ async function abrir(b, req, res) {
   let total; let cant = 1;
   if (producto === 'fotos') {
     if (!historia) return res.status(409).json({ error: 'SIN_LIBRO' });
-    if (!LOTES_FOTOS.includes(cantidad)) return res.status(400).json({ error: 'CANTIDAD' });
+    if (!LOTES_FOTOS[cantidad]) return res.status(400).json({ error: 'CANTIDAD' });
     const fotos = await rest(`fotos?historia_id=eq.${historia}&select=id`);
     if (fotos.length + cantidad > MAX_FOTOS_LIBRO) return res.status(409).json({ error: 'MAX_FOTOS', quedan: MAX_FOTOS_LIBRO - fotos.length });
-    total = PRECIO_FOTO * cantidad; cant = cantidad;
+    total = LOTES_FOTOS[cantidad]; cant = cantidad;
   } else if (producto === 'asistente') {
     if (!CARGAS_ASISTENTE[cantidad]) return res.status(400).json({ error: 'CANTIDAD' });
     total = cantidad * 100; cant = 1;
@@ -322,8 +324,9 @@ async function entregar(sesion) {
   });
   if (!reclamada.length) return 'ya entregada';
   const v = reclamada[0];
+  let devuelta = false; // v2.8
   try {
-    if (v.producto === 'fotos') await entregarFotos(v, sesion);
+    if (v.producto === 'fotos') devuelta = (await entregarFotos(v, sesion)) === 'devuelta';
     else if (v.producto === 'asistente') await entregarTinta(v);
     else if (v.producto === 'pdf') await entregarPdf(v);
     else if (v.producto === 'plan_familiar') { await completarImportes(v).catch(() => {}); await REG().alPagar(v); } // v2: comisión antes (devolución)
@@ -333,10 +336,10 @@ async function entregar(sesion) {
   }
   await completarImportes(v).catch(() => {}); // comisión, neto y país de la tarjeta: no impide la entrega
   if (v.producto !== 'plan_familiar' && v.comprador_email) { // v2.3: confirmación (el regalo tiene la suya en api/_regalo.js)
-    await enviarCorreo(Object.assign({ para: v.comprador_email, de: 'compras' }, correoCompra(v)))
-      .catch((e) => avisar('Locus Mundi: confirmación de compra no enviada', `Venta ${v.id}: ${e.message}`).catch(() => {}));
+    await enviarCorreo(Object.assign({ para: v.comprador_email, de: 'compras' }, devuelta ? correoDevolucion(v) : correoCompra(v))) // v2.8
+      .catch((e) => avisar(`Locus Mundi: ${devuelta ? 'correo de devolución' : 'confirmación de compra'} no enviado`, `Venta ${v.id}: ${e.message}`).catch(() => {}));
   }
-  return 'entregada';
+  return devuelta ? 'devuelta' : 'entregada';
 }
 
 // v2.3: correo de confirmación de la compra (ES/EN), con la misma plantilla que los del regalo.
@@ -381,6 +384,31 @@ function correoCompra(v) {
   return { asunto, html: U.plantilla(idioma, lineas.map(p), pie), texto };
 }
 
+// v2.8 (pendiente bb): el lote de fotos no cabía y se ha devuelto entero.
+function correoDevolucion(v) {
+  const U = crearRegalos.utiles;
+  const EN = v.idioma === 'EN';
+  const idioma = EN ? 'EN' : 'ES';
+  const nombre = NOMBRE.fotos[idioma](v.cantidad);
+  const fecha = U.fechaLarga(v.pagada_en || new Date(), idioma);
+  const importe = U.euros(v.total_cent, idioma);
+  let asunto; let lineas; let pie;
+  if (!EN) {
+    asunto = 'Te hemos devuelto el importe de tu compra en Locus Mundi';
+    lineas = ['Hola:',
+      `No hemos podido añadir a tu libro las fotos que compraste (<b>${U.esc(nombre)}</b>, ${importe}, el ${fecha}): tu libro ya no las admitía, porque caben hasta 20 por libro. Te hemos devuelto el importe íntegro; lo verás en tu tarjeta en 5 a 10 días.`];
+    pie = 'Recibes este correo porque has hecho una compra en www.locusmundi.com.';
+  } else {
+    asunto = 'We\'ve refunded your Locus Mundi purchase';
+    lineas = ['Hello,',
+      `We couldn't add the photos you bought to your book (<b>${U.esc(nombre)}</b>, ${importe}, on ${fecha}): your book could no longer take them, as each book holds up to 20. We've refunded the full amount; you'll see it on your card within 5 to 10 days.`];
+    pie = 'You\'re receiving this email because you made a purchase on www.locusmundi.com.';
+  }
+  const p = (x) => `<p style="margin:0 0 14px;">${x}</p>`;
+  const texto = lineas.map((l) => l.replace(/<[^>]+>/g, '')).join('\n\n') + `\n\n${U.FIRMA_TEXTO}`;
+  return { asunto, html: U.plantilla(idioma, lineas.map(p), pie), texto };
+}
+
 async function entregarFotos(v, sesion) {
   const ya = await rest(`fotos?historia_id=eq.${v.historia_id}&select=orden,lote_compra_id`);
   const deEsta = ya.filter((f) => f.lote_compra_id === v.id).length;
@@ -390,7 +418,7 @@ async function entregarFotos(v, sesion) {
     await stripe('POST', 'refunds', { payment_intent: sesion.payment_intent, metadata: { venta_id: v.id, motivo: 'MAX_FOTOS' } });
     await rest(`ventas?id=eq.${v.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ estado: 'devuelta', devuelta_en: new Date().toISOString(), devolucion_cent: v.total_cent }) });
     await avisar('Locus Mundi: fotos devueltas', `Venta ${v.id}: el lote no cabía en el libro ${v.historia_id}; devuelto entero.`).catch(() => {});
-    return;
+    return 'devuelta'; // v2.8
   }
   let orden = ya.length ? Math.max(...ya.map((f) => Number(f.orden) || 0)) + 1 : 1;
   const filas = [];
@@ -506,4 +534,4 @@ module.exports = async function handler(req, res) {
   }
 };
 module.exports._util = { rest, stripe }; // v2: para api/diario.js (regalos)
-module.exports._pruebas = { firmaValida, formulario, desglose, importeEnEuros, impuestosDe, lineaDePago, correoCompra }; // v2.3: correoCompra
+module.exports._pruebas = { firmaValida, formulario, desglose, importeEnEuros, impuestosDe, lineaDePago, correoCompra, correoDevolucion }; // v2.8: correoDevolucion // v2.3: correoCompra
