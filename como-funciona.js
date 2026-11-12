@@ -1,4 +1,7 @@
-// LOCUS MUNDI — «Cómo funciona» / «How it works» (v1, 30/10/2026)
+// LOCUS MUNDI — «Cómo funciona» / «How it works» (v2, 12/11/2026)
+// v2 · 12/11/2026 · Pruebas de usuario v1.2: C1, precios vigentes (09/11) en las pantallas 6 y 9 (antes «1 € cada una, en lotes de 5»
+//   y «5 €»); M8, «se guarda automáticamente» (antes «se guarda solo» / «saves itself»). Ref.: Continuidad, sesión «12/11/2026».
+// v1 · 30/10/2026 · Primera versión.
 // Presentación por pantallas: se elige «Leer» (3) o «Escribir» (10). Solo se carga al pulsar el enlace
 // del Inicio (index.html, ComoFuncionaEnlace). Capturas en /como-funciona/<es|en>-<leer|escribir>-<n>.webp (4:3).
 // Textos cerrados con Javier (Continuidad, sesión «30/10/2026 (mejoras de la web, parte 1)», punto 3).
@@ -23,11 +26,11 @@
         ["Revisa tu correo", "Te enviamos un enlace: ábrelo para entrar por primera vez. Si no lo ves, mira en la carpeta de spam."],
         ["Datos del libro", "Elige tu nombre de Autor (así firmarás), el título y, si quieres, una portada. Todo se puede cambiar después."],
         ["Condiciones de Publicación", "Léelas con calma: son cortas. Acéptalas y empieza a escribir."],
-        ["El editor", "Empieza donde quieras y ordena tu historia en capítulos con «+ Capítulo» y en apartados con «+ Apartado». Todo se guarda solo mientras escribes."],
-        ["Fotos", "Añade fotografías a tu libro y colócalas donde quieras del texto, con su pie. Cuestan 1 € cada una, en lotes de 5, y caben hasta 20 por libro. La portada es gratis."],
+        ["El editor", "Empieza donde quieras y ordena tu historia en capítulos con «+ Capítulo» y en apartados con «+ Apartado». Todo se guarda automáticamente mientras escribes."],
+        ["Fotos", "Añade fotografías a tu libro y colócalas donde quieras del texto, con su pie. Se compran en lotes: 5 fotos por 10 € o 10 por 18 €. Caben hasta 20 por libro. La portada es gratis."],
         ["Dales vida a tus fotos viejas", "Con el editor de fotos con IA puedes restaurar una foto vieja (rayas, manchas, luz), darle color o las dos cosas. Pasarla a blanco y negro o a sepia es gratis."],
         ["El Asistente editorial (opcional)", "Si quieres ayuda, el Asistente editorial te corrige, te ayuda a ordenar y te escucha si prefieres dictar. Pagas solo lo que usas, desde 5 €."],
-        ["Tu libro en PDF", "Crea un archivo PDF de tu libro, en DIN A4 o A5, para imprimirlo o regalarlo. Cuesta 5 €, con 15 descargas."],
+        ["Tu libro en PDF", "Crea un archivo PDF de tu libro, en DIN A4 o A5, para imprimirlo o regalarlo. Cuesta 7 €, con 15 descargas."],
         ["Publica mientras escribes", "No esperes a terminar: sube ya a la Biblioteca tus primeras páginas y recibirás tu número de Autor. Antes, una revisión automática comprueba el texto. Después, sigue escribiendo y sube los cambios cuando quieras. También puedes compartir el enlace de tu libro con tus contactos."]
       ]
     },
@@ -46,11 +49,11 @@
         ["Check your email", "We'll send you a link: open it to sign in for the first time. If you can't see it, check your spam folder."],
         ["Your book's details", "Choose your Author name (how you'll sign your book), a title and, if you like, a cover. You can change everything later."],
         ["Publication Terms", "Take your time: they're short. Accept them and start writing."],
-        ["The editor", "Start wherever you like and organise your story into chapters with “+ Chapter” and sections with “+ Section”. Everything saves itself as you write."],
-        ["Photos", "Add photos to your book and place them anywhere in the text, with a caption. They cost €1 each, in sets of 5, up to 20 per book. The cover is free."],
+        ["The editor", "Start wherever you like and organise your story into chapters with “+ Chapter” and sections with “+ Section”. Everything is saved automatically as you write."],
+        ["Photos", "Add photos to your book and place them anywhere in the text, with a caption. They come in packs: 5 photos for €10 or 10 for €18. Up to 20 per book. The cover is free."],
         ["Bring your old photos to life", "With the AI photo editor you can restore an old photo (scratches, stains, lighting), colour it, or both. Switching to black and white or sepia is free."],
         ["The editorial Assistant (optional)", "If you'd like help, the editorial Assistant corrects, helps you organise and listens if you'd rather dictate. You only pay for what you use, from €5."],
-        ["Your book as a PDF", "Create a PDF of your book, in A4 or A5, to print it or give it as a gift. It costs €5, with 15 downloads."],
+        ["Your book as a PDF", "Create a PDF of your book, in A4 or A5, to print it or give it as a gift. It costs €7, with 15 downloads."],
         ["Publish as you write", "Don't wait until you've finished: upload your first pages to the Library now and you'll receive your Author number. First, an automatic review checks the text. Then keep writing and upload your changes whenever you like. You can also share your book's link with your contacts."]
       ]
     }
