@@ -1,4 +1,8 @@
 // api/pago.js — Locus Mundi
+// Versión 2.9 · 12/11/2026 · Devolución completa de un lote de fotos hecha desde Stripe (desistimiento, paso a real D):
+//   se quitan los huecos vacíos y sin colocar de ese lote (Javier: «deben desaparecer»); si alguno ya tiene imagen o
+//   está colocado, no se toca y llega un aviso interno. PDF: si no se ha bajado ninguna de sus 15 descargas, se quitan
+//   (sin compra anterior, fuera la fila de pdf_compras); si no, aviso. Asistente (devolución parcial): aviso, a mano.
 // Versión 2.8 · 09/11/2026 · Precios nuevos (Javier, 09/11): fotos solo en lotes de 5 (10 €) y de 10 (18 €), antes
 //   1 €/foto en lotes de 5 a 20; PDF 7 € (antes 5 €). (Lista, pendiente bb) Si el lote no cabe y se devuelve, correo de
 //   devolución (correoDevolucion) en vez de la confirmación de compra.
@@ -477,6 +481,35 @@ async function completarImportes(v) {
   await rest(`ventas?id=eq.${v.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(cambios) });
 }
 
+// v2.9: devolución completa desde Stripe (panel o Link). Fotos: fuera los huecos del lote vacíos y sin colocar;
+// los usados se quedan y se avisa. PDF: fuera sus descargas si no se usó ninguna. Asistente: aviso (a mano).
+async function alDevolverProducto(v) {
+  if (v.producto === 'fotos') {
+    const huecos = await rest(`fotos?lote_compra_id=eq.${v.id}&select=id,url,bloque_id`);
+    const libres = huecos.filter((f) => !f.url && !f.bloque_id).map((f) => f.id);
+    if (libres.length) await rest(`fotos?id=in.(${libres.join(',')})`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+    const usados = huecos.length - libres.length;
+    if (usados > 0) await avisar('Locus Mundi: devolución con fotos usadas', `Venta ${v.id}: quitados ${libres.length} huecos; ${usados} ya tienen imagen o están colocados y se han dejado. Revisar a mano.`).catch(() => {});
+    return;
+  }
+  if (v.producto === 'pdf') {
+    const [c] = await rest(`pdf_compras?historia_id=eq.${v.historia_id}&venta_id=eq.${v.id}&select=descargas`);
+    if (!c) return; // otra compra posterior ya la sustituyó: nada que quitar sin revisar
+    const hechas = (await rest(`pdf_descargas?historia_id=eq.${v.historia_id}&select=id`)).length;
+    const antes = c.descargas - DESCARGAS_POR_COMPRA; // descargas de compras anteriores (0 si es la primera)
+    if (hechas > antes) {
+      await avisar('Locus Mundi: devolución de un PDF ya descargado', `Venta ${v.id}: devuelta desde Stripe, pero ya se ha bajado el PDF de esta compra. Revisar a mano.`).catch(() => {});
+      return;
+    }
+    if (antes <= 0) await rest(`pdf_compras?historia_id=eq.${v.historia_id}&venta_id=eq.${v.id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+    else await rest(`pdf_compras?historia_id=eq.${v.historia_id}&venta_id=eq.${v.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ descargas: antes }) });
+    return;
+  }
+  if (v.producto === 'asistente') {
+    await avisar('Locus Mundi: devolución del Asistente', `Venta ${v.id} devuelta desde Stripe: ajustar la tinta a mano.`).catch(() => {});
+  }
+}
+
 async function aviso(evento) {
   const o = evento.data && evento.data.object;
   if (!o) return 'vacío';
@@ -496,6 +529,7 @@ async function aviso(evento) {
       if (!o.payment_intent) return 'devuelta';
       const w = await rest(`ventas?stripe_pago=eq.${o.payment_intent}`, { method: 'PATCH', headers: devolver, body: JSON.stringify({ estado: 'devuelta', devuelta_en: new Date().toISOString(), devolucion_cent: o.amount_refunded }) });
       if (w.length && w[0].producto === 'plan_familiar') return REG().alDevolverFuera(w[0].id); // v2: desistimiento (panel o Link)
+      if (w.length && o.refunded === true) await alDevolverProducto(w[0]).catch((e) => avisar('Locus Mundi: fallo al devolver', `Venta ${w[0].id}: ${e.message}`).catch(() => {})); // v2.9
       return 'devuelta';
     }
     case 'charge.dispute.created':
