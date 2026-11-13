@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Locus Mundi — Admin</title>
+<!-- v5.3 · 13/11/2026: «Suprimir» enseña antes la frase o frases enteras que se quitarán y pide confirmación; la cita puede ir sin la puntuación de los extremos (api/admin.js v5.6; leves (dd)+(ee)). -->
 <!-- v5.2 · 28/10/2026: «Retirar» deja el libro bloqueado (el Autor no puede volver a subirlo) y nueva acción «Levantar la retirada» (api/admin.js v5.2; Lista 8.3, opción A). Marcas [R8.3]. -->
 <!-- v5.1 · 28/10/2026: la referencia de la denuncia se acepta también copiada con la palabra «Referencia» delante (Lista 8.3). -->
 <!-- v5 · 25/10/2026: "Suprimir un pasaje", aviso al Autor (DSA art. 17) y "Resolver una denuncia" (api/admin.js v5). -->
@@ -47,7 +48,7 @@
 <div id="campoCita" style="display:none">
   <label>Pasaje que se suprime (copiado tal cual)</label>
   <textarea id="cita"></textarea>
-  <div class="nota">Copia la frase entera, con su puntuación. Debe aparecer una sola vez en el texto.</div>
+  <div class="nota">Basta un trozo que aparezca una sola vez: se quitará la frase entera que lo contiene, y antes verás exactamente qué se quita.</div>
 </div>
 
 <div id="campoTexto" style="display:none">
@@ -139,6 +140,19 @@ async function enviar() {
   };
   if (!body.motivo) { caja.className = 'res error'; caja.textContent = 'El motivo es obligatorio.'; return; }
   if (accion === 'suprimir' && !body.cita.trim()) { caja.className = 'res error'; caja.textContent = 'Falta el pasaje.'; return; }
+  // v5.3 (dd)+(ee): primero, qué se quitaría (sin cambiar nada).
+  if (accion === 'suprimir') {
+    caja.className = 'res'; caja.textContent = 'Buscando el pasaje...';
+    try {
+      const r = await fetch('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, previa: true }) });
+      const data = await r.json();
+      if (!r.ok) { caja.className = 'res error'; caja.textContent = 'Error: ' + data.error; return; }
+      caja.textContent = 'Se quitará: «' + data.previa + '»';
+      if (!confirm('Se quitará del libro esto (la frase o frases enteras):\n\n«' + data.previa + '»\n\n¿Suprimirlo? Queda registrado de forma permanente.')) { caja.textContent = ''; return; }
+    } catch (e) { caja.className = 'res error'; caja.textContent = 'Error de red: ' + e.message; return; }
+    llamar(body, caja);
+    return;
+  }
   if (!confirm('¿Seguro? Esta acción queda registrada de forma permanente.')) { caja.textContent = ''; return; }
   llamar(body, caja);
 }
