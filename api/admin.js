@@ -1,4 +1,9 @@
 // api/admin.js — Locus Mundi
+// Versión 5.6 · 13/11/2026 · Leves (dd)+(ee) de «Suprimir»: (dd) si la cita no está tal cual, se busca sin la
+//   puntuación ni los espacios de los extremos, con comillas, guiones y espacios tipográficos como iguales;
+//   (ee) lo que se quita es siempre la frase o frases enteras que contienen la cita, nunca un trozo. Con
+//   `previa: true` no cambia nada y devuelve lo que se quitaría (admin.html lo enseña y pide confirmación).
+//   El aviso al Autor cita lo quitado y le dice que puede rehacer el pasaje (pasa por la revisión).
 // Versión 5.5 · 13/11/2026 · Las respuestas a los correos al Autor y a quien denunció van a contacto@locusmundi.com
 //   (antes, al Gmail del proyecto; ImprovMX las reenvía al mismo buzón). Nada más cambia.
 // Versión 5.4 · 31/10/2026 · Firma corporativa (api/_firma.js) al pie de los correos al Autor y a quien denunció (todos
@@ -55,9 +60,60 @@ const { huellasVigentes } = require("./_tramos"); // compartido con traducir.js 
 // v5: quita una cita del texto y arregla los espacios que deja.
 // v5.1: si la cita deja un párrafo con solo puntuación (p. ej. el punto final no copiado), se quita también.
 // Original: sin la línea de los párrafos de solo puntuación.
+// v5.6 (dd)+(ee): dónde está la cita y qué frase(s) enteras la contienen. Devuelve { exacta } con el
+// texto tal cual aparece (para quitarlo con quitarCita) o { error }.
+const COMILLAS = "\"'«»“”‘’„", GUIONES = "-‐–—";
+function patronFlexible(cita) {
+  const limpia = String(cita).replace(/^[\s.,;:!?…«»“”‘’„"'()\[\]\-‐–—]+|[\s.,;:!?…«»“”‘’„"'()\[\]\-‐–—]+$/g, "");
+  if (limpia.length < 3) return null;
+  let p = "";
+  for (const ch of limpia) {
+    if (/\s/.test(ch)) { if (!p.endsWith("\\s+")) p += "\\s+"; }
+    else if (COMILLAS.includes(ch)) p += "[" + COMILLAS.replace(/[\]\\^-]/g, "\\$&") + "]";
+    else if (GUIONES.includes(ch)) p += "[\\-‐–—]";
+    else p += ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  return new RegExp(p, "g");
+}
+function ampliarAFrases(texto, ini, fin) {
+  const parIni = texto.lastIndexOf("\n\n", ini - 1) + 1 > 0 ? texto.lastIndexOf("\n\n", ini - 1) + 2 : 0;
+  let parFin = texto.indexOf("\n\n", fin); if (parFin === -1) parFin = texto.length;
+  const par = texto.slice(parIni, parFin);
+  // Fin de frase: . ! ? … (y comillas o paréntesis de cierre) seguidos de espacio y de algo que empieza en
+  // mayúscula o cifra (también tras raya o comillas). «¿Vienes? —preguntó» no corta.
+  const cortes = [];
+  const re = /[.!?…]+[»”"’)\]]*(?=\s+[«“"‘(\-‐–—]*[\p{Lu}\p{N}¿¡])/gu;
+  let m; while ((m = re.exec(par))) cortes.push(parIni + m.index + m[0].length);
+  let a = parIni; for (const c of cortes) if (c <= ini) a = c;
+  let b = parFin; for (const c of cortes) if (c >= fin) { b = c; break; }
+  // Si la cita acaba justo antes de su punto, el punto va con ella.
+  const resto = texto.slice(fin, b);
+  if (b === parFin && /^[.!?…»”"’)\]\s]*$/.test(resto)) b = parFin;
+  return texto.slice(a, b).trim();
+}
+function localizarPasaje(texto, cita) {
+  cita = String(cita || "");
+  let ini = -1, fin = -1;
+  const veces = cita.trim().length >= 3 ? texto.split(cita).length - 1 : 0;
+  if (veces === 1) { ini = texto.indexOf(cita); fin = ini + cita.length; }
+  else if (veces > 1) return { error: `La cita aparece ${veces} veces: alárgala para que sea única.` };
+  else {
+    const re = patronFlexible(cita);
+    if (!re) return { error: "La cita es demasiado corta." };
+    const hall = [...texto.matchAll(re)];
+    if (hall.length > 1) return { error: `La cita aparece ${hall.length} veces: alárgala para que sea única.` };
+    if (!hall.length) return { error: "La cita no está en el texto escrito (ni siquiera sin la puntuación de los extremos)." };
+    ini = hall[0].index; fin = ini + hall[0][0].length;
+  }
+  const exacta = ampliarAFrases(texto, ini, fin);
+  if (texto.split(exacta).length - 1 !== 1) return { error: "No se ha podido aislar la frase: cópiala entera." };
+  return { exacta };
+}
+
 function quitarCita(texto, cita) {
   return texto.replace(cita, "").replace(/[ \t]{2,}/g, " ").replace(/ +([.,;:!?»”)])/g, "$1")
     .replace(/(^|\n)[ \t]*[.,;:!?…»”"')\]]+[ \t]*(?=\n|$)/g, "$1")
+    .replace(/[ \t]+(?=\n|$)/g, "").replace(/(^|\n)[ \t]+/g, "$1") // v5.6: sin espacios al principio ni al final de un párrafo
     .replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "");
 }
 
@@ -154,14 +210,12 @@ module.exports = async function handler(req, res) {
     // v5: "suprimir" = "modificar" con el texto sin la cita (que debe aparecer una sola vez).
     let accionReal = accion;
     if (accion === "suprimir") {
-      const cita = String(req.body.cita || "");
       const texto = String((historiaActual.contenido && historiaActual.contenido.text) || "");
-      const veces = cita ? texto.split(cita).length - 1 : 0;
-      if (cita.trim().length < 3 || veces !== 1) {
-        res.status(400).json({ error: veces > 1 ? `La cita aparece ${veces} veces: alárgala para que sea única.` : "La cita no está, tal cual, en el texto escrito." });
-        return;
-      }
-      nuevo_texto = quitarCita(texto, cita);
+      const loc = localizarPasaje(texto, req.body.cita); // v5.6 (dd)+(ee)
+      if (loc.error) { res.status(400).json({ error: loc.error }); return; }
+      if (req.body.previa === true) { res.status(200).json({ previa: loc.exacta }); return; } // v5.6: sin cambiar nada
+      req.body.cita = loc.exacta; // lo que se quita (y se cita al Autor y en admin_log): la frase entera
+      nuevo_texto = quitarCita(texto, loc.exacta);
       accionReal = "modificar";
     }
 
@@ -340,7 +394,7 @@ async function avisarAutor(historiaId, { medida, cita, motivo_decision, base, or
     `\n\nMotivo: ${motivo_decision}. Base: ${base || "apartado 4 de las Condiciones de Publicación"}. ` +
     `La decisión se ha tomado ${origen === "denuncia" ? "a raíz de una denuncia" : "por iniciativa de Locus Mundi"}, y la ha tomado una persona, sin medios automatizados.` +
     `\n\nSi no estás de acuerdo, responde a este correo con tus razones y la revisaremos. También puedes acudir a los tribunales. ` +
-    (pasaje ? "Tu libro sigue publicado sin ese pasaje. " : "Puedes seguir trabajando en él, pero no podrás volver a subirlo mientras siga retirado. ") + // [R8.3]
+    (pasaje ? "Tu libro sigue publicado sin ese pasaje. Si quieres, puedes reescribirlo y volver a subir el libro: pasará la revisión habitual. " /* v5.6 */ : "Puedes seguir trabajando en él, pero no podrás volver a subirlo mientras siga retirado. ") + // [R8.3]
     `Lo demás de tu cuenta sigue igual.`; // v5.4: sin «Locus Mundi» (firma)
   await correo(email, `Cambio en tu libro «${titulo}»`, text);
 }
