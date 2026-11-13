@@ -1,4 +1,8 @@
 // api/traducir.js — Locus Mundi
+// Versión 3.5 · 13/11/2026 · Leves (aa): la raya (—) del diálogo se manda a la IA como guion medio (–),
+//   la norma de Locus Mundi, que la IA sí reconoce como diálogo (salvo inglés, chino y japonés de origen).
+//   Al inglés, el diálogo va entre comillas curvas, nunca con guiones. La caché no cambia (la huella es
+//   la del original); lo ya traducido no se rehace solo.
 // Versión 3.4 · 27/10/2026 · Euskera (EU): idioma de origen y de destino.
 // Versión 3.3 · 26/10/2026 · TEST de los pendientes de index.html: Flash-Lite devolvió en gallego, sin
 //   traducir, los tramos del libro de Olegario pedidos en español, y se guardaron en la caché.
@@ -92,7 +96,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // ─── Instrucciones ──────────────────────────────────────────────────────
 
 function instruccionTramo(destino, origen) { // v3.3: con el idioma de origen
-  return `Traduce ${origen ? `del ${origen} ` : ''}al ${destino} este fragmento de una autobiografía publicada. Haz una traducción fiel, clara y natural, que conserve la voz y el tono de quien escribe, sin adornarla, resumirla ni añadir nada. Adapta la puntuación del diálogo y las comillas a la convención propia del ${destino}. Mantén los nombres propios de personas y lugares como en el original. Las líneas entre corchetes, como [FOTO 2], son marcas técnicas: cópialas exactamente igual, cada una en su propia línea. Las líneas que empiezan por ¶ (capítulo) o § (apartado) son títulos: conserva el signo al principio de la línea y traduce solo el texto que lo sigue. Conserva la separación entre párrafos (una línea en blanco) y los guiones bajos de la cursiva (_así_). Todo el texto debe quedar en ${destino}: no dejes ninguna frase en el idioma original. Devuelve solo la traducción, sin comentarios.`;
+  return `Traduce ${origen ? `del ${origen} ` : ''}al ${destino} este fragmento de una autobiografía publicada. Haz una traducción fiel, clara y natural, que conserve la voz y el tono de quien escribe, sin adornarla, resumirla ni añadir nada. Adapta la puntuación del diálogo y las comillas a la convención propia del ${destino}.${destino === 'inglés' ? ' En inglés, el diálogo va entre comillas curvas (“ ”), nunca con guiones ni rayas.' : ''} Mantén los nombres propios de personas y lugares como en el original. Las líneas entre corchetes, como [FOTO 2], son marcas técnicas: cópialas exactamente igual, cada una en su propia línea. Las líneas que empiezan por ¶ (capítulo) o § (apartado) son títulos: conserva el signo al principio de la línea y traduce solo el texto que lo sigue. Conserva la separación entre párrafos (una línea en blanco) y los guiones bajos de la cursiva (_así_). Todo el texto debe quedar en ${destino}: no dejes ninguna frase en el idioma original. Devuelve solo la traducción, sin comentarios.`;
 }
 
 function instruccionCabecera(destino) {
@@ -240,10 +244,16 @@ function pareceSinTraducir(original, traduccion) {
 
 // Dos intentos: el modelo de siempre y, si no vale, el de respaldo (v3.3).
 // Devuelve { contenido, coste, modelo }; contenido es null si ninguno vale.
+// v3.5 (aa): la raya de diálogo (—), como guion medio (–), igual que al leer (lectura.js, formatDashes).
+function paraLaIA(texto, origen) {
+  if (['inglés', 'chino simplificado', 'japonés'].includes(origen)) return texto;
+  return String(texto).replace(/—/g, '–');
+}
+
 async function traducirTramo(texto, destino, origen) {
   let coste = 0;
   for (const modelo of [MODELO, MODELO_RESPALDO]) {
-    const r = await llamarGemini(instruccionTramo(destino, origen), texto, false, modelo);
+    const r = await llamarGemini(instruccionTramo(destino, origen), paraLaIA(texto, origen), false, modelo); // v3.5
     coste += r.coste;
     if (!r.texto || !mismaEstructura(texto, r.texto)) { console.error('Traducción con estructura distinta;', modelo); continue; }
     if (pareceSinTraducir(texto, r.texto)) { console.error('Traducción casi igual al original (sin traducir);', modelo); continue; }

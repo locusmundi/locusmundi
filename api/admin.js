@@ -1,4 +1,6 @@
 // api/admin.js — Locus Mundi
+// Versión 5.5 · 13/11/2026 · Las respuestas a los correos al Autor y a quien denunció van a contacto@locusmundi.com
+//   (antes, al Gmail del proyecto; ImprovMX las reenvía al mismo buzón). Nada más cambia.
 // Versión 5.4 · 31/10/2026 · Firma corporativa (api/_firma.js) al pie de los correos al Autor y a quien denunció (todos
 //   los de correo()): HTML con el logo y texto plano sin imagen. Sin el «Locus Mundi» final (lo dice la firma); la
 //   identificación «Locus Mundi · Alastuey & Morera Asociados, S.L.» del 3.2 se conserva (Lista, pendiente r).
@@ -302,7 +304,7 @@ async function correo(to, subject, text) {
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: "Locus Mundi <avisos@locusmundi.com>", to, reply_to: INTERNO, subject, ...conFirma(text) }), // v5.4: html y text con la firma
+    body: JSON.stringify({ from: "Locus Mundi <avisos@locusmundi.com>", to, reply_to: "contacto@locusmundi.com", subject, ...conFirma(text) }) /* v5.5 */, // v5.4: html y text con la firma
   });
   if (!r.ok) throw new Error(await r.text());
 }

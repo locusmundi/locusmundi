@@ -1,4 +1,6 @@
 // api/enviar-formulario.js — Locus Mundi
+// Versión 3.3 · 13/11/2026 · La respuesta al acuse de la denuncia va a contacto@locusmundi.com (antes, al Gmail del
+//   proyecto; ImprovMX la reenvía al mismo buzón). Los avisos internos, sin cambios.
 // Versión 3.2 · 31/10/2026 · Firma corporativa (api/_firma.js) al pie del acuse de la denuncia (HTML con el logo y texto
 //   plano sin imagen), el único correo de este archivo que va fuera; los avisos internos, sin firma (Lista, pendiente r).
 // Versión 3.1 · 29/10/2026 · Sin la dirección de producción de reserva: sin SUPABASE_URL, error
@@ -127,7 +129,7 @@ async function denuncia(req, res) {
       await enviarCorreo({
         from: "Locus Mundi <avisos@locusmundi.com>",
         to: email,
-        reply_to: INTERNO,
+        reply_to: "contacto@locusmundi.com", // v3.3
         subject: en ? "We have received your report" : "Hemos recibido tu denuncia",
         ...conFirma(en
           ? `We have received your report about ${obra}, on ${cuando}, for the reason “${mot}”. A person will examine it, without automated means, and we will let you know the decision and the reason for it. Reference: ${corto}.\n\nLocus Mundi · Alastuey & Morera Asociados, S.L.`
