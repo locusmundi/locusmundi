@@ -1,4 +1,6 @@
 // api/_firma.js — Locus Mundi
+// Versión 1.2 · 13/11/2026 · Pruebas de usuario C3 a: la firma lleva contacto@locusmundi.com (ImprovMX reenvía a
+//   contactlocusmundi@gmail.com). Nada más cambia.
 // Versión 1.1 · 31/10/2026 · Logo transparente. Versión 1 · 31/10/2026 · Fase C, Lista pendiente (r). Continuidad, sesión «31/10/2026 (cuentas vacías en real y
 // «más leídos»)», punto 4. Firma corporativa al pie de los correos que reciben Autores y compradores (no en los
 // internos: api/_aviso.js avisar()). HTML: la de firma-locus-mundi-figura.html, tal cual (en inglés, con el logo).
@@ -16,13 +18,13 @@ const FIRMA_HTML = `<table cellpadding="0" cellspacing="0" border="0" style="bor
       <div style="font-size:13px;line-height:20px;color:#555555;">
         <a href="https://www.locusmundi.com" style="color:#1B3A6B;text-decoration:none;">www.locusmundi.com</a>
         &nbsp;·&nbsp;
-        <a href="mailto:contactlocusmundi@gmail.com" style="color:#1B3A6B;text-decoration:none;">contactlocusmundi@gmail.com</a>
+        <a href="mailto:contacto@locusmundi.com" style="color:#1B3A6B;text-decoration:none;">contacto@locusmundi.com</a>
       </div>
     </td>
   </tr>
 </table>`;
 
-const FIRMA_TEXTO = '-- \nLocus Mundi Team\nRemember · Tell · Publish · Share\nwww.locusmundi.com · contactlocusmundi@gmail.com';
+const FIRMA_TEXTO = '-- \nLocus Mundi Team\nRemember · Tell · Publish · Share\nwww.locusmundi.com · contacto@locusmundi.com';
 
 const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 

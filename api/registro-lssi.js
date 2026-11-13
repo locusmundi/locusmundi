@@ -1,4 +1,5 @@
 // api/registro-lssi.js — Locus Mundi
+// Versión 2.3 · 13/11/2026 · Pruebas de usuario C3 a: respuestas a contacto@locusmundi.com. Nada más cambia.
 // Versión 2.2 · 31/10/2026 · Firma corporativa (api/_firma.js) al pie del correo «Has eliminado tu libro…» (HTML con el
 //   logo y texto plano sin imagen), sin el «Locus Mundi» final (Lista, pendiente r).
 // Versión 2.1 · 29/10/2026 · Sin la dirección de producción de reserva: sin SUPABASE_URL, error
@@ -129,7 +130,7 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         from: "Locus Mundi <avisos@locusmundi.com>",
         to: para,
-        reply_to: "contactlocusmundi@gmail.com",
+        reply_to: "contacto@locusmundi.com",
         subject,
         ...conFirma(text), // v2.2: html y text con la firma
       }),

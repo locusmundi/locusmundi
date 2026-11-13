@@ -1,4 +1,6 @@
 // api/_aviso.js — Locus Mundi
+// Versión 5.1 · 13/11/2026 · Pruebas de usuario C3 a: las respuestas de los correos a clientes van a contacto@locusmundi.com
+//   (ImprovMX reenvía a contactlocusmundi@gmail.com). Los avisos internos siguen yendo al Gmail. Nada más cambia.
 // Versión 5 · 28/10/2026 · Endurecimiento, parte 6: avisar() admite un adjunto (CSV del resumen mensual de
 // ventas, api/_ventas.js). Sin adjunto, como antes.
 // Versión 4 · 24/10/2026 · Fase C, conversación C3-III: enviarCorreo() admite `de` (remitente), para las
@@ -30,7 +32,7 @@ async function avisar(asunto, texto, adjunto) {
 
 // v3: correo a una persona (HTML y texto). `para`: una dirección.
 async function enviarCorreo({ para, asunto, html, texto, de }) {
-  return resend({ from: `Locus Mundi <${de || 'regalos'}@locusmundi.com>`, to: para, reply_to: 'contactlocusmundi@gmail.com', subject: asunto, html, text: texto });
+  return resend({ from: `Locus Mundi <${de || 'regalos'}@locusmundi.com>`, to: para, reply_to: 'contacto@locusmundi.com', subject: asunto, html, text: texto });
 }
 
 module.exports = { avisar, enviarCorreo };
