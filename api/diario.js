@@ -34,6 +34,8 @@
 // aunque esté todo a cero. Si no se puede preparar o enviar, cuenta como fallo del vigía.
 // Versión 1.12 · 31/10/2026 · «Más leídos» (Continuidad, sesión «31/10/2026 (gasto de IA, «más leídos» y Alex)», punto 3):
 // paso «Lecturas», avisa si un libro suma más de 200 lecturas en un día (función lecturas_del_dia, que guarda la foto del día).
+// Versión 1.12 · 14/11/2026 · El vigía comprueba la web en www.locusmundi.com (antes, locusmundi.vercel.app, que ahora
+//   redirige a www: vercel.json).
 // Versión 1.11 · 31/10/2026 · Cuentas vacías: archivos borrados y carpetas sin Autor en el informe (_cuentas.js v1.1).
 // Versión 1.10 · 31/10/2026 · Condición de lanzamiento n.º 3 (Lista, pendiente q): cuentas vacías (api/_cuentas.js):
 // sin historia, aviso a los 6 meses y borrado de la cuenta 3 meses después. Si alguna falla, cuenta como fallo.
@@ -50,7 +52,7 @@ const { cuentasVacias } = require('./_cuentas'); // v1.10
 
 const { modelosEnUso, modelosSinPrecio } = require('./_modelos'); // v1.1
 const MODELOS = modelosEnUso();
-const WEB = 'https://locusmundi.vercel.app/';
+const WEB = 'https://www.locusmundi.com/'; // v1.12
 const DIAS_MAXIMOS_COPIA = 8;
 const DIAS_MAXIMOS_PENDIENTE = 7; // v1.5
 const DIA = 86400000;
