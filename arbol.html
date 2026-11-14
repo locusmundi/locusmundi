@@ -11,6 +11,8 @@
      (el pie de la web lo pasa en inglés) y, si no, el del navegador, como la web. Fechas y nombres de archivo por
      idioma (en inglés, «5 Nov 2026» y 2026-11-05); «tu/your» en minúscula con T.minus; los estudios guardados en otro
      idioma se pasan al de la página al abrir. Pie de la imagen en inglés: «My family tree · Locus Mundi · locusmundi.com».
+     v1.3 · 14/11/2026 (pruebas de usuario, parte 4): (y) aviso si el país no está en la lista; (ii) aviso si el padre murió
+     más de un año antes de nacer su hijo o la madre antes; (hh) con ?lang= explícito, translate="no"; M11 «← Locus Mundi» enlazado.
      Nada del árbol sale del dispositivo: se guarda en localStorage (lm_arbol_v1) y en el archivo .json. -->
 <html lang="es">
 <head>
@@ -52,7 +54,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 header .wrap{display:flex;align-items:center;gap:10px;padding-block:8px}
 header svg.ico{width:34px;height:34px;flex:none}
 header h1{font-size:1.18rem;flex:1;min-width:0;line-height:1.1}
-header h1 small{display:block;font-family:"Crimson Pro",serif;font-size:.72rem;color:var(--muted);font-weight:400;letter-spacing:.06em;text-transform:uppercase}
+header h1 .marca{display:block;width:max-content;text-decoration:none;font-family:"Crimson Pro",serif;font-size:.72rem;color:var(--muted);font-weight:400;letter-spacing:.06em;text-transform:uppercase}
 .hbtn{border:1px solid var(--line);background:var(--card);border-radius:20px;padding:4px 12px;font-size:.85rem;color:var(--navy);cursor:pointer;white-space:nowrap}
 .tramos{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
 .tramos::-webkit-scrollbar{display:none}
@@ -185,7 +187,7 @@ html,body{margin:0}
 <header>
   <div class="wrap">
     <a href="/" aria-label="Locus Mundi" style="display:flex"><svg class="ico"><use href="#ico"/></svg></a>
-    <h1><small id="h-marca">Locus Mundi</small><span id="h-titulo">Mi árbol genealógico</span></h1>
+    <h1><a id="h-marca" class="marca" href="/">← Locus Mundi</a><span id="h-titulo">Mi árbol genealógico</span></h1>
     <button class="hbtn" data-act="guardar" id="hguardar" hidden>Guardar</button>
   </div>
   <div class="wrap"><nav class="tramos" id="tramos" hidden></nav></div>
@@ -206,7 +208,7 @@ html,body{margin:0}
 const TEXTOS={es:{
   lang:'es',
   tituloPagina:'Mi árbol genealógico · Locus Mundi',
-  marca:'Locus Mundi', titulo:'Mi árbol genealógico',
+  marca:'← Locus Mundi', titulo:'Mi árbol genealógico',
   guardar:'Guardar', guardarAria:'Guardar mi árbol en un archivo',
   anterior:'‹ Anterior', siguiente:'Siguiente ›', terminarArbol:'Terminar Mi árbol ›', irFamilia:'Mi familia ›', verImagenes:'Ver mis imágenes ›',
   estudios:['Sin estudios reglados','Primarios','Secundarios / Bachillerato','Formación profesional','Universitarios','No lo sé'],
@@ -275,8 +277,11 @@ const TEXTOS={es:{
   avMuerte:'Murió antes de nacer: revisa los años.',
   avHijo:q=>'Tiene menos de 12 años más que '+q+': revisa el año.',
   avVivo:'Si vive, tendría más de 120 años: revisa el año.',
+  avAntesTi:'Murió antes de que nacieras: revisa los años.',
+  avAntes:q=>'Murió antes de que naciera '+q+': revisa los años.',
+  avPais:'¿Es un país? La población va en la casilla de al lado.',
   ti:'tú',
-  revisarTit:'Antes de ver tu árbol, revisa estos años:',
+  revisarTit:'Antes de ver tu árbol, revisa estos datos:',
   abrirlo:'Abrirlo', abierto:'Árbol abierto.', cancelar:'Cancelar',
   minus:x=>x.replace(/^Tu /,'tu '),
   fecha:(d,corta)=>d.getDate()+'/'+(d.getMonth()+1)+(corta?'':'/'+d.getFullYear()),
@@ -285,7 +290,7 @@ const TEXTOS={es:{
 en:{
   lang:'en',
   tituloPagina:'My family tree · Locus Mundi',
-  marca:'Locus Mundi', titulo:'My family tree',
+  marca:'← Locus Mundi', titulo:'My family tree',
   guardar:'Save', guardarAria:'Save my tree to a file',
   anterior:'‹ Back', siguiente:'Next ›', terminarArbol:'Finish My tree ›', irFamilia:'My family ›', verImagenes:'See my images ›',
   estudios:['No formal schooling','Primary','Secondary / High school','Vocational training','University','I don’t know'],
@@ -354,15 +359,18 @@ en:{
   avMuerte:'Died before being born: check the years.',
   avHijo:q=>'Less than 12 years older than '+q+': check the year.',
   avVivo:'If still living, would be over 120: check the year.',
+  avAntesTi:'Died before you were born: check the years.',
+  avAntes:q=>'Died before '+q+' was born: check the years.',
+  avPais:'Is this a country? The town or city goes in the next box.',
   ti:'you',
-  revisarTit:'Before you see your tree, check these years:',
+  revisarTit:'Before you see your tree, check these details:',
   abrirlo:'Open it', abierto:'Tree opened.', cancelar:'Cancel',
   minus:x=>x.replace(/^Your /,'your '),
   fecha:(d,corta)=>d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+(corta?'':' '+d.getFullYear()),
   fechaArchivo:d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')
 }};
 /* idioma: ?lang=en|es (el pie de la web lo pasa en inglés); si no, el del navegador, como la web */
-const IDIOMA=(()=>{try{const q=new URLSearchParams(location.search).get('lang'); if(q&&TEXTOS[q.toLowerCase()])return q.toLowerCase();}catch(e){}
+const IDIOMA=(()=>{try{const q=new URLSearchParams(location.search).get('lang'); if(q&&TEXTOS[q.toLowerCase()]){document.documentElement.setAttribute('translate','no'); return q.toLowerCase();}}catch(e){} // (hh) idioma elegido: que Chrome no lo traduzca
   return String(navigator.language||'es').slice(0,2).toLowerCase()==='en'?'en':'es';})();
 const T=TEXTOS[IDIOMA];
 
@@ -382,15 +390,17 @@ window.addEventListener('unhandledrejection',e=>errorNavegador('promesa: '+((e&&
 
 /* textos fijos de la página */
 document.documentElement.lang=T.lang; document.title=T.tituloPagina;
-$('#h-marca').textContent=T.marca; $('#h-titulo').textContent=T.titulo;
+$('#h-marca').textContent=T.marca; if(IDIOMA==='en')$('#h-marca').href='/?lang=en'; $('#h-titulo').textContent=T.titulo;
 $('#hguardar').textContent=T.guardar; $('#hguardar').setAttribute('aria-label',T.guardarAria);
 $('#prev').textContent=T.anterior;
 
 /* países */
+const PAISES=new Set(); function normPais(x){return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
 (function(){
   let dn=null; try{dn=new Intl.DisplayNames([T.lang],{type:'region'});}catch(e){}
   const names=CODES.map(c=>{let n=c; try{n=dn?dn.of(c):c;}catch(e){} return n;}).sort((a,b)=>a.localeCompare(b,T.lang));
   $('#paises').innerHTML=names.map(n=>'<option value="'+esc(n)+'">').join('');
+  names.forEach(n=>PAISES.add(normPais(n)));
 })();
 
 /* estado */
@@ -518,15 +528,17 @@ function avisos(n){
   if(a&&m&&m<a)L.push(T.avMuerte);
   if(n>1&&a){const c=Math.floor(n/2), h=ano((st.p[c]||{}).nac); if(h&&!(st.p[c]||{}).nada&&a>h-12)L.push(T.avHijo(c===1?T.ti:T.minus(rel(c))));}
   if(a&&(n===1||P.vive==='si')&&ahora-a>120)L.push(T.avVivo);
+  if(n>1&&m){const c=Math.floor(n/2), h=ano((st.p[c]||{}).nac); if(h&&!(st.p[c]||{}).nada&&(male(n)?h-m>=2:m<h))L.push(c===1?T.avAntesTi:T.avAntes(T.minus(rel(c))));} // (ii) padre, más de un año antes; madre, antes
   return L;
 }
 const vAvisos=n=>'<p class="aviso" id="av">'+avisos(n).map(esc).join(' ')+'</p>';
+function avisoPais(base){const x=String(getP(base+'.pais')||'').trim(); return x&&!getP(base+'.lugarNose')&&PAISES.size&&!PAISES.has(normPais(x))?T.avPais:'';} // (y) sin bloquear
 function fLugar(base){
   const nose=getP(base+'.lugarNose');
   return '<div class="fld"><span>'+T.lugarNac+'</span><div class="row">'+
     '<input type="text" list="paises" placeholder="'+T.pais+'" data-k="'+base+'.pais" value="'+v(base+'.pais')+'"'+(nose?' disabled':'')+' autocomplete="off">'+
     '<input type="text" placeholder="'+T.poblacion+'" data-k="'+base+'.pob" value="'+v(base+'.pob')+'"'+(nose?' disabled':'')+'></div>'+
-    '<label class="chk"><input type="checkbox" data-k="'+base+'.lugarNose" data-re'+(nose?' checked':'')+'> '+T.nose+'</label></div>';
+    '<label class="chk"><input type="checkbox" data-k="'+base+'.lugarNose" data-re'+(nose?' checked':'')+'> '+T.nose+'</label><p class="aviso" data-avp="'+base+'">'+esc(avisoPais(base))+'</p></div>';
 }
 function fNombre(base,ph){return '<label class="fld"><span>'+T.nombre+'</span><input type="text" data-k="'+base+'.nombre" value="'+v(base+'.nombre')+'" placeholder="'+(ph||T.nombrePh)+'" autocomplete="off"></label>';}
 const fAno=(b,lab,campo,ph)=>'<label class="fld yr"><span>'+lab+'</span><input type="text" inputmode="numeric" maxlength="4"'+(ph?' placeholder="'+ph+'"':'')+' data-k="'+b+'.'+campo+'" value="'+v(b+'.'+campo)+'"></label>';
@@ -602,7 +614,7 @@ function vListo(){
 }
 
 function vRevisar(){
-  const L=ORDEN.map(n=>[n,avisos(n)]).filter(x=>x[1].length);
+  const L=ORDEN.map(n=>[n,avisos(n).concat(st.p[n]&&!st.p[n].nada&&avisoPais('p.'+n)||[])]).filter(x=>x[1].length);
   if(!L.length)return '';
   return '<div class="revisar"><p>'+T.revisarTit+'</p><ul>'+L.map(([n,a])=>'<li><a href="#p'+n+'">'+esc(rel(n))+'</a>: '+a.map(esc).join(' ')+'</li>').join('')+'</ul></div>';
 }
@@ -857,6 +869,7 @@ main.addEventListener('input',e=>{
   const t=e.target, k=t.dataset.k; if(!k||t.type==='radio'||t.type==='checkbox')return;
   setP(k,t.value); guardar();
   if(/\.(nac|muer)$/.test(k)&&t.value.length===4)refrescarAvisos(k);
+  refrescarPais(k,true);
   if(t.hasAttribute('data-cnt')){const c=$('#cnt'); if(c)c.textContent=t.value.length+'/110';}
   if(t.dataset.her){const n=+t.dataset.her,P=st.p[n],L=$('#herlist'); if(L){const want=parseInt(P.nHer,10)||0; for(let i=L.children.length;i<want;i++){const x=document.createElement('input'); x.type='text'; x.placeholder=T.hermanoN(i+1); x.dataset.k='p.'+n+'.hermanos.'+i; L.appendChild(x);}
     while(L.children.length>Math.max(want,1)&&!L.lastElementChild.value.trim())L.lastElementChild.remove();
@@ -871,7 +884,8 @@ main.addEventListener('change',e=>{
   guardar(); if(t.hasAttribute('data-re'))keepScroll(render);
   refrescarAvisos(k);
 });
-function refrescarAvisos(k){const m=/^p\.(\d+)\.(nac|muer)$/.exec(k||''), av=$('#av'); if(m&&av)av.textContent=avisos(+m[1]).join(' ');}
+function refrescarPais(k,soloQuitar){const m=/^(.+)\.(pais|lugarNose)$/.exec(k||''); if(!m)return; const el=document.querySelector('[data-avp="'+m[1]+'"]'); if(!el)return; const t=avisoPais(m[1]); if(!soloQuitar||!t)el.textContent=t;}
+function refrescarAvisos(k){refrescarPais(k); const m=/^p\.(\d+)\.(nac|muer)$/.exec(k||''), av=$('#av'); if(m&&av)av.textContent=avisos(+m[1]).join(' ');}
 function keepScroll(fn){const y=window.scrollY; fn(); window.scrollTo(0,y);}
 document.addEventListener('click',async e=>{
   const go=e.target.closest('[data-go]'); if(go){ir(go.dataset.go); return;}
