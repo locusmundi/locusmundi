@@ -1,4 +1,7 @@
 // api/pago.js — Locus Mundi
+// Versión 2.10 · 14/11/2026 · (fff) Con Managed Payments, Stripe cobra su 3,5 % aparte y después del cargo: completarImportes
+//   lo suma a la comisión y lo resta del neto (venta real del 12/11: comisión 40 → 75, neto 786 → 751). Solo afecta a
+//   los resúmenes de ventas; el regalo devuelve sin comisión (api/_regalo.js) y no cambia.
 // Versión 2.9 · 12/11/2026 · Devolución completa de un lote de fotos hecha desde Stripe (desistimiento, paso a real D):
 //   se quitan los huecos vacíos y sin colocar de ese lote (Javier: «deben desaparecer»); si alguno ya tiene imagen o
 //   está colocado, no se toca y llega un aviso interno. PDF: si no se ha bajado ninguna de sus 15 descargas, se quitan
@@ -64,6 +67,7 @@ const SIN_PDF = ['AR', 'ZH', 'JA', 'HI']; // = api/pdf.js
 // v2: fuera IVA_TIPO (21 % provisional). Managed Payments: el IVA lo calcula Stripe por el código fiscal.
 const CODIGO_FISCAL = { fotos: 'txcd_10000000', asistente: 'txcd_10000000', pdf: 'txcd_10302000', plan_familiar: 'txcd_10000000' };
 const MANAGED = () => process.env.STRIPE_MANAGED_PAYMENTS !== 'no';
+const TASA_MANAGED = 0.035; // v2.10 (fff): tarifa de Managed Payments sobre el total, cobrada aparte
 const VERSION_DESISTIMIENTO = { fotos: 'terms_consent + waiver_content 2026-10-30 E5b', pdf: 'terms_consent + waiver_content 2026-10-30 E5b', asistente: 'terms_consent + waiver_ai 2026-10-30 E5b' }; // v2.5; antes 'terms_consent 2026-10-24 C3-III' (una casilla) // texto de la casilla (index.html, terms_consent); antes 'terms_consent 2026-09-29'
 const VERSION_REGALO = 'gift_age + gift_consent + gift_waiver 2026-10-30 E5b'; // v2.5; antes 'gift_consent 2026-10-24 C3-III (edad + condiciones del regalo y de compra)' // antes 'gift_terms PROVISIONAL 2026-10-24'
 const MAX_NOMBRE = 80; const MAX_MENSAJE = 500;
@@ -475,8 +479,9 @@ async function completarImportes(v) {
     const impTax = fd.filter((f) => f.type === 'tax').reduce((s, f) => s + (Number(f.amount) || 0), 0);
     const iva = Number.isInteger(v.iva_cent) ? v.iva_cent : 0;
     const retenido = impTax > 0 ? impTax : (MANAGED() && iva > 0 && bt.fee > iva ? iva : 0);
-    cambios.comision_cent = bt.fee - retenido;
-    cambios.neto_cent = bt.net;
+    const managed = MANAGED() ? Math.round((Number(v.total_cent) || 0) * TASA_MANAGED) : 0; // v2.10 (fff)
+    cambios.comision_cent = bt.fee - retenido + managed;
+    cambios.neto_cent = bt.net - managed;
   }
   await rest(`ventas?id=eq.${v.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(cambios) });
 }
