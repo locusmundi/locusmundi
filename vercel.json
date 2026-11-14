@@ -1,4 +1,17 @@
 {
+  "redirects": [
+    {
+      "source": "/:path((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "locusmundi.vercel.app"
+        }
+      ],
+      "destination": "https://www.locusmundi.com/:path",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/arbol",
