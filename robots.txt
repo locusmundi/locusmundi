@@ -2,3 +2,5 @@ User-agent: *
 Allow: /
 Disallow: /admin.html
 Disallow: /api/
+
+Sitemap: https://www.locusmundi.com/sitemap.xml
