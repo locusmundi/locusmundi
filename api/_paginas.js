@@ -126,6 +126,8 @@ function primerCapitulo(texto) {
 }
 
 async function libro(res, id, url, llave) {
+  const m = String(id || '').match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); // aunque traiga pegado un punto u otro signo
+  if (m) id = m[0];
   let html = leerPlantilla();
   const filas = UUID_RE.test(id)
     ? await leerPublicaciones(url, llave, `&historia_id=eq.${id.toLowerCase()}`,
