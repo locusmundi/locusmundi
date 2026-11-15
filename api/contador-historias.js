@@ -1,4 +1,7 @@
 // api/contador-historias.js — Locus Mundi
+// Versión 10 · 15/11/2026 · Buscadores (SEO, paso 3). GET con ?pagina=en|libro|sitemap sirve las páginas
+//  legibles sin programación (api/_paginas.js): /en, /libro/<id> y /sitemap.xml (rewrites de vercel.json).
+//  Va en esta función porque el plan Hobby de Vercel no admite una 13.ª. Lo demás, sin cambios.
 // Versión 9 · 05/11/2026 · Fase C, «Árbol genealógico, construcción II» (contenido v2.5 §10 a).
 //  POST { arbol: 'descarga' } suma 1 a las descargas del árbol de hoy (función sumar_descarga_arbol; tabla
 //  cerrada `arbol_descargas`, una fila por día, tope 10 000/día). Anónimo: ni IP, ni cookie, ni datos del árbol.
@@ -66,6 +69,8 @@ module.exports = async function handler(req, res) {
     res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Método no permitido' });
   }
+
+  if (req.query && req.query.pagina) return require('./_paginas')(req, res, SUPABASE_URL, SERVICE_KEY); // v10
 
   // ---- Cifras del Inicio y de la Biblioteca ----------------------------------------------
   try {
