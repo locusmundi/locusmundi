@@ -1,4 +1,7 @@
 // api/_paginas.js — Locus Mundi
+// Versión 1.1 · 15/11/2026 · El botón «Compartir» enlaza ya a /libro/<id>[?lang=xx] (index.html, [SEO-5]):
+//  se conserva el idioma de lectura al pasar a /?libro=<id>&lang=xx. El #root se busca con «<main» (el
+//  comentario [SEO-2] lleva dentro el antiguo) y el identificador se saca aunque traiga un signo pegado.
 // Versión 1 · 15/11/2026 · Buscadores (SEO, paso 3). Continuidad, sesión «15/11/2026 (buscadores)».
 // Páginas legibles sin programación, para Google y los rastreadores de IA (que no ejecutan JavaScript).
 // Lo usa api/contador-historias.js (v10), sin función nueva: el plan Hobby de Vercel no admite una 13.ª.
@@ -125,7 +128,8 @@ function primerCapitulo(texto) {
   }).join('\n');
 }
 
-async function libro(res, id, url, llave) {
+async function libro(res, id, url, llave, idioma0) {
+  const conIdioma = /^[a-z]{2}(-[a-z]{2})?$/i.test(String(idioma0 || '')) ? `&lang=${String(idioma0).toLowerCase()}` : '';
   const m = String(id || '').match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); // aunque traiga pegado un punto u otro signo
   if (m) id = m[0];
   let html = leerPlantilla();
@@ -135,7 +139,7 @@ async function libro(res, id, url, llave) {
     : [];
   const p = filas && filas[0];
   if (!p) { // no existe o ya no está publicado: la web de siempre dirá «no encontrado»
-    html = html.replace('</head>', `<meta name="robots" content="noindex"/>\n<script>try{history.replaceState(null,"","/?libro=${esc(id)}")}catch(e){}</script>\n</head>`);
+    html = html.replace('</head>', `<meta name="robots" content="noindex"/>\n<script>try{history.replaceState(null,"","/?libro=${esc(id)}${conIdioma}")}catch(e){}</script>\n</head>`);
     return enviarHtml(res, html, 404);
   }
   const c = p.contenido || {};
@@ -149,7 +153,7 @@ async function libro(res, id, url, llave) {
   const enlace = `${SITIO}/libro/${p.historia_id}`;
 
   html = cambiarCabecera(html, {
-    lang: idioma, locale: ({ es: 'es_ES', ca: 'ca_ES', gl: 'gl_ES', en: 'en_GB' })[idioma] || idioma, url: enlace, direccionWeb: `/?libro=${p.historia_id}`,
+    lang: idioma, locale: ({ es: 'es_ES', ca: 'ca_ES', gl: 'gl_ES', en: 'en_GB' })[idioma] || idioma, url: enlace, direccionWeb: `/?libro=${p.historia_id}${conIdioma}`,
     titulo: `${titulo} – ${nombre} · Locus Mundi`,
     descripcion: corta(`${quien}. ${c.subtitle ? c.subtitle + '. ' : ''}${extracto}`, 160),
     ogTipo: 'book', imagen: p.portada_url || '', sinIdiomas: true,
@@ -197,7 +201,7 @@ module.exports = async function paginas(req, res, url, llave) {
   const q = req.query || {};
   try {
     if (q.pagina === 'en') return inicioEn(res);
-    if (q.pagina === 'libro') return await libro(res, String(q.id || ''), url, llave);
+    if (q.pagina === 'libro') return await libro(res, String(q.id || ''), url, llave, q.lang);
     if (q.pagina === 'sitemap') return await mapa(res, url, llave);
     return res.status(404).end();
   } catch (err) {
@@ -207,7 +211,7 @@ module.exports = async function paginas(req, res, url, llave) {
     res.setHeader('Cache-Control', 'no-store');
     const id = UUID_RE.test(String(q.id || '')) ? String(q.id) : '';
     let html = leerPlantilla();
-    if (id) html = html.replace('</head>', `<script>try{history.replaceState(null,"","/?libro=${id}")}catch(e){}</script>\n</head>`);
+    if (id) html = html.replace('</head>', `<script>try{history.replaceState(null,"","/?libro=${id}${/^[a-z]{2}(-[a-z]{2})?$/i.test(String(q.lang || '')) ? '&lang=' + String(q.lang).toLowerCase() : ''}")}catch(e){}</script>\n</head>`);
     return res.status(q.pagina === 'sitemap' ? 500 : 200).send(html);
   }
 };
