@@ -63,7 +63,7 @@ function cambiarCabecera(html, d) {
 }
 
 function cambiarRaiz(html, interior) {
-  const i = html.indexOf('<div id="root">');
+  const i = html.indexOf('<div id="root"><main'); // el de verdad: el comentario [SEO-2] de index.html lleva dentro el #root antiguo
   const j = html.indexOf('</main></div>', i);
   if (i < 0 || j < 0) throw new Error('index.html sin #root reconocible');
   return html.slice(0, i) + '<div id="root">' + interior + '</main></div>' + html.slice(j + '</main></div>'.length);
