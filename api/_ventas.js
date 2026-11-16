@@ -1,4 +1,6 @@
 // api/_ventas.js — Locus Mundi
+// Versión 1.1 · 16/11/2026 · Apertura: «Neto menos devoluciones» resta la base de lo devuelto, no el total: el IVA
+// lo devuelve Stripe y nunca estuvo en el saldo (venta de Toni: −0,75 €, igual que Stripe; antes, −2,49 €).
 // Versión 1 · 28/10/2026 · Fase C, endurecimiento parte 6 (Continuidad, sesión «28/10/2026 (endurecimiento,
 // parte 6)», punto 6). Decisión de Javier: un resumen de ventas por correo cada semana y otro cada mes, para
 // llevar la cuenta propia y cotejarla con Stripe (informe de transferencias). Lo llama api/diario.js:
@@ -85,6 +87,7 @@ function sumar(filas) {
 function bloque(titulo, cobros, devoluciones) {
   const t = sumar(cobros);
   const dev = devoluciones.reduce((a, v) => a + (v.devolucion_cent || 0), 0);
+  const devBase = devoluciones.reduce((a, v) => a + (v.total_cent ? Math.round((v.devolucion_cent || 0) * (v.base_cent || 0) / v.total_cent) : 0), 0);
   const lineas = [
     `${titulo}`,
     `  Cobros: ${t.n} · total ${eur(t.total)} · base ${eur(t.base)} · IVA ${eur(t.iva)} · comisión de Stripe ${eur(t.comision)} · neto ${eur(t.neto)}`,
@@ -96,7 +99,7 @@ function bloque(titulo, cobros, devoluciones) {
     lineas.push(`    - ${NOMBRES[p] || p}: ${s.n} · ${eur(s.total)} (neto ${eur(s.neto)})`);
   }
   lineas.push(`  Devoluciones: ${devoluciones.length} · ${eur(dev)}`);
-  lineas.push(`  Neto menos devoluciones: ${eur(t.neto - dev)}`);
+  lineas.push(`  Neto menos devoluciones (sin IVA): ${eur(t.neto - devBase)}`);
   return lineas.join('\n');
 }
 
