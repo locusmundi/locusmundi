@@ -13,6 +13,9 @@
      idioma se pasan al de la página al abrir. Pie de la imagen en inglés: «My family tree · Locus Mundi · locusmundi.com».
      v1.3 · 14/11/2026 (pruebas de usuario, parte 4): (y) aviso si el país no está en la lista; (ii) aviso si el padre murió
      más de un año antes de nacer su hijo o la madre antes; (hh) con ?lang= explícito, translate="no"; M11 «← Locus Mundi» enlazado.
+     v1.4 · 17/11/2026 (catalán, para la Generalitat): TEXTOS.ca; con ?lang=ca o el navegador en catalán (cualquier idioma
+     del diccionario: «nav» en vez de solo en/es); selector ES · CA · EN en la cabecera; «← Locus Mundi» lleva ?lang= del idioma (antes, solo en); ordinal
+     masculino (T.ordM) para «esposo»: «1.º esposo» / «1r espòs» (antes «1.ª esposo»).
      Nada del árbol sale del dispositivo: se guarda en localStorage (lm_arbol_v1) y en el archivo .json. -->
 <html lang="es">
 <head>
@@ -55,6 +58,9 @@ header .wrap{display:flex;align-items:center;gap:10px;padding-block:8px}
 header svg.ico{width:34px;height:34px;flex:none}
 header h1{font-size:1.18rem;flex:1;min-width:0;line-height:1.1}
 header h1 .marca{display:block;width:max-content;text-decoration:none;font-family:"Crimson Pro",serif;font-size:.72rem;color:var(--muted);font-weight:400;letter-spacing:.06em;text-transform:uppercase}
+.idiomas{display:flex;flex:none;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--card)} /* v1.4: selector de idioma */
+.idiomas a{padding:3px 7px;font-size:.72rem;font-weight:600;letter-spacing:.04em;text-decoration:none;color:var(--navy)}
+.idiomas a.on{background:var(--navy);color:#fff}
 .hbtn{border:1px solid var(--line);background:var(--card);border-radius:20px;padding:4px 12px;font-size:.85rem;color:var(--navy);cursor:pointer;white-space:nowrap}
 .tramos{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
 .tramos::-webkit-scrollbar{display:none}
@@ -188,6 +194,7 @@ html,body{margin:0}
   <div class="wrap">
     <a href="/" aria-label="Locus Mundi" style="display:flex"><svg class="ico"><use href="#ico"/></svg></a>
     <h1><a id="h-marca" class="marca" href="/">← Locus Mundi</a><span id="h-titulo">Mi árbol genealógico</span></h1>
+    <nav class="idiomas" id="h-idiomas" translate="no" aria-label="Idioma · Language"></nav>
     <button class="hbtn" data-act="guardar" id="hguardar" hidden>Guardar</button>
   </div>
   <div class="wrap"><nav class="tramos" id="tramos" hidden></nav></div>
@@ -204,7 +211,7 @@ html,body{margin:0}
 <script>
 (function(){
 "use strict";
-/* ===== Textos (diccionario): español e inglés; otro idioma = otra entrada con las mismas claves. ===== */
+/* ===== Textos (diccionario): español, catalán (v1.4) e inglés; otro idioma = otra entrada con las mismas claves. ===== */
 const TEXTOS={es:{
   lang:'es',
   tituloPagina:'Mi árbol genealógico · Locus Mundi',
@@ -218,7 +225,7 @@ const TEXTOS={es:{
   padreDe:x=>'Padre de '+x.replace('Tu ','tu '), madreDe:x=>'Madre de '+x.replace('Tu ','tu '),
   corto:{padre:'tu padre',madre:'tu madre',abuelo:'tu abuelo',abuela:'tu abuela',bisabuelo:'tu bisabuelo',bisabuela:'tu bisabuela'},
   tramo:{bis:'Bisabuelos',abu:'Abuelos',pad:'Padres',tu:'Tú',fam:'Mi familia'},
-  ord:i=>(i+1)+'.ª',
+  ord:i=>(i+1)+'.ª', ordM:i=>(i+1)+'.º',
   miembros:n=>n+' '+(n===1?'miembro':'miembros'),
   inicioEmpezado:n=>'Tienes un árbol empezado: ya has identificado a '+n+' '+(n===1?'miembro':'miembros')+' de tu familia.',
   inicioNuevo:'Empecemos por tus bisabuelos. Aunque sepas poco, un nombre o un pueblo ya es mucho. Lo que no sepas, sáltatelo.',
@@ -284,6 +291,88 @@ const TEXTOS={es:{
   revisarTit:'Antes de ver tu árbol, revisa estos datos:',
   abrirlo:'Abrirlo', abierto:'Árbol abierto.', cancelar:'Cancelar',
   minus:x=>x.replace(/^Tu /,'tu '),
+  fecha:(d,corta)=>d.getDate()+'/'+(d.getMonth()+1)+(corta?'':'/'+d.getFullYear()),
+  fechaArchivo:d=>d.getDate()+'-'+(d.getMonth()+1)+'-'+d.getFullYear()
+},
+ca:{
+  lang:'ca',
+  tituloPagina:'El meu arbre genealògic · Locus Mundi',
+  marca:'← Locus Mundi', titulo:'El meu arbre genealògic',
+  guardar:'Desar', guardarAria:'Desar el meu arbre en un fitxer',
+  anterior:'‹ Anterior', siguiente:'Següent ›', terminarArbol:'Acabar El meu arbre ›', irFamilia:'La meva família ›', verImagenes:'Veure les meves imatges ›',
+  estudios:['Sense estudis reglats','Primaris','Secundaris / Batxillerat','Formació professional','Universitaris','No ho sé'],
+  estudioNose:'No ho sé',
+  tu:'Tu', tuPadre:'El teu pare', tuMadre:'La teva mare',
+  abuelos4:['El teu avi patern','La teva àvia paterna','El teu avi matern','La teva àvia materna'],
+  padreDe:x=>'Pare '+x.replace(/^El /,'del ').replace(/^La /,'de la '), madreDe:x=>'Mare '+x.replace(/^El /,'del ').replace(/^La /,'de la '),
+  corto:{padre:'el teu pare',madre:'la teva mare',abuelo:'el teu avi',abuela:'la teva àvia',bisabuelo:'el teu besavi',bisabuela:'la teva besàvia'},
+  tramo:{bis:'Besavis',abu:'Avis',pad:'Pares',tu:'Tu',fam:'La meva família'},
+  ord:i=>(i+1)+'a', ordM:i=>(i+1)+(['r','n','r','t'][i]||'è'),
+  miembros:n=>n+' '+(n===1?'membre':'membres'),
+  inicioEmpezado:n=>'Tens un arbre començat: ja has identificat '+n+' '+(n===1?'membre':'membres')+' de la teva família.',
+  inicioNuevo:"Comencem pels teus besavis. Encara que en sàpigues poc, un nom o un poble ja és molt. El que no sàpigues, deixa-ho en blanc.",
+  seguir:'Continuar el meu arbre', empezar:'Començar el meu arbre', abrir:"Obrir el meu arbre des d'un fitxer", reset:'Tornar a començar',
+  recordar:'Desa una còpia en un fitxer per si canvies de dispositiu.', guardarAhora:'Desar ara',
+  privacidad:'El teu arbre només es desa en aquest dispositiu. Locus Mundi no guarda cap dada de la teva família, tret que decideixis pujar-lo a un llibre.',
+  miniAria:'Arbre en miniatura',
+  lugarNac:'Lloc de naixement', pais:'País', poblacion:'Població', nose:'No ho sé',
+  nombre:'Nom', nombrePh:'Només el nom de pila', tuNombre:'El teu nom',
+  nadaDe:el=>"No sé res d'"+el, el:'ell', ella:'ella',
+  nadaMarcado:el=>"Has marcat que no saps res d'"+el+'.', deshacer:'Desfer',
+  anoNac:'Any de naixement', notaVivos:"De les persones vives només es demana el nom, l'any i el lloc de naixement.",
+  vive:'Viu?', si:'Sí', no:'No',
+  nacio:'Va néixer', murio:'Va morir', ano:'Any', aprox:'Anys aproximats',
+  estudiosL:'Estudis', oficio:'A què es dedicava?',
+  oficioAyuda:"També compta la feina que no constava en cap paper: la casa, el camp, la botiga, tenir cura d'altres persones.",
+  destacar:'Alguna cosa a destacar', destacarAyuda:'Un càrrec, un fet, una frase',
+  hermanos:'Germans', tienes:'Tens', tuvo:'Va tenir', hermanosSuf:'germans',
+  hermanoN:i=>'Germà o germana '+i, otroHermano:'+ Un altre germà', anadirNombres:'+ Afegir-ne els noms',
+  parejas:'Parelles', sinNombre:'encara sense nom', subir:'Pujar', bajar:'Baixar', quitar:'Treure', otraParejaQ:'+ Va tenir una altra parella?',
+  yaEsta:'Ja tens el teu arbre', identificados:n=>'Has identificat '+n+' '+(n===1?'membre':'membres')+' de la teva família.',
+  verDescargar:'Veure i descarregar El meu arbre', seguirFamilia:'Continuar amb La meva família',
+  niveles:['Fill o filla','Nét o néta','Besnét o besnéta'],
+  nombreMenores:'Nom (dels menors, només el de pila)', anoCorto:'Any', ciudad:'Ciutat',
+  hijastro:'És fill o filla només de la teva parella', suPareja:'La seva parella', masSuPareja:'+ La seva parella',
+  masNieto:'+ Un nét o néta', masBisnieto:'+ Un besnét o besnéta',
+  famTitulo:'Les teves parelles, fills, néts i besnéts', famNota:"De cada persona, només el nom, l'any i la ciutat de naixement.",
+  pareja:i=>(i+1)+'a parella', nombreBlanco:'Nom (el pots deixar en blanc)',
+  masHijo:nm=>'+ Un fill o filla'+(nm?' amb '+nm:''), masPareja:hay=>'+ '+(hay?'Una altra parella':'La teva parella'),
+  imgArbol:'El meu arbre', imgFamilia:'La meva família',
+  pieImagen:'El meu arbre genealògic · Locus Mundi · locusmundi.com',
+  hermano1:' germà', hermanosN:' germans', esposa:'esposa', esposo:'espòs',
+  yMas:r=>'i '+r+' més',
+  cuenta:'Què diu el teu arbre',
+  gen:{bis:'besavis',abu:'avis',pad:'pares',tu:'tu'},
+  y:' i ',
+  donde:p=>'On van néixer: '+p+'.',
+  vividos:(med,nm,a)=>'Anys viscuts: de mitjana, '+med+'; qui més va viure, '+nm+', '+a+' anys.',
+  oficios:p=>'Oficis: '+p+'.', estudiosC:p=>'Estudis: '+p+'.', hijosPareja:p=>'Mitjana de fills per parella: '+p+'.',
+  hacia:'vers ', nac:'n. ', muer:'m. ',
+  listo:'El teu arbre és a punt', tituloImg:'Títol de les imatges', tituloImgPh:'Família Garcia i Puig',
+  anadirFam:'Afegir La meva família (fills, néts…)',
+  menores:"Si hi apareixen menors d'edat, els seus noms es mostren amb el consentiment dels seus pares o tutors.",
+  descargar2:'Descarregar les dues imatges', descargar1:'Descarregar la imatge', guardarOtroDia:'Desar el meu arbre per continuar un altre dia',
+  leyenda1:'Darrere de cada vida hi ha una història.', leyenda2a:"Explica-la, o demana a un familiar que l'expliqui, a ", leyenda2b:'Locus Mundi', leyenda2c:'.',
+  preparando:"Un moment: encara s'està preparant la imatge.", descargadas:'Imatges descarregades.', descargada:'Imatge descarregada.',
+  confirmarReset:"S'esborrarà l'arbre que tens començat en aquest dispositiu. Vols tornar a començar?",
+  confirmarQuitar:nm=>'Vols treure '+nm+" de l'arbre?",
+  familiaDe:a=>'Família '+a,
+  archivoArbol:(fam,f)=>'El meu arbre – '+(fam?fam+' – ':'')+f+'.json',
+  archivoImg:(t,fam,f)=>t+' – '+(fam?fam+' – ':'')+f+'.jpg',
+  guardado:'Arbre desat en un fitxer.', noGuardado:"No s'ha pogut desar el fitxer.",
+  noEsArbol:'Aquest fitxer no és un arbre de Locus Mundi.',
+  sustituir:(f1,nf,na,f2)=>'Aquest fitxer és del '+f1+' i té '+nf+' '+(nf===1?'membre':'membres')+". Substituirà l'arbre que tens en aquest dispositiu ("+na+' '+(na===1?'membre':'membres')+', del '+f2+'). Vols obrir-lo?',
+  avCifras:"Revisa l'any: ha de tenir quatre xifres i no pot ser posterior a avui.",
+  avMuerte:'Va morir abans de néixer: revisa els anys.',
+  avHijo:q=>'Té menys de 12 anys més que '+q+": revisa l'any.",
+  avVivo:"Si és viu, tindria més de 120 anys: revisa l'any.",
+  avAntesTi:'Va morir abans que naixessis: revisa els anys.',
+  avAntes:q=>'Va morir abans que nasqués '+q+': revisa els anys.',
+  avPais:'És un país? La població va a la casella del costat.',
+  ti:'tu',
+  revisarTit:'Abans de veure el teu arbre, revisa aquestes dades:',
+  abrirlo:'Obrir-lo', abierto:'Arbre obert.', cancelar:'Cancel·lar',
+  minus:x=>x.replace(/^El /,'el ').replace(/^La /,'la '),
   fecha:(d,corta)=>d.getDate()+'/'+(d.getMonth()+1)+(corta?'':'/'+d.getFullYear()),
   fechaArchivo:d=>d.getDate()+'-'+(d.getMonth()+1)+'-'+d.getFullYear()
 },
@@ -371,7 +460,7 @@ en:{
 }};
 /* idioma: ?lang=en|es (el pie de la web lo pasa en inglés); si no, el del navegador, como la web */
 const IDIOMA=(()=>{try{const q=new URLSearchParams(location.search).get('lang'); if(q&&TEXTOS[q.toLowerCase()]){document.documentElement.setAttribute('translate','no'); return q.toLowerCase();}}catch(e){} // (hh) idioma elegido: que Chrome no lo traduzca
-  return String(navigator.language||'es').slice(0,2).toLowerCase()==='en'?'en':'es';})();
+  const nav=String(navigator.language||'es').slice(0,2).toLowerCase(); return TEXTOS[nav]?nav:'es';})(); // v1.4: cualquier idioma del diccionario (antes, solo en/es)
 const T=TEXTOS[IDIOMA];
 
 const KEY='lm_arbol_v1';
@@ -390,7 +479,10 @@ window.addEventListener('unhandledrejection',e=>errorNavegador('promesa: '+((e&&
 
 /* textos fijos de la página */
 document.documentElement.lang=T.lang; document.title=T.tituloPagina;
-$('#h-marca').textContent=T.marca; if(IDIOMA==='en')$('#h-marca').href='/?lang=en'; $('#h-titulo').textContent=T.titulo;
+$('#h-marca').textContent=T.marca; if(IDIOMA!=='es')$('#h-marca').href='/?lang='+IDIOMA; /* v1.4: antes, solo en */ $('#h-titulo').textContent=T.titulo;
+/* v1.4: selector de idioma (los del diccionario); se conserva el paso (#…) y el árbol, que está en este dispositivo */
+$('#h-idiomas').innerHTML=Object.keys(TEXTOS).map(k=>'<a href="?lang='+k+'" data-lang="'+k+'"'+(k===IDIOMA?' class="on" aria-current="true"':'')+'>'+k.toUpperCase()+'</a>').join('');
+$('#h-idiomas').addEventListener('click',e=>{const a=e.target.closest('a[data-lang]'); if(!a)return; e.preventDefault(); if(a.dataset.lang!==IDIOMA)location.href='?lang='+a.dataset.lang+location.hash;});
 $('#hguardar').textContent=T.guardar; $('#hguardar').setAttribute('aria-label',T.guardarAria);
 $('#prev').textContent=T.anterior;
 
@@ -732,7 +824,7 @@ function personaArbol(n,sc,notas){
   if(n<8){
     if(P.estudios&&P.estudios!==T.estudioNose)it.push({t:P.estudios,px:Math.round(30*sc),col:K.muted,max:2});
     const h=nHer(P); if(h)it.push({t:h+(h===1?T.hermano1:T.hermanosN),px:Math.round(30*sc),col:K.muted});
-    (P.parejas||[]).forEach((x,i)=>{if(!x.dir&&x.nombre&&x.nombre.trim())it.push({t:ord(i)+' '+(male(n)?T.esposa:T.esposo)+': '+x.nombre.trim()+(x.nac?', '+x.nac:''),px:Math.round(29*sc),col:K.muted,max:2});});
+    (P.parejas||[]).forEach((x,i)=>{if(!x.dir&&x.nombre&&x.nombre.trim())it.push({t:(male(n)?ord(i)+' '+T.esposa:(T.ordM||ord)(i)+' '+T.esposo)+': '+x.nombre.trim()+(x.nac?', '+x.nac:''),px:Math.round(29*sc),col:K.muted,max:2});});
   }
   return it;
 }
