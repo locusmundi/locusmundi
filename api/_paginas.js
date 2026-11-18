@@ -1,4 +1,6 @@
 // api/_paginas.js — Locus Mundi
+// Versión 1.2 · 18/11/2026 · /en: «read real stories» (antes «real lives») y og:description corta para WhatsApp
+//  («You don't need to be a writer – just a life to tell.»); la meta description no cambia (d.ogDescripcion).
 // Versión 1.1 · 15/11/2026 · El botón «Compartir» enlaza ya a /libro/<id>[?lang=xx] (index.html, [SEO-5]):
 //  se conserva el idioma de lectura al pasar a /?libro=<id>&lang=xx. El #root se busca con «<main» (el
 //  comentario [SEO-2] lleva dentro el antiguo) y el identificador se saca aunque traiga un signo pegado.
@@ -49,7 +51,7 @@ function cambiarCabecera(html, d) {
   html = html.replace(/<title>[^<]*<\/title>/, `<title>${esc(d.titulo)}</title>`);
   meta('name', 'description', d.descripcion);
   meta('property', 'og:title', d.titulo);
-  meta('property', 'og:description', d.descripcion);
+  meta('property', 'og:description', d.ogDescripcion || d.descripcion);
   meta('property', 'og:type', d.ogTipo || 'website');
   meta('property', 'og:locale', d.locale);
   meta('property', 'og:url', d.url);
@@ -87,7 +89,8 @@ function inicioEn(res) {
   html = cambiarCabecera(html, {
     lang: 'en', locale: 'en_GB', url: `${SITIO}/en`, direccionWeb: '/?lang=en',
     altImagen: 'Locus Mundi logo: a figure holding an open book',
-    titulo: 'Locus Mundi – Write your memoir, read real lives',
+    titulo: 'Locus Mundi – Write your memoir, read real stories',
+    ogDescripcion: "You don't need to be a writer – just a life to tell.",
     descripcion: "Write your memoir and publish it for free in an open library of real autobiographies. You don't need to be a writer – just to have a life to tell."
   });
   html = cambiarRaiz(html, MAIN + '\n' +
