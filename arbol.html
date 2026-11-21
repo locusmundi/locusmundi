@@ -18,6 +18,8 @@
      masculino (T.ordM) para «esposo»: «1.º esposo» / «1r espòs» (antes «1.ª esposo»).
      v1.5 · 18/11/2026: gallego y euskera (TEXTOS.gl, TEXTOS.eu) en BORRADOR (borrador:true): solo con ?lang=gl|eu,
      fuera del selector (salvo el activo) y sin elegirlos por el idioma del navegador; pendientes de revisión nativa.
+     v1.6 · 21/11/2026 (medición): código de Cloudflare Web Analytics, el mismo de index.html (antes el Árbol no se
+     contaba). Cuenta visitas sin cookies; no lee ni envía nada del árbol.
      Nada del árbol sale del dispositivo: se guarda en localStorage (lm_arbol_v1) y en el archivo .json. -->
 <html lang="es">
 <head>
@@ -1243,5 +1245,6 @@ window.__arbol={avisos,rel,rolCorto,miembros,cuenta,anosTxt,lugarTxt,sugerirFami
 render();
 })();
 </script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "c7f9b60845e04755ae40ad3284cbbeb8"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
