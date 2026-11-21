@@ -1,4 +1,7 @@
 // api/contador-historias.js — Locus Mundi
+// Versión 11 · 21/11/2026 · Enlaces etiquetados por canal: POST { canal } suma una visita del día a ese canal
+//  (función sumar_visita_canal, tabla visitas_canal: solo día, canal y total; sin IP, cuenta ni cookie). Solo
+//  los canales de CANALES; los demás se ignoran. Continuidad, sesión «21/11/2026 (medición)».
 // Versión 10 · 15/11/2026 · Buscadores (SEO, paso 3). GET con ?pagina=en|libro|sitemap sirve las páginas
 //  legibles sin programación (api/_paginas.js): /en, /libro/<id> y /sitemap.xml (rewrites de vercel.json).
 //  Va en esta función porque el plan Hobby de Vercel no admite una 13.ª. Lo demás, sin cambios.
@@ -27,6 +30,8 @@
 // Versión 6 · 16/10/2026 · Fase B2, conversación 3c: X. Batlle ya está en Supabase (Nº 4); el +1 pasa a 0.
 // Versiones 2–5 · 06–16/10/2026 · Cuenta publicaciones; bajada del +N muestra a muestra.
 
+const CANALES = ['fb', 'wa', 'tt', 'in', 'ig', 'yt', 'bib', 'vm', 'em', 'qr', 'ot']; // v11
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 module.exports = async function handler(req, res) {
@@ -49,6 +54,14 @@ module.exports = async function handler(req, res) {
       let body = req.body;
       if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
       if (body && body.error) return await guardarError(body.error, SUPABASE_URL, SERVICE_KEY, res); // v8
+      if (body && body.canal !== undefined) { // v11
+        const canal = String(body.canal || '').toLowerCase();
+        if (CANALES.includes(canal)) {
+          const r = await rpc('sumar_visita_canal', { p_canal: canal });
+          if (!r.ok) console.error('contador-historias (canal):', r.status);
+        }
+        return res.status(204).end();
+      }
       if (body && body.arbol === 'descarga') { // v9
         const r = await rpc('sumar_descarga_arbol');
         if (!r.ok) console.error('contador-historias (árbol):', r.status);
