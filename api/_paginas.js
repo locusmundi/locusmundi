@@ -1,4 +1,10 @@
 // api/_paginas.js — Locus Mundi
+// Versión 1.3 · 21/11/2026 · Versión de archivo para el PADICAT (Biblioteca de Catalunya). Continuidad,
+//  sesión «20-21/11/2026 (PADICAT)». /archivo: índice de todo el fondo publicado; /archivo/<id>: el libro
+//  completo, con sus fotos en su sitio, en HTML sencillo y SIN programación (el rastreador del PADICAT
+//  no ejecuta JavaScript ni hace búsquedas). Usa lectura.js (las mismas reglas que la web y el PDF).
+//  El índice se puede indexar; cada libro lleva «noindex» (los buscadores no muestran el texto
+//  completo: Condiciones §2) y robots.txt cierra /archivo/ a los rastreadores de IA conocidos.
 // Versión 1.2 · 18/11/2026 · /en: «read real stories» (antes «real lives») y og:description corta para WhatsApp
 //  («You don't need to be a writer – just a life to tell.»); la meta description no cambia (d.ogDescripcion).
 // Versión 1.1 · 15/11/2026 · El botón «Compartir» enlaza ya a /libro/<id>[?lang=xx] (index.html, [SEO-5]):
@@ -192,11 +198,124 @@ async function mapa(res, url, llave) {
     `<url><loc>${SITIO}/</loc>${alt}</url>`,
     `<url><loc>${SITIO}/en</loc>${alt}</url>`,
     `<url><loc>${SITIO}/arbol</loc></url>`,
+    `<url><loc>${SITIO}/archivo</loc></url>`, // v1.3
     ...filas.map(f => `<url><loc>${SITIO}/libro/${f.historia_id}</loc><lastmod>${dia(f.fecha_actualizacion || f.fecha_publicacion)}</lastmod></url>`)
   ];
   res.setHeader('Content-Type', 'application/xml; charset=utf-8');
   res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
   return res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls.join('\n')}\n</urlset>\n`);
+}
+
+// ---- Versión de archivo (/archivo, /archivo/<id>) ------------------------------------------
+// Página propia, sin index.html ni React: lo que llega es lo que se conserva.
+function hojaArchivo(d) {
+  return `<!DOCTYPE html>
+<html lang="${esc(d.lang)}">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${esc(d.titulo)}</title>
+<meta name="robots" content="${d.indexar ? 'index, follow' : 'noindex, follow'}"/>
+<link rel="canonical" href="${esc(d.url)}"/>
+<link rel="icon" type="image/png" sizes="32x32" href="/icono-32.png"/>
+<style>
+a{color:#1B355E}
+body{margin:0;background:#F6EFE2;color:#2B2118;font-family:Georgia,'Times New Roman',serif;line-height:1.6}
+.hoja{max-width:42rem;margin:0 auto;padding:2rem 1.25rem 4rem}
+.marca{font-size:.85rem;letter-spacing:.12em;text-transform:uppercase;color:#7A6248;text-align:center;margin:0 0 2rem}
+.marca a{color:inherit}
+h1{font-size:2rem;line-height:1.2;text-align:center;color:#1B355E;margin:.5rem 0}
+h2{font-size:1.35rem;color:#1B355E;margin:2.5rem 0 1rem;text-align:center}
+h2 small{display:block;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:#7A6248}
+h3{font-size:1.1rem;margin:1.8rem 0 .6rem}
+.sub{font-style:italic;text-align:center;font-size:1.15rem;margin:0}
+.autor{text-align:center;color:#7A6248;margin:.4rem 0 1.5rem}
+.dedic{font-style:italic;text-align:center;white-space:pre-line;margin:2rem 0}
+figure{margin:1.5rem 0;text-align:center}
+img{max-width:100%;height:auto}
+figcaption{font-size:.9rem;font-style:italic;color:#7A6248;margin-top:.4rem}
+.verso{white-space:pre-line}
+.nota{font-size:.85rem;color:#7A6248;border-top:1px solid #D8C8A8;margin-top:3rem;padding-top:1rem}
+ol.fondo{padding-left:1.5rem} ol.fondo li{margin:.7rem 0}
+</style>
+</head>
+<body>
+<div class="hoja">
+<p class="marca"><a href="/">Locus Mundi</a> · <a href="/archivo">Archivo</a></p>
+${d.cuerpo}
+</div>
+</body>
+</html>
+`;
+}
+
+const fechaCorta = f => String(f || '').slice(0, 10);
+
+async function archivoIndice(res, url, llave) {
+  const filas = await leerPublicaciones(url, llave, '&order=fecha_publicacion.asc',
+    'historia_id,titulo,contenido->>name,contenido->>born,contenido->>subtitle,idioma_original,fecha_publicacion');
+  const items = filas.map(f => {
+    const nacido = parseInt(f.born) || 0;
+    return `<li lang="${esc(String(f.idioma_original || 'es').toLowerCase().split('-')[0])}"><a href="/archivo/${f.historia_id}">${esc(f.titulo || f.name || '')}</a>` +
+      (f.subtitle ? `. <i>${esc(f.subtitle)}</i>` : '') +
+      `<br/>${esc(f.name || '')}${nacido ? ` (${nacido})` : ''} · ${esc(String(f.idioma_original || '').toUpperCase())} · ${fechaCorta(f.fecha_publicacion)}</li>`;
+  }).join('\n');
+  const html = hojaArchivo({
+    lang: 'es', indexar: true, url: `${SITIO}/archivo`,
+    titulo: 'Archivo de Locus Mundi – Todos los libros publicados',
+    cuerpo: `<h1>Archivo de Locus Mundi</h1>\n<p class="sub">Todos los libros publicados, en versión de archivo</p>\n` +
+      `<p class="autor">${filas.length} ${filas.length === 1 ? 'libro' : 'libros'}</p>\n<ol class="fondo">\n${items}\n</ol>\n` +
+      `<p class="nota">Versión sencilla de cada libro, con su texto completo y sus fotografías, para su conservación en archivos públicos. Para leerlos con todas las funciones, <a href="/">www.locusmundi.com</a>.</p>`
+  });
+  return enviarHtml(res, html, 200);
+}
+
+async function archivoLibro(res, id, url, llave) {
+  const m = String(id || '').match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  const filas = m ? await leerPublicaciones(url, llave, `&historia_id=eq.${m[0].toLowerCase()}`,
+    'historia_id,titulo,contenido,idioma_original,portada_url,fecha_publicacion,fecha_actualizacion') : [];
+  const p = filas && filas[0];
+  if (!p) return enviarHtml(res, hojaArchivo({ lang: 'es', url: `${SITIO}/archivo`, titulo: 'Archivo de Locus Mundi',
+    cuerpo: '<h1>Libro no encontrado</h1>\n<p class="sub"><a href="/archivo">Ver todos los libros</a></p>' }), 404);
+  const L = require('../lectura.js');
+  const c = p.contenido || {};
+  const LANG = String(p.idioma_original || c.lang || 'ES').toUpperCase();
+  const idioma = LANG.toLowerCase().split('-')[0];
+  const nombre = c.name || '';
+  const nacido = parseInt(c.born) || 0;
+  const titulo = p.titulo || c.title || nombre;
+  const linea = trozos => trozos.map(x => x.cursiva ? `<i>${esc(x.texto)}</i>` : esc(x.texto)).join('');
+  const partes = [];
+  for (const b of L.bloquesLectura(c.text, c.fotos || [], LANG)) {
+    if (!b) continue;
+    if (b.tipo === 'foto') {
+      partes.push(`<figure><img src="${esc(b.foto.url)}" alt="${esc(b.foto.pie_foto || '')}" loading="lazy"/>` +
+        (b.foto.pie_foto ? `<figcaption>${esc(b.foto.pie_foto)}</figcaption>` : '') + '</figure>');
+    } else if (b.tipo === 'capitulo') {
+      partes.push(`<h2>${b.etiqueta ? `<small>${esc(b.etiqueta)}</small>` : ''}${esc(b.titulo)}</h2>`);
+    } else if (b.tipo === 'apartado') {
+      partes.push(`<h3>${esc(b.texto)}</h3>`);
+    } else {
+      const t = linea(b.trozos);
+      if (!t.trim()) continue;
+      partes.push(/\n/.test(t.trim()) ? `<p class="verso">${t.trim()}</p>` : `<p>${t}</p>`);
+    }
+  }
+  const dedic = String(c.dedication || '').replace(/\r\n?/g, '\n').replace(/\n{2,}/g, '\n').trim();
+  const html = hojaArchivo({
+    lang: idioma, url: `${SITIO}/archivo/${p.historia_id}`,
+    titulo: `${titulo} – ${nombre} · Archivo de Locus Mundi`,
+    cuerpo: `<article lang="${esc(idioma)}">\n` +
+      (p.portada_url ? `<figure><img src="${esc(p.portada_url)}" alt=""/></figure>\n` : '') +
+      `<h1>${esc(titulo)}</h1>\n` + (c.subtitle ? `<p class="sub">${esc(c.subtitle)}</p>\n` : '') +
+      `<p class="autor">${esc(nombre)}${nacido ? ` (${nacido})` : ''}</p>\n` +
+      (dedic ? `<p class="dedic">${esc(dedic)}</p>\n` : '') +
+      partes.join('\n') + '\n</article>\n' +
+      `<p class="nota">Versión de archivo del libro publicado en Locus Mundi el ${fechaCorta(p.fecha_publicacion)}` +
+      (p.fecha_actualizacion ? ` (última actualización: ${fechaCorta(p.fecha_actualizacion)})` : '') +
+      `. Leer en el lector: <a href="${SITIO}/libro/${p.historia_id}">${SITIO}/libro/${p.historia_id}</a>. <a href="/archivo">Todos los libros</a>.</p>`
+  });
+  return enviarHtml(res, html, 200);
 }
 
 // ---- Entrada -----------------------------------------------------------------------------
@@ -206,12 +325,14 @@ module.exports = async function paginas(req, res, url, llave) {
     if (q.pagina === 'en') return inicioEn(res);
     if (q.pagina === 'libro') return await libro(res, String(q.id || ''), url, llave, q.lang);
     if (q.pagina === 'sitemap') return await mapa(res, url, llave);
+    if (q.pagina === 'archivo') return q.id ? await archivoLibro(res, String(q.id), url, llave) : await archivoIndice(res, url, llave); // v1.3
     return res.status(404).end();
   } catch (err) {
     console.error('paginas:', err.message);
     // Si algo falla, la web de siempre (sin la ficha): el lector no nota nada.
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
+    if (q.pagina === 'archivo') return res.status(500).send('<!DOCTYPE html><meta charset="utf-8"><p>Archivo no disponible ahora mismo. Vuelva a intentarlo más tarde.</p>'); // v1.3
     const id = UUID_RE.test(String(q.id || '')) ? String(q.id) : '';
     let html = leerPlantilla();
     if (id) html = html.replace('</head>', `<script>try{history.replaceState(null,"","/?libro=${id}${/^[a-z]{2}(-[a-z]{2})?$/i.test(String(q.lang || '')) ? '&lang=' + String(q.lang).toLowerCase() : ''}")}catch(e){}</script>\n</head>`);
