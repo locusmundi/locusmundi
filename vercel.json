@@ -26,6 +26,14 @@
       "destination": "/api/contador-historias?pagina=sitemap"
     },
     {
+      "source": "/archivo",
+      "destination": "/api/contador-historias?pagina=archivo"
+    },
+    {
+      "source": "/archivo/:id",
+      "destination": "/api/contador-historias?pagina=archivo&id=:id"
+    },
+    {
       "source": "/arbol",
       "destination": "/arbol.html"
     },
@@ -53,7 +61,7 @@
       "maxDuration": 300
     },
     "api/contador-historias.js": {
-      "includeFiles": "index.html"
+      "includeFiles": "{index.html,lectura.js}"
     }
   }
 }
