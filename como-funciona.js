@@ -1,4 +1,5 @@
-// LOCUS MUNDI — «Cómo funciona» / «How it works» (v2, 12/11/2026)
+// LOCUS MUNDI — «Cómo funciona» / «How it works» / «Com funciona» (v3, 22/11/2026)
+// v3 · 22/11/2026 · Catalán (TEXTOS.CA), con las capturas castellanas. Ref.: Continuidad, sesión «22/11/2026».
 // v2 · 12/11/2026 · Pruebas de usuario v1.2: C1, precios vigentes (09/11) en las pantallas 6 y 9 (antes «1 € cada una, en lotes de 5»
 //   y «5 €»); M8, «se guarda automáticamente» (antes «se guarda solo» / «saves itself»). Ref.: Continuidad, sesión «12/11/2026».
 // v1 · 30/10/2026 · Primera versión.
@@ -11,6 +12,80 @@
   var h = React.createElement, useState = React.useState, useEffect = React.useEffect, useRef = React.useRef;
 
   var TEXTOS = {
+    // [CA-1 22/11/2026] Catalán (borrador CA_03, 19/11). Capturas: las castellanas.
+    CA: {
+      "titulo": "Com funciona",
+      "pregunta": "Què vols fer?",
+      "leer": "Llegir",
+      "escribir": "Escriure",
+      "leerSub": "3 pantalles",
+      "escribirSub": "10 pantalles",
+      "anterior": "‹ Anterior",
+      "siguiente": "Següent ›",
+      "volver": "‹ Tornar",
+      "de": "de",
+      "cerrar": "Tancar",
+      "fin": {
+        "leer": "Anar a la Biblioteca",
+        "escribir": "Escriu la teva història"
+      },
+      "leerP": [
+        [
+          "Inici",
+          "Locus Mundi és una biblioteca d'històries explicades pels qui les van viure. Llegir és gratis i no cal cap compte."
+        ],
+        [
+          "Biblioteca",
+          "A la «Biblioteca», les històries més recents surten primer. Cerca per nom, títol, país, ciutat o professió, i prem una targeta per obrir el llibre."
+        ],
+        [
+          "Lectura",
+          "Llegeix el llibre en el seu idioma original o prem «Traduir i llegir» per llegir-lo en el teu. També pots fer més gran la lletra."
+        ]
+      ],
+      "escribirP": [
+        [
+          "Crear el compte",
+          "Prem «Escriu la teva història» i crea el teu compte: correu, contrasenya i el teu nom complet, que no es publica. És gratis."
+        ],
+        [
+          "Revisa el teu correu",
+          "T'enviem un enllaç: obre'l per entrar per primera vegada. Si no el veus, mira a la carpeta de correu brossa."
+        ],
+        [
+          "Dades del llibre",
+          "Tria el teu nom d'Autor (així signaràs), el títol i, si vols, una portada. Tot es pot canviar després."
+        ],
+        [
+          "Condicions de Publicació",
+          "Llegeix-les amb calma: són curtes. Accepta-les i comença a escriure."
+        ],
+        [
+          "L'editor",
+          "Comença on vulguis i ordena la teva història en capítols amb «+ Capítol» i en apartats amb «+ Apartat». Tot es desa automàticament mentre escrius."
+        ],
+        [
+          "Fotos",
+          "Afegeix fotografies al teu llibre i col·loca-les on vulguis del text, amb el seu peu. Es compren en lots: 5 fotos per 10 € o 10 per 18 €. Hi caben fins a 20 per llibre. La portada és gratis."
+        ],
+        [
+          "Dona vida a les teves fotos velles",
+          "Amb l'editor de fotos amb IA pots restaurar una foto vella (ratlles, taques, llum), donar-li color o totes dues coses. Passar-la a blanc i negre o a sèpia és gratis."
+        ],
+        [
+          "L'Assistent editorial (opcional)",
+          "Si vols ajuda, l'Assistent editorial et corregeix, t'ajuda a ordenar i t'escolta si prefereixes dictar. Pagues només el que fas servir, des de 5 €."
+        ],
+        [
+          "El teu llibre en PDF",
+          "Crea un arxiu PDF del teu llibre, en DIN A4 o A5, per imprimir-lo o regalar-lo. Costa 7 €, amb 15 descàrregues."
+        ],
+        [
+          "Publica mentre escrius",
+          "No esperis a acabar: puja ja a la Biblioteca les teves primeres pàgines i rebràs el teu número d'Autor. Abans, una revisió automàtica comprova el text. Després, continua escrivint i puja els canvis quan vulguis. També pots compartir l'enllaç del teu llibre amb els teus contactes."
+        ]
+      ]
+    },
     ES: {
       titulo: "Cómo funciona", pregunta: "¿Qué quieres hacer?",
       leer: "Leer", escribir: "Escribir", leerSub: "3 pantallas", escribirSub: "10 pantallas",
@@ -59,7 +134,7 @@
     }
   };
   var VISTA_FINAL = { leer: "library", escribir: "write" };
-  var img = function(L, recorrido, n){ return "/como-funciona/" + L.toLowerCase() + "-" + recorrido + "-" + n + ".webp"; };
+  var img = function(L, recorrido, n){ return "/como-funciona/" + (L === "EN" ? "en" : "es") + /* [CA-1] CA, capturas en castellano */ "-" + recorrido + "-" + n + ".webp"; };
 
   var CSS = [
     ".cf-ov{position:fixed;inset:0;z-index:1000;background:rgba(26,14,7,0.55);display:flex;align-items:center;justify-content:center;padding:1.2rem}",
@@ -95,7 +170,7 @@
   }
 
   function ComoFunciona(props){
-    var L = props.lang === "EN" ? "EN" : "ES";
+    var L = props.lang === "EN" ? "EN" : props.lang === "CA" ? "CA" : "ES"; // [CA-1]
     var tx = TEXTOS[L];
     var st = useState(null), recorrido = st[0], setRecorrido = st[1];   // null | "leer" | "escribir"
     var sp = useState(0), paso = sp[0], setPaso = sp[1];
