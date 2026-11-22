@@ -1,4 +1,5 @@
-// LOCUS MUNDI — «Cómo funciona» / «How it works» / «Com funciona» (v3, 22/11/2026)
+// LOCUS MUNDI — «Cómo funciona» / «How it works» / «Com funciona» (v4, 22/11/2026)
+// v4 · 22/11/2026 · Capturas en catalán (ca-*.webp) y castellanas rehechas (salvo escribir-7); «?v=4» en las imágenes.
 // v3 · 22/11/2026 · Catalán (TEXTOS.CA), con las capturas castellanas. Ref.: Continuidad, sesión «22/11/2026».
 // v2 · 12/11/2026 · Pruebas de usuario v1.2: C1, precios vigentes (09/11) en las pantallas 6 y 9 (antes «1 € cada una, en lotes de 5»
 //   y «5 €»); M8, «se guarda automáticamente» (antes «se guarda solo» / «saves itself»). Ref.: Continuidad, sesión «12/11/2026».
@@ -32,7 +33,7 @@
       "leerP": [
         [
           "Inici",
-          "Locus Mundi és una biblioteca d'històries explicades pels qui les van viure. Llegir és gratis i no cal cap compte."
+          "Locus Mundi és una biblioteca d'històries explicades pels qui les van viure. Llegir és gratuït i no cal cap compte."
         ],
         [
           "Biblioteca",
@@ -46,7 +47,7 @@
       "escribirP": [
         [
           "Crear el compte",
-          "Prem «Escriu la teva història» i crea el teu compte: correu, contrasenya i el teu nom complet, que no es publica. És gratis."
+          "Prem «Escriu la teva història» i crea el teu compte: correu, contrasenya i el teu nom complet, que no es publica. És gratuït."
         ],
         [
           "Revisa el teu correu",
@@ -66,11 +67,11 @@
         ],
         [
           "Fotos",
-          "Afegeix fotografies al teu llibre i col·loca-les on vulguis del text, amb el seu peu. Es compren en lots: 5 fotos per 10 € o 10 per 18 €. Hi caben fins a 20 per llibre. La portada és gratis."
+          "Afegeix fotografies al teu llibre i col·loca-les on vulguis del text, amb el seu peu. Es compren en lots: 5 fotos per 10 € o 10 per 18 €. Hi caben fins a 20 per llibre. La portada és gratuïta."
         ],
         [
           "Dona vida a les teves fotos velles",
-          "Amb l'editor de fotos amb IA pots restaurar una foto vella (ratlles, taques, llum), donar-li color o totes dues coses. Passar-la a blanc i negre o a sèpia és gratis."
+          "Amb l'editor de fotos amb IA pots restaurar una foto vella (ratlles, taques, llum), donar-li color o totes dues coses. Passar-la a blanc i negre o a sèpia és gratuït."
         ],
         [
           "L'Assistent editorial (opcional)",
@@ -134,7 +135,7 @@
     }
   };
   var VISTA_FINAL = { leer: "library", escribir: "write" };
-  var img = function(L, recorrido, n){ return "/como-funciona/" + (L === "EN" ? "en" : "es") + /* [CA-1] CA, capturas en castellano */ "-" + recorrido + "-" + n + ".webp"; };
+  var img = function(L, recorrido, n){ return "/como-funciona/" + L.toLowerCase() + /* [CA-6] capturas propias en catalán */ "-" + recorrido + "-" + n + ".webp?v=4"; };
 
   var CSS = [
     ".cf-ov{position:fixed;inset:0;z-index:1000;background:rgba(26,14,7,0.55);display:flex;align-items:center;justify-content:center;padding:1.2rem}",
