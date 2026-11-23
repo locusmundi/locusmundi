@@ -22,6 +22,10 @@
       "destination": "/api/contador-historias?pagina=en"
     },
     {
+      "source": "/ca",
+      "destination": "/api/contador-historias?pagina=ca"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/contador-historias?pagina=sitemap"
     },
