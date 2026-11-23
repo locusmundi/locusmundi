@@ -1,4 +1,6 @@
 // api/_paginas.js — Locus Mundi
+// Versión 1.4 · 23/11/2026 · /ca: Inicio en catalán para los buscadores (como /en), con hreflang ca en el
+//  sitemap; la web pasa a /?lang=ca. inicioEn queda como inicioIdioma('en'), igual que antes.
 // Versión 1.3 · 21/11/2026 · Versión de archivo para el PADICAT (Biblioteca de Catalunya). Continuidad,
 //  sesión «20-21/11/2026 (PADICAT)». /archivo: índice de todo el fondo publicado; /archivo/<id>: el libro
 //  completo, con sus fotos en su sitio, en HTML sencillo y SIN programación (el rastreador del PADICAT
@@ -13,7 +15,7 @@
 // Versión 1 · 15/11/2026 · Buscadores (SEO, paso 3). Continuidad, sesión «15/11/2026 (buscadores)».
 // Páginas legibles sin programación, para Google y los rastreadores de IA (que no ejecutan JavaScript).
 // Lo usa api/contador-historias.js (v10), sin función nueva: el plan Hobby de Vercel no admite una 13.ª.
-// Rutas (vercel.json): /libro/<id> · /en · /sitemap.xml.
+// Rutas (vercel.json): /libro/<id> · /en · /ca · /sitemap.xml.
 //  - Parte de index.html (el mismo de la web) y le cambia la cabecera (título, descripción, vista previa,
 //    canónica, datos estructurados) y la pantalla de carga (#root), que React sustituye al arrancar.
 //  - Antes de arrancar la web, history.replaceState lleva la dirección a la de siempre (/?libro=<id>,
@@ -89,21 +91,41 @@ function enviarHtml(res, html, estado) {
   return res.status(estado).send(html);
 }
 
-// ---- Inicio en inglés (/en) ----------------------------------------------------------------
-function inicioEn(res) {
-  let html = leerPlantilla();
-  html = cambiarCabecera(html, {
-    lang: 'en', locale: 'en_GB', url: `${SITIO}/en`, direccionWeb: '/?lang=en',
-    altImagen: 'Locus Mundi logo: a figure holding an open book',
+// ---- Inicio en inglés (/en) y en catalán (/ca, v1.4) ----------------------------------------
+const INICIOS = {
+  en: {
+    locale: 'en_GB', altImagen: 'Locus Mundi logo: a figure holding an open book',
     titulo: 'Locus Mundi – Write your memoir, read real stories',
     ogDescripcion: "You don't need to be a writer – just a life to tell.",
-    descripcion: "Write your memoir and publish it for free in an open library of real autobiographies. You don't need to be a writer – just to have a life to tell."
+    descripcion: "Write your memoir and publish it for free in an open library of real autobiographies. You don't need to be a writer – just to have a life to tell.",
+    h1: 'Write and publish your autobiography',
+    lema: 'You don\'t need to be a writer. Just have a life to tell.',
+    texto: 'Locus Mundi is an open library of biographies, autobiographies and family memoirs. Write yours with your photos – you can also restore old photos – and publish it for free. Reading is free too. And complete your <a href="/arbol" style="color:var(--navy)">family tree for free</a>.',
+    carga: 'Loading Locus Mundi…'
+  },
+  ca: { // v1.4
+    locale: 'ca_ES', altImagen: 'Logotip de Locus Mundi: una figura que sosté un llibre obert',
+    titulo: 'Locus Mundi – Escriu les teves memòries, llegeix històries reals',
+    ogDescripcion: 'No cal ser escriptor: només tenir una vida per explicar.',
+    descripcion: "Escriu les teves memòries i publica-les gratis en una biblioteca oberta d'autobiografies reals. No cal ser escriptor: només tenir una vida per explicar.",
+    h1: 'Escriu i publica la teva autobiografia',
+    lema: 'No cal ser escriptor. Només tenir una vida per explicar.',
+    texto: "Locus Mundi és una biblioteca oberta de biografies, autobiografies i memòries familiars. Escriu la teva amb les teves fotos – també pots restaurar fotos antigues – i publica-la gratis. Llegir també és gratis. I completa el teu <a href=\"/arbol?lang=ca\" style=\"color:var(--navy)\">Arbre genealògic gratis</a>.",
+    carga: 'Carregant Locus Mundi…'
+  }
+};
+function inicioIdioma(res, idioma) {
+  const d = INICIOS[idioma];
+  let html = leerPlantilla();
+  html = cambiarCabecera(html, {
+    lang: idioma, locale: d.locale, url: `${SITIO}/${idioma}`, direccionWeb: `/?lang=${idioma}`,
+    altImagen: d.altImagen, titulo: d.titulo, ogDescripcion: d.ogDescripcion, descripcion: d.descripcion
   });
   html = cambiarRaiz(html, MAIN + '\n' +
-    '<h1 style="font-family:var(--serif);font-weight:600;font-size:1.9rem;color:var(--navy);line-height:1.2">Write and publish your autobiography</h1>\n' +
-    '<p style="font-family:var(--serif);font-style:italic;font-size:1.2rem;color:var(--ink)">You don\'t need to be a writer. Just have a life to tell.</p>\n' +
-    '<p style="font-family:var(--body);color:var(--muted);line-height:1.5">Locus Mundi is an open library of biographies, autobiographies and family memoirs. Write yours with your photos – you can also restore old photos – and publish it for free. Reading is free too. And complete your <a href="/arbol" style="color:var(--navy)">family tree for free</a>.</p>\n' +
-    CARGA('Loading Locus Mundi…'));
+    `<h1 style="font-family:var(--serif);font-weight:600;font-size:1.9rem;color:var(--navy);line-height:1.2">${esc(d.h1)}</h1>\n` +
+    `<p style="font-family:var(--serif);font-style:italic;font-size:1.2rem;color:var(--ink)">${esc(d.lema)}</p>\n` +
+    `<p style="font-family:var(--body);color:var(--muted);line-height:1.5">${d.texto}</p>\n` +
+    CARGA(d.carga));
   return enviarHtml(res, html, 200);
 }
 
@@ -193,10 +215,11 @@ async function libro(res, id, url, llave, idioma0) {
 async function mapa(res, url, llave) {
   const filas = await leerPublicaciones(url, llave, '&order=fecha_publicacion.asc', 'historia_id,fecha_publicacion,fecha_actualizacion');
   const dia = f => String(f || '').slice(0, 10);
-  const alt = `<xhtml:link rel="alternate" hreflang="es" href="${SITIO}/"/><xhtml:link rel="alternate" hreflang="en" href="${SITIO}/en"/><xhtml:link rel="alternate" hreflang="x-default" href="${SITIO}/"/>`;
+  const alt = `<xhtml:link rel="alternate" hreflang="es" href="${SITIO}/"/><xhtml:link rel="alternate" hreflang="en" href="${SITIO}/en"/><xhtml:link rel="alternate" hreflang="ca" href="${SITIO}/ca"/><xhtml:link rel="alternate" hreflang="x-default" href="${SITIO}/"/>`;
   const urls = [
     `<url><loc>${SITIO}/</loc>${alt}</url>`,
     `<url><loc>${SITIO}/en</loc>${alt}</url>`,
+    `<url><loc>${SITIO}/ca</loc>${alt}</url>`, // v1.4
     `<url><loc>${SITIO}/arbol</loc></url>`,
     `<url><loc>${SITIO}/archivo</loc></url>`, // v1.3
     ...filas.map(f => `<url><loc>${SITIO}/libro/${f.historia_id}</loc><lastmod>${dia(f.fecha_actualizacion || f.fecha_publicacion)}</lastmod></url>`)
@@ -322,7 +345,7 @@ async function archivoLibro(res, id, url, llave) {
 module.exports = async function paginas(req, res, url, llave) {
   const q = req.query || {};
   try {
-    if (q.pagina === 'en') return inicioEn(res);
+    if (q.pagina === 'en' || q.pagina === 'ca') return inicioIdioma(res, q.pagina); // v1.4: antes, solo en
     if (q.pagina === 'libro') return await libro(res, String(q.id || ''), url, llave, q.lang);
     if (q.pagina === 'sitemap') return await mapa(res, url, llave);
     if (q.pagina === 'archivo') return q.id ? await archivoLibro(res, String(q.id), url, llave) : await archivoIndice(res, url, llave); // v1.3
