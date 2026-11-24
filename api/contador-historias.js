@@ -1,4 +1,5 @@
 // api/contador-historias.js — Locus Mundi
+// Versión 12 · 24/11/2026 · Canal «gg» (anuncios de Google), para la prueba de anuncios (D14).
 // Versión 11 · 21/11/2026 · Enlaces etiquetados por canal: POST { canal } suma una visita del día a ese canal
 //  (función sumar_visita_canal, tabla visitas_canal: solo día, canal y total; sin IP, cuenta ni cookie). Solo
 //  los canales de CANALES; los demás se ignoran. Continuidad, sesión «21/11/2026 (medición)».
@@ -30,7 +31,7 @@
 // Versión 6 · 16/10/2026 · Fase B2, conversación 3c: X. Batlle ya está en Supabase (Nº 4); el +1 pasa a 0.
 // Versiones 2–5 · 06–16/10/2026 · Cuenta publicaciones; bajada del +N muestra a muestra.
 
-const CANALES = ['fb', 'wa', 'tt', 'in', 'ig', 'yt', 'bib', 'vm', 'em', 'qr', 'ot']; // v11
+const CANALES = ['fb', 'wa', 'tt', 'in', 'ig', 'yt', 'gg', 'bib', 'vm', 'em', 'qr', 'ot']; // v12: + gg (anuncios de Google). v11: sin gg
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

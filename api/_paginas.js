@@ -1,4 +1,6 @@
 // api/_paginas.js — Locus Mundi
+// Versión 1.5 · 24/11/2026 · Al pasar a la dirección de la web (replaceState), se conservan «c» (canal) y
+//  «regalar»: antes se perdían en /libro/<id>, /en y /ca, y las visitas etiquetadas no contaban (D14).
 // Versión 1.4 · 23/11/2026 · /ca: Inicio en catalán para los buscadores (como /en), con hreflang ca en el
 //  sitemap; la web pasa a /?lang=ca. inicioEn queda como inicioIdioma('en'), igual que antes.
 // Versión 1.3 · 21/11/2026 · Versión de archivo para el PADICAT (Biblioteca de Catalunya). Continuidad,
@@ -49,6 +51,14 @@ const ETQ = {
 };
 
 // ---- Piezas comunes ----------------------------------------------------------------------
+// v1.5: script que lleva la dirección a la de la web conservando «c» (canal) y «regalar» de la de llegada.
+// Antes: history.replaceState(null,"",<destino>+location.hash), que los perdía.
+function scriptDireccion(destino) {
+  return `<script>try{var q=new URLSearchParams(location.search),d=new URL(${JSON.stringify(destino)},location.origin);` +
+    `["c","regalar"].forEach(function(k){if(q.has(k))d.searchParams.set(k,q.get(k))});` +
+    `history.replaceState(null,"",d.pathname+d.search+location.hash)}catch(e){}</script>`;
+}
+
 function cambiarCabecera(html, d) {
   const meta = (atr, clave, valor) => {
     const re = new RegExp(`<meta ${atr}="${clave}" content="[^"]*"\\s*/?>`);
@@ -70,7 +80,7 @@ function cambiarCabecera(html, d) {
   }
   html = html.replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${esc(d.url)}"/>`);
   if (d.sinIdiomas) html = html.replace(/<link rel="alternate" hreflang="[^"]*"[^>]*>\n?/g, '');
-  const extra = `<script>try{history.replaceState(null,"",${JSON.stringify(d.direccionWeb)}+location.hash)}catch(e){}</script>\n` +
+  const extra = scriptDireccion(d.direccionWeb) + '\n' + // v1.5
     (d.datos ? `<script type="application/ld+json">${JSON.stringify(d.datos).replace(/</g, '\\u003c')}</script>\n` : '');
   return html.replace('</head>', extra + '</head>');
 }
@@ -170,7 +180,7 @@ async function libro(res, id, url, llave, idioma0) {
     : [];
   const p = filas && filas[0];
   if (!p) { // no existe o ya no está publicado: la web de siempre dirá «no encontrado»
-    html = html.replace('</head>', `<meta name="robots" content="noindex"/>\n<script>try{history.replaceState(null,"","/?libro=${esc(id)}${conIdioma}")}catch(e){}</script>\n</head>`);
+    html = html.replace('</head>', `<meta name="robots" content="noindex"/>\n${scriptDireccion(`/?libro=${esc(id)}${conIdioma}`)}\n</head>` /* v1.5 */);
     return enviarHtml(res, html, 404);
   }
   const c = p.contenido || {};
@@ -358,7 +368,7 @@ module.exports = async function paginas(req, res, url, llave) {
     if (q.pagina === 'archivo') return res.status(500).send('<!DOCTYPE html><meta charset="utf-8"><p>Archivo no disponible ahora mismo. Vuelva a intentarlo más tarde.</p>'); // v1.3
     const id = UUID_RE.test(String(q.id || '')) ? String(q.id) : '';
     let html = leerPlantilla();
-    if (id) html = html.replace('</head>', `<script>try{history.replaceState(null,"","/?libro=${id}${/^[a-z]{2}(-[a-z]{2})?$/i.test(String(q.lang || '')) ? '&lang=' + String(q.lang).toLowerCase() : ''}")}catch(e){}</script>\n</head>`);
+    if (id) html = html.replace('</head>', scriptDireccion(`/?libro=${id}${/^[a-z]{2}(-[a-z]{2})?$/i.test(String(q.lang || '')) ? '&lang=' + String(q.lang).toLowerCase() : ''}`) + '\n</head>'); // v1.5
     return res.status(q.pagina === 'sitemap' ? 500 : 200).send(html);
   }
 };
