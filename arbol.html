@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <!-- arbol.html — Locus Mundi · Mi árbol genealógico
+     24/11/2026 (D14): ?c= cuenta el canal de llegada, como en la web.
      Versión 1 · 05/11/2026 · Fase C, «Árbol genealógico, construcción II». A partir del prototipo validado
      el 04/11 (arbol-prototipo-1.html; contenido v2.5 §9 y §10). Cambios: documento completo; fuentes de
      /vendor/fuentes/fuentes.css (antes, Google Fonts); descarga normal del navegador (enlace «download»);
@@ -212,6 +213,17 @@ html,body{margin:0}
 <input type="file" id="fopen" accept=".json,application/json" hidden>
 <datalist id="paises"></datalist>
 
+<script>
+/* [24/11/2026, D14] Canal de llegada, como en index.html: /arbol?c=fb suma una visita del canal (anónima, en
+   visitas_canal vía api/contador-historias.js) y «c» sale de la dirección. Antes: sin este bloque. */
+(function(){ try{
+  var u=new URL(location.href), c=(u.searchParams.get("c")||"").toLowerCase();
+  if(!u.searchParams.has("c")) return;
+  u.searchParams.delete("c"); history.replaceState(history.state,"",u.pathname+u.search+u.hash);
+  if(!/^[a-z0-9]{1,12}$/.test(c)) return;
+  fetch("/api/contador-historias",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({canal:c}),keepalive:true}).catch(function(){});
+}catch(e){} })();
+</script>
 <script>
 (function(){
 "use strict";
