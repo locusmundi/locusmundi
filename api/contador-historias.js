@@ -1,4 +1,6 @@
 // api/contador-historias.js — Locus Mundi
+// Versión 13 · 24/11/2026 · D14: la descarga del Árbol suma también en `medicion` (tipo arbol) con el canal de
+//  la visita, si lo trae ({ arbol:'descarga', canal }), y el lugar aproximado (api/_medicion.js). sumar_descarga_arbol, igual.
 // Versión 12 · 24/11/2026 · Canal «gg» (anuncios de Google), para la prueba de anuncios (D14).
 // Versión 11 · 21/11/2026 · Enlaces etiquetados por canal: POST { canal } suma una visita del día a ese canal
 //  (función sumar_visita_canal, tabla visitas_canal: solo día, canal y total; sin IP, cuenta ni cookie). Solo
@@ -31,6 +33,7 @@
 // Versión 6 · 16/10/2026 · Fase B2, conversación 3c: X. Batlle ya está en Supabase (Nº 4); el +1 pasa a 0.
 // Versiones 2–5 · 06–16/10/2026 · Cuenta publicaciones; bajada del +N muestra a muestra.
 
+const { sumarMedicion } = require('./_medicion'); // v13
 const CANALES = ['fb', 'wa', 'tt', 'in', 'ig', 'yt', 'gg', 'bib', 'vm', 'em', 'qr', 'ot']; // v12: + gg (anuncios de Google). v11: sin gg
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -66,6 +69,8 @@ module.exports = async function handler(req, res) {
       if (body && body.arbol === 'descarga') { // v9
         const r = await rpc('sumar_descarga_arbol');
         if (!r.ok) console.error('contador-historias (árbol):', r.status);
+        const canalArbol = String(body.canal || '').toLowerCase(); // v13
+        await sumarMedicion('arbol', CANALES.includes(canalArbol) ? canalArbol : '', req);
         return res.status(204).end();
       }
       const id = String((body && body.historia_id) || '');

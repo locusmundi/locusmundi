@@ -1,4 +1,7 @@
 // api/registro-lssi.js — Locus Mundi
+// Versión 2.4 · 24/11/2026 · D14: tras anotar el alta, suma 1 en la tabla de totales `medicion` (tipo alta) con el
+//   canal de llegada (metadatos de la cuenta, si llegó en esa visita) y el lugar aproximado de la conexión, sin
+//   unirlo a la cuenta ni guardar la IP (api/_medicion.js). Cuentas +test, fuera. Nada más cambia.
 // Versión 2.3 · 13/11/2026 · Pruebas de usuario C3 a: respuestas a contacto@locusmundi.com. Nada más cambia.
 // Versión 2.2 · 31/10/2026 · Firma corporativa (api/_firma.js) al pie del correo «Has eliminado tu libro…» (HTML con el
 //   logo y texto plano sin imagen), sin el «Locus Mundi» final (Lista, pendiente r).
@@ -15,6 +18,7 @@
 // Versión 1: anota alta, publicación y despublicación con la IP (LSSI), sin comprobar quién llama.
 
 const { conFirma } = require("./_firma"); // v2.2
+const { sumarMedicion } = require("./_medicion"); // v2.4
 const SB = process.env.SUPABASE_URL; // v2.1: sin dirección de reserva
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -79,6 +83,12 @@ module.exports = async function handler(req, res) {
       const ya = await fetch(`${SB}/rest/v1/registro_lssi?autor_id=eq.${id}&accion=eq.alta&select=id&limit=1`, { headers: sbHeaders() });
       if (ya.ok && (await ya.json()).length) { res.status(200).json({ ok: true }); return; }
       await anotar(id, "alta", ip);
+      try { // v2.4: medición anónima (canal y lugar); nunca hace fallar el alta
+        const u = await fetch(`${SB}/auth/v1/admin/users/${id}`, { headers: sbHeaders() });
+        const usuario = u.ok ? await u.json() : null;
+        const correo = String((usuario && usuario.email) || "");
+        if (usuario && !/\+test/i.test(correo)) await sumarMedicion("alta", (usuario.user_metadata || {}).canal, req);
+      } catch (e) { console.error("medicion (alta):", e.message); }
       res.status(200).json({ ok: true });
       return;
     }

@@ -1,4 +1,6 @@
 // api/_actividad.js — Locus Mundi
+// Versión 4 · 24/11/2026 · D14: bloque «POR CANAL Y LUGAR (ayer)»: visitas por canal (visitas_canal), altas y Árboles
+// descargados por canal y por lugar (tabla de totales anónima `medicion`). Desde el 24/11; antes no hay datos.
 // Versión 3 · 05/11/2026 · Árbol genealógico, paso final: «Árboles en libros» (imágenes del árbol vistas por la
 // revisión ese día) y su acumulado (libros distintos); actividad_dia: arboles_en_libros y libros_con_arbol.
 // Versión 2 · 05/11/2026 · Fase C, «Árbol genealógico, construcción II»: línea «Árboles descargados» (ayer) y su
@@ -23,6 +25,23 @@ function ayerMadrid(ahora = new Date()) {
 
 const eur = c => ((c || 0) / 100).toFixed(2).replace('.', ',') + ' €';
 
+// v4: «fb 3 · tt 1»; vacío → «—». Sin canal = «sin etiqueta».
+function porClave(filas, clave) {
+  const t = {};
+  for (const f of filas || []) { const k = f[clave] || ''; t[k] = (t[k] || 0) + (f.total || 0); }
+  const partes = Object.entries(t).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k || 'sin etiqueta'} ${n}`);
+  return partes.length ? partes.join(' · ') : '—';
+}
+function porLugar(filas) {
+  const t = {};
+  for (const f of filas || []) {
+    const k = [f.ciudad, f.region && `(${f.region})`, f.pais && f.pais !== 'ES' ? f.pais : ''].filter(Boolean).join(' ') || 'lugar desconocido';
+    t[k] = (t[k] || 0) + (f.total || 0);
+  }
+  const partes = Object.entries(t).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`);
+  return partes.length ? partes.join(' · ') : '—';
+}
+
 function texto(c) {
   const [a, m, d] = c.dia.split('-').map(Number);
   const fecha = new Date(Date.UTC(a, m - 1, d, 12));
@@ -45,6 +64,16 @@ function texto(c) {
     `Árboles descargados: ${c.arbol_descargas || 0}`, // v2
     `Árboles subidos a un libro: ${c.arboles_en_libros || 0}`, // v3
   ];
+  if (c.medicion) { // v4
+    const m = c.medicion, altas = m.filas.filter(f => f.tipo === 'alta'), arboles = m.filas.filter(f => f.tipo === 'arbol');
+    l.push('', 'POR CANAL Y LUGAR (ayer)',
+      `Visitas con etiqueta: ${porClave(m.visitas, 'canal')}`,
+      `Altas por canal: ${porClave(altas, 'canal')}`,
+      `Altas por lugar: ${porLugar(altas)}`,
+      `Árboles por canal: ${porClave(arboles, 'canal')}`,
+      `Árboles por lugar: ${porLugar(arboles)}`,
+      '(Lugar aproximado, por la conexión: en móvil suele salir la capital de provincia. Canal: solo si llegó con etiqueta en esa misma visita.)');
+  }
   if (c.ventas_prueba) l.push(`(${c.ventas_prueba} compra(s) del modo de prueba de Stripe o de cuentas +test: no cuentan)`);
   l.push('', 'ACUMULADO (hoy)',
     `Autores: ${c.autores}`,
@@ -68,7 +97,17 @@ async function resumenActividad(ahora = new Date()) {
     body: JSON.stringify({ p_dia: ayerMadrid(ahora) }),
   });
   if (!r.ok) throw new Error(`actividad_dia: ${r.status} ${(await r.text()).slice(0, 200)}`);
-  return texto(await r.json());
+  const datos = await r.json();
+  try { // v4: si falla, el correo sale igual, sin el bloque
+    const h = { apikey: llave, Authorization: `Bearer ${llave}` };
+    const base = process.env.SUPABASE_URL, dia = datos.dia || ayerMadrid(ahora);
+    const [v, m] = await Promise.all([
+      fetch(`${base}/rest/v1/visitas_canal?dia=eq.${dia}&select=canal,total`, { headers: h }),
+      fetch(`${base}/rest/v1/medicion?dia=eq.${dia}&select=tipo,canal,pais,region,ciudad,total`, { headers: h }),
+    ]);
+    if (v.ok && m.ok) datos.medicion = { visitas: await v.json(), filas: await m.json() };
+  } catch (e) { console.error('actividad (medicion):', e.message); }
+  return texto(datos);
 }
 
 module.exports = { resumenActividad, ayerMadrid, _texto: texto };

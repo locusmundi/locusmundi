@@ -36,6 +36,7 @@
 //  - Cada copia sigue completa: la copia interna es un objeto nuevo y sus 35 días empiezan de
 //    cero (regla intacta); una foto borrada en Supabase ya no pasa a la copia siguiente
 //    (supresión intacta). fin.json anota fotos_bajadas, fotos_copiadas_r2 e indice_anterior.
+// Versión 3.8 · 24/11/2026 · D14: copia también `medicion` (totales anónimos de altas y Árboles por canal y lugar).
 // Versión 3.7 · 09/11/2026 · Lista, pendiente (pp): copia también arbol_descargas (contador diario de
 //   descargas del Árbol, 05/11). restaurar.js no cambia: restaura las tablas que lista fin.json.
 //   Siguen fuera, regenerables o de control: errores, frases_aprobadas, moderaciones, registro_gasto,
@@ -62,6 +63,7 @@ const TABLAS = {
   regiones: 'codigo', // v3.2
   lecturas: 'historia_id', // v3.2
   arbol_descargas: 'dia', // v3.7
+  medicion: 'dia', // v3.8
 };
 const BUCKET_FOTOS = 'fotos';
 const TIEMPO_MAXIMO_MS = 270000; // v3.5 (antes 45000)
