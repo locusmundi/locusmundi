@@ -1,4 +1,5 @@
 // api/contador-historias.js — Locus Mundi
+// Versión 13.1 · 24/11/2026 · D14: una descarga del Árbol con canal ({ arbol, canal }) ya no se toma por una visita.
 // Versión 13 · 24/11/2026 · D14: la descarga del Árbol suma también en `medicion` (tipo arbol) con el canal de
 //  la visita, si lo trae ({ arbol:'descarga', canal }), y el lugar aproximado (api/_medicion.js). sumar_descarga_arbol, igual.
 // Versión 12 · 24/11/2026 · Canal «gg» (anuncios de Google), para la prueba de anuncios (D14).
@@ -58,7 +59,7 @@ module.exports = async function handler(req, res) {
       let body = req.body;
       if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
       if (body && body.error) return await guardarError(body.error, SUPABASE_URL, SERVICE_KEY, res); // v8
-      if (body && body.canal !== undefined) { // v11
+      if (body && body.canal !== undefined && body.arbol === undefined) { // v11; v13.1: no si es una descarga del Árbol con su canal (antes la contaba como visita)
         const canal = String(body.canal || '').toLowerCase();
         if (CANALES.includes(canal)) {
           const r = await rpc('sumar_visita_canal', { p_canal: canal });
