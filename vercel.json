@@ -1,6 +1,11 @@
 {
   "redirects": [
     {
+      "source": "/biblioteca",
+      "destination": "/?c=bib",
+      "permanent": false
+    },
+    {
       "source": "/:path((?!api/).*)",
       "has": [
         {

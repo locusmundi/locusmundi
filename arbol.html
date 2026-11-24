@@ -221,6 +221,7 @@ html,body{margin:0}
   if(!u.searchParams.has("c")) return;
   u.searchParams.delete("c"); history.replaceState(history.state,"",u.pathname+u.search+u.hash);
   if(!/^[a-z0-9]{1,12}$/.test(c)) return;
+  window.LM_CANAL=c; // solo en la memoria de esta visita (no se guarda en el navegador): va con la descarga
   fetch("/api/contador-historias",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({canal:c}),keepalive:true}).catch(function(){});
 }catch(e){} })();
 </script>
@@ -1132,7 +1133,7 @@ async function descargar(){
   const fam=nombreFamilia(), f=hoy(), out=[['A',T.imgArbol]]; if(famLlena())out.push(['B',T.imgFamilia]);
   for(const [k] of out){if(!IMGS[k]){toast(T.preparando); return;}}
   for(const [k,t] of out){if(!(await saveFile(T.archivoImg(t,fam,f),IMGS[k].blob)))return;}
-  avisar({arbol:'descarga'}); // contador anónimo: una descarga = 1, sin ningún dato del árbol
+  avisar(window.LM_CANAL?{arbol:'descarga',canal:window.LM_CANAL}:{arbol:'descarga'}); // contador anónimo: una descarga = 1, sin ningún dato del árbol; [24/11/2026, D14] con el canal de la visita si lo hay (antes, solo {arbol:'descarga'})
   toast(out.length>1?T.descargadas:T.descargada);
 }
 
